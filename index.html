@@ -4,144 +4,103 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ryree by Shreya Deshmukh</title>
-<!-- Firebase compat SDKs (no modules needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  const cfg = {
-    apiKey:"AIzaSyBLQXASONjNoAxek0OYBWm8AD_1i9oQgsI",
-    authDomain:"ryreeboutique.firebaseapp.com",
-    projectId:"ryreeboutique",
-    storageBucket:"ryreeboutique.firebasestorage.app",
-    messagingSenderId:"214509276840",
-    appId:"1:214509276840:web:28d36a70a3a7d6698dbc9d"
-  };
-  firebase.initializeApp(cfg);
-  const db = firebase.firestore();
-  window.$db         = db;
-  window.$col        = (name) => db.collection(name);
-  window.$doc        = (col, id) => db.collection(col).doc(id);
-  window.$getDocs    = (ref) => ref.get();
-  window.$setDoc     = (ref, data) => ref.set(data);
-  window.$deleteDoc  = (ref) => ref.delete();
-  window.$onSnapshot = (ref, cb, err) => ref.onSnapshot(cb, err);
-  window.$getDoc     = (ref) => ref.get();
-  window.dispatchEvent(new Event('firebase-ready'));
+firebase.initializeApp({
+  apiKey:"AIzaSyBLQXASONjNoAxek0OYBWm8AD_1i9oQgsI",
+  authDomain:"ryreeboutique.firebaseapp.com",
+  projectId:"ryreeboutique",
+  storageBucket:"ryreeboutique.firebasestorage.app",
+  messagingSenderId:"214509276840",
+  appId:"1:214509276840:web:28d36a70a3a7d6698dbc9d"
+});
+const db = firebase.firestore();
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#1a1a1a;background:#f0f4f3;min-height:100vh}
-:root{--teal:#2D6B5E;--teal-dark:#1e4d43;--gold:#C9A84C;}
-
-/* LOGIN */
-.login-wrap{display:none;min-height:100vh;align-items:center;justify-content:center;background:#2D6B5E;flex-direction:column;gap:0;padding:20px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f0f4f3;min-height:100vh}
+.app{display:flex;min-height:100vh}
+.login-wrap{display:none;min-height:100vh;align-items:center;justify-content:center;background:#2D6B5E;flex-direction:column;padding:20px}
 .login-box{background:#fff;border-radius:20px;padding:36px;width:380px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.25);text-align:center}
-.login-title{font-size:20px;font-weight:700;margin-bottom:6px;color:#1a1a1a}
+.login-logo-text{font-size:28px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:4px}
+.login-by{font-size:13px;color:#C9A84C;opacity:.8;margin-bottom:28px;font-style:italic}
+.login-title{font-size:20px;font-weight:700;margin-bottom:6px}
 .login-sub{font-size:13px;color:#aaa;margin-bottom:24px}
-.login-input{width:100%;padding:12px 14px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:15px;outline:none;transition:border-color .15s;text-align:center;letter-spacing:.1em;background:#fafafa;color:#1a1a1a}
+.login-input{width:100%;padding:12px 14px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:15px;outline:none;text-align:center;letter-spacing:.1em;background:#fafafa;color:#1a1a1a}
 .login-input:focus{border-color:#2D6B5E;background:#fff;box-shadow:0 0 0 4px rgba(45,107,94,.1)}
 .login-input.error{border-color:#E24B4A;background:#FEF2F2}
 .login-err{font-size:12px;color:#E24B4A;margin-top:8px;min-height:18px}
-.login-btn{width:100%;padding:13px;background:#2D6B5E;color:#C9A84C;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;transition:background .15s}
+.login-btn{width:100%;padding:13px;background:#2D6B5E;color:#C9A84C;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
 .login-btn:hover{background:#1e4d43}
 .login-footer{font-size:11px;color:#ccc;margin-top:20px}
 .login-change{font-size:12px;color:#2D6B5E;cursor:pointer;text-decoration:underline;margin-top:10px;display:block}
-
-/* SIDEBAR */
-.app{display:flex;min-height:100vh}
-.sidebar{width:230px;min-width:230px;background:#2D6B5E;border-right:none;padding:16px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:10;overflow-y:auto}
-.logo{padding:12px 16px 14px;border-bottom:1px solid rgba(201,168,76,.25);margin-bottom:8px}
-.logo-sub{font-size:11px;color:rgba(201,168,76,.6);margin-top:6px;text-align:center}
+.sidebar{width:230px;min-width:230px;background:#2D6B5E;padding:16px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:10;overflow-y:auto}
+.logo{padding:12px 16px 14px;border-bottom:1px solid rgba(201,168,76,.25);margin-bottom:8px;text-align:center}
+.logo-name{font-size:18px;font-weight:700;color:#C9A84C;letter-spacing:.04em}
+.logo-sub{font-size:10px;color:rgba(201,168,76,.6);margin-top:4px}
 .nav-section{padding:10px 14px 3px;font-size:10px;letter-spacing:.08em;color:rgba(201,168,76,.45);text-transform:uppercase;font-weight:600}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;border-radius:7px;margin:1px 8px;font-size:13px;color:rgba(255,255,255,.75);transition:background .12s;user-select:none}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;border-radius:7px;margin:1px 8px;font-size:13px;color:rgba(255,255,255,.75);transition:background .12s}
 .nav-item:hover{background:rgba(255,255,255,.1)}
 .nav-item.active{background:rgba(201,168,76,.18);color:#C9A84C;font-weight:600}
 .nav-item.active .ni{opacity:1;stroke:#C9A84C}
 .ni{width:15px;height:15px;flex-shrink:0;opacity:.6}
-
-/* MAIN */
-.main{flex:1;margin-left:230px;padding:28px;overflow-x:hidden;background:#f0f4f3}
+.main{flex:1;margin-left:230px;padding:28px;background:#f0f4f3}
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap}
 .page-title{font-size:22px;font-weight:600}
 .page-sub{font-size:12px;color:#888;margin-top:3px}
-.header-actions{display:flex;gap:8px;flex-wrap:wrap}
-
-/* SYNC STATUS BAR */
-.sync-status{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 12px;border-radius:20px;font-weight:500;margin-bottom:16px;width:fit-content}
-.sync-ok{background:#e6f0ee;color:#2D6B5E}
-.sync-err{background:#FEF2F2;color:#991B1B}
-.sync-loading{background:#FFFBEB;color:#92400E}
-.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.sync-ok .sync-dot{background:#2D6B5E}
-.sync-err .sync-dot{background:#E24B4A}
-.sync-loading .sync-dot{background:#F59E0B;animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* BUTTONS */
 .btn{padding:7px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#1a1a1a;transition:all .12s;white-space:nowrap}
-.btn:hover{background:#f5f5f7;border-color:#ccc}
+.btn:hover{background:#f5f5f7}
 .btn-primary{background:#2D6B5E;color:#C9A84C;border-color:#2D6B5E}
-.btn-primary:hover{background:#1e4d43;border-color:#1e4d43}
-.btn-outline{border-color:#2D6B5E;color:#2D6B5E;background:#fff}
-.btn-outline:hover{background:#f0f4f3}
+.btn-primary:hover{background:#1e4d43}
 .btn-sm{padding:5px 11px;font-size:12px}
 .btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
 .btn-danger{background:#E24B4A;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;padding:5px 10px;font-weight:500}
 .btn-danger:hover{background:#A32D2D}
 .btn-meas{background:#2D6B5E;color:#C9A84C;border:none;border-radius:7px;cursor:pointer;font-size:12px;padding:6px 12px;font-weight:500;white-space:nowrap}
 .btn-meas:hover{background:#1e4d43}
-
-/* CARDS */
 .card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:18px}
 .card-p0{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:0;overflow:hidden}
 .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
-@media(max-width:900px){.stats-row{grid-template-columns:repeat(2,1fr)}}
 .stat-card{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:16px}
 .stat-label{font-size:12px;color:#888;margin-bottom:5px}
 .stat-val{font-size:24px;font-weight:600}
-
-/* TABLE */
 table{width:100%;border-collapse:collapse}
 th{text-align:left;font-size:11px;font-weight:600;color:#888;letter-spacing:.05em;text-transform:uppercase;padding:10px 14px;border-bottom:1px solid #f0f0f0;background:#fafafa}
 td{padding:11px 14px;border-bottom:1px solid #f5f5f5;font-size:13px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#fafafa}
-
-/* BADGES */
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
 .b-pending{background:#FEF3E2;color:#B45309}
 .b-prog{background:#EFF6FF;color:#1D4ED8}
 .b-active{background:#F0FDF4;color:#166534}
 .b-done{background:#F5F3FF;color:#6D28D9}
 .b-cancelled{background:#FEF2F2;color:#991B1B}
-
-/* MISC */
 .avatar{width:34px;height:34px;border-radius:50%;background:#e6f0ee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#2D6B5E;flex-shrink:0}
 .search-wrap{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:8px 12px;margin-bottom:14px}
 .search-wrap input{border:none;outline:none;font-size:13px;flex:1;color:#1a1a1a;background:transparent}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
 .modal{background:#fff;border-radius:14px;padding:26px;width:540px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
-.modal-title{font-size:17px;font-weight:600;margin-bottom:3px;color:#1a1a1a}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:3px}
 .modal-sub{font-size:12px;color:#999;margin-bottom:18px}
 .form-group{margin-bottom:14px}
 .form-label{font-size:12px;font-weight:600;color:#555;margin-bottom:5px;display:block}
-.form-input{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;color:#1a1a1a;outline:none;transition:border-color .12s}
+.form-input{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:13px;background:#fff;color:#1a1a1a;outline:none}
 .form-input:focus{border-color:#2D6B5E;box-shadow:0 0 0 3px rgba(45,107,94,.1)}
 textarea.form-input{resize:vertical}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0}
 .pill{background:#e6f0ee;color:#2D6B5E;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;display:inline-block;margin:2px}
 .pill-removable{display:inline-flex;align-items:center;gap:4px;background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;margin:3px}
-.pill-removable button{background:none;border:none;cursor:pointer;color:#2D6B5E;font-size:15px;line-height:1;padding:0;margin-left:2px;font-weight:600}
+.pill-removable button{background:none;border:none;cursor:pointer;color:#2D6B5E;font-size:15px;line-height:1;padding:0;margin-left:2px}
 .pill-removable button:hover{color:#E24B4A}
 .back-btn{background:none;border:none;cursor:pointer;font-size:13px;color:#2D6B5E;padding:0;margin-bottom:16px;display:inline-flex;align-items:center;gap:5px;font-weight:500}
-.back-btn:hover{color:#1e4d43}
 .meas-item-row{background:#f9f9f9;border-radius:8px;padding:9px 13px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f0f0f0}
 .meas-val{font-weight:600;color:#2D6B5E}
 .clothes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .cloth-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px;cursor:pointer;transition:all .12s}
 .cloth-card:hover{border-color:#2D6B5E;box-shadow:0 2px 12px rgba(45,107,94,.12)}
-.section-title{font-size:14px;font-weight:600;margin-bottom:12px;color:#1a1a1a}
+.section-title{font-size:14px;font-weight:600;margin-bottom:12px}
 .empty{text-align:center;padding:40px 20px;color:#aaa;font-size:13px;line-height:1.8}
 .add-meas-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 .selected-meas-box{min-height:48px;border:1px solid #e8e8e8;border-radius:8px;padding:8px;background:#fafafa;display:flex;flex-wrap:wrap;gap:2px;align-items:flex-start}
@@ -153,728 +112,684 @@ textarea.form-input{resize:vertical}
 .warn-box{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;font-size:13px;color:#92400E}
 .danger-box{background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:18px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:700px){.two-col{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.meas-grid{grid-template-columns:1fr}.sidebar{transform:translateX(-100%)}.main{margin-left:0}}
-.loading-screen{display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:16px;color:#888}
-.spinner{width:32px;height:32px;border:3px solid #e8e8e8;border-top-color:#2D6B5E;border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#C9A84C;display:inline-block;margin-right:5px}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.meas-grid{grid-template-columns:1fr}.sidebar{transform:translateX(-100%)}.main{margin-left:0}.stats-row{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
 <div class="login-wrap" id="login-wrap">
- <div style="color:#C9A84C;font-size:22px;font-weight:700;letter-spacing:.05em;padding:8px 0">RYREE</div>
- <div class="login-box">
-  <div class="login-title">Welcome back</div>
-  <div class="login-sub">Enter your password to continue</div>
-  <input class="login-input" id="login-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
-  <div class="login-err" id="login-err"></div>
-  <button class="login-btn" onclick="doLogin()">Sign in</button>
-  <div class="login-footer">Ryree Boutique · Private access only</div>
-  <span class="login-change" onclick="showChangePwFromLogin()">Change password</span>
- </div>
+  <div class="login-logo-text">RYREE</div>
+  <div class="login-by">by Shreya Deshmukh</div>
+  <div class="login-box">
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Enter your password to continue</div>
+    <input class="login-input" id="login-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="login-err"></div>
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
+    <div class="login-footer">Ryree Boutique · Private access only</div>
+    <span class="login-change" onclick="showChangePw()">Change password</span>
+  </div>
 </div>
 
 <div class="app" style="display:none" id="app-wrap">
- <div class="sidebar" id="sidebar">
-  <div class="logo" style="padding:12px 16px 14px">
-   <div style="color:#C9A84C;font-size:22px;font-weight:700;letter-spacing:.05em;padding:8px 0">RYREE</div>
-   <div class="logo-sub">Boutique Management Software</div>
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-name">RYREE</div>
+      <div class="logo-sub">Boutique Management Software</div>
+    </div>
+    <div class="nav-section">Master</div>
+    <div class="nav-item active" onclick="nav('measitems')" id="nav-measitems">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h4" stroke-linecap="round"/></svg>Measurement Items
+    </div>
+    <div class="nav-item" onclick="nav('clothing')" id="nav-clothing">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
+    </div>
+    <div class="nav-item" onclick="nav('clients')" id="nav-clients">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
+    </div>
+    <div class="nav-section">Entry</div>
+    <div class="nav-item" onclick="nav('orders')" id="nav-orders">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
+    </div>
+    <div class="nav-item" onclick="nav('appointments')" id="nav-appointments">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
+    </div>
+    <div class="nav-section">View</div>
+    <div class="nav-item" onclick="nav('dashboard')" id="nav-dashboard">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
+    </div>
+    <div style="flex:1"></div>
+    <div style="padding:12px 16px;border-top:1px solid rgba(201,168,76,.2)">
+      <div style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px">
+        <span class="sync-dot" id="sync-dot"></span><span id="sync-text">Connecting...</span>
+      </div>
+      <button onclick="showChangePw()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>Change password
+      </button>
+      <button onclick="doLogout()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
+      </button>
+    </div>
   </div>
-  <div class="nav-section">Master</div>
-  <div class="nav-item active" onclick="nav('measitems')" id="nav-measitems">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h4" stroke-linecap="round"/></svg>Measurement Items
-  </div>
-  <div class="nav-item" onclick="nav('clothing')" id="nav-clothing">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z" stroke-linejoin="round"/></svg>Clothing Items
-  </div>
-  <div class="nav-item" onclick="nav('clients')" id="nav-clients">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
-  </div>
-  <div class="nav-section">Entry</div>
-  <div class="nav-item" onclick="nav('orders')" id="nav-orders">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
-  </div>
-  <div class="nav-item" onclick="nav('appointments')" id="nav-appointments">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
-  </div>
-  <div class="nav-section">View</div>
-  <div class="nav-item" onclick="nav('dashboard')" id="nav-dashboard">
-   <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
-  </div>
-  <div style="flex:1"></div>
-  <div style="padding:12px 16px;border-top:1px solid rgba(201,168,76,.2)">
-   <div id="sync-indicator" style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px;display:flex;align-items:center;gap:5px">
-    <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:#C9A84C;display:inline-block"></span>
-    <span id="sync-text">Connected</span>
-   </div>
-   <button onclick="showChangePw()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>Change password
-   </button>
-   <button onclick="doLogout()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
-   </button>
-  </div>
- </div>
- <div class="main" id="main-content"></div>
+  <div class="main" id="main-content"></div>
 </div>
 <div id="modal-root"></div>
 
 <script>
-// ── AUTH ─────────────────────────────────────────────────────────────────
+// AUTH
 const DEFAULT_PW='ryree2024';
-function getStoredPw(){return localStorage.getItem('ryree_pw')||DEFAULT_PW;}
+function getPw(){return localStorage.getItem('ryree_pw')||DEFAULT_PW;}
 function isLoggedIn(){return sessionStorage.getItem('ryree_auth')==='1';}
-function initAuth(){
-  if(isLoggedIn())showApp();
-  else showLoginScreen();
-}
-function showLoginScreen(){
+function initAuth(){if(isLoggedIn())showApp();else showLogin();}
+function showLogin(){
   document.getElementById('login-wrap').style.display='flex';
   document.getElementById('app-wrap').style.display='none';
-  setTimeout(()=>document.getElementById('login-pw')?.focus(),100);
+  setTimeout(()=>document.getElementById('login-pw').focus(),100);
 }
 function showApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
-  initFirebaseListeners();
+  initDB();
 }
 function doLogin(){
   const pw=document.getElementById('login-pw').value;
-  const inp=document.getElementById('login-pw');
-  const err=document.getElementById('login-err');
-  if(pw===getStoredPw()){
+  if(pw===getPw()){
     sessionStorage.setItem('ryree_auth','1');
-    inp.classList.remove('error');err.textContent='';showApp();
-  }else{
-    inp.classList.add('error');err.textContent='Incorrect password. Please try again.';inp.value='';inp.focus();
+    document.getElementById('login-err').textContent='';
+    document.getElementById('login-pw').classList.remove('error');
+    showApp();
+  } else {
+    document.getElementById('login-pw').classList.add('error');
+    document.getElementById('login-err').textContent='Incorrect password.';
+    document.getElementById('login-pw').value='';
   }
 }
 function doLogout(){
   if(!confirm('Sign out?'))return;
   sessionStorage.removeItem('ryree_auth');
-  showLoginScreen();
-  document.getElementById('login-pw').value='';
-  document.getElementById('login-err').textContent='';
-  document.getElementById('login-pw').classList.remove('error');
+  showLogin();
 }
 function showChangePw(){
-  showModal(`<div class="modal-title">Change password</div>
-    <div class="modal-sub">Set a new password. Everyone using the app will need the new password.</div>
-    <div class="form-group"><label class="form-label">Current password</label><input class="form-input" id="pw-current" type="password"></div>
-    <div class="form-group"><label class="form-label">New password</label><input class="form-input" id="pw-new" type="password"></div>
-    <div class="form-group"><label class="form-label">Confirm new password</label><input class="form-input" id="pw-confirm" type="password"></div>
-    <div id="pw-err" style="font-size:12px;color:#E24B4A;min-height:18px"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveNewPw()">Change</button></div>`);
-  setTimeout(()=>document.getElementById('pw-current')?.focus(),50);
+  showModal('<div class="modal-title">Change password</div>'+
+    '<div class="modal-sub">Set a new password for the app.</div>'+
+    '<div class="form-group"><label class="form-label">Current password</label><input class="form-input" id="pw-cur" type="password"></div>'+
+    '<div class="form-group"><label class="form-label">New password</label><input class="form-input" id="pw-new" type="password"></div>'+
+    '<div class="form-group"><label class="form-label">Confirm new password</label><input class="form-input" id="pw-cf" type="password"></div>'+
+    '<div id="pw-err" style="font-size:12px;color:#E24B4A;min-height:18px"></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveNewPw()">Change</button></div>');
 }
-function showChangePwFromLogin(){showChangePw();}
 function saveNewPw(){
-  const cur=document.getElementById('pw-current').value;
+  const cur=document.getElementById('pw-cur').value;
   const nw=document.getElementById('pw-new').value.trim();
-  const cf=document.getElementById('pw-confirm').value.trim();
+  const cf=document.getElementById('pw-cf').value.trim();
   const err=document.getElementById('pw-err');
-  if(cur!==getStoredPw()){err.textContent='Current password incorrect.';return;}
+  if(cur!==getPw()){err.textContent='Current password incorrect.';return;}
   if(!nw||nw.length<4){err.textContent='Password must be at least 4 characters.';return;}
   if(nw!==cf){err.textContent='Passwords do not match.';return;}
   localStorage.setItem('ryree_pw',nw);
-  closeModal();alert('✅ Password changed!');
+  closeModal();alert('Password changed!');
 }
 
-// ── FIREBASE DATA LAYER ──────────────────────────────────────────────────
+// FIREBASE DB
 let DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[]};
-let _unsubs=[];
-let _syncOk=false;
+let unsubs=[];
 
-function setSyncStatus(status,msg){
+function setSync(status,msg){
   const dot=document.getElementById('sync-dot');
   const txt=document.getElementById('sync-text');
   if(!dot)return;
-  if(status==='ok'){dot.style.background='#C9A84C';txt.textContent=msg||'Synced';}
-  else if(status==='error'){dot.style.background='#E24B4A';txt.textContent=msg||'Offline';}
-  else{dot.style.background='#F59E0B';txt.textContent=msg||'Syncing...';}
+  dot.style.background=status==='ok'?'#C9A84C':status==='err'?'#E24B4A':'#F59E0B';
+  txt.textContent=msg||'';
 }
 
-function waitForFirebase(cb){
-  if(window.$db){cb();return;}
-  window.addEventListener('firebase-ready',cb,{once:true});
-}
-
-function initFirebaseListeners(){
-  waitForFirebase(()=>{
-    setSyncStatus('loading','Connecting...');
-    const cols=['measitems','clothing','clients','orders','appointments'];
-    let loaded=0;
-    _unsubs.forEach(u=>u());_unsubs=[];
-    cols.forEach(colName=>{
-      const unsub=window.$db.collection(colName).onSnapshot(
-        (snap)=>{
-          DB[colName]=snap.docs.map(d=>({id:d.id,...d.data()}));
-          loaded++;
-          if(loaded>=cols.length){setSyncStatus('ok','Synced');render();}
-          else render();
-        },
-        (err)=>{setSyncStatus('error','Offline');console.error(err);}
-      );
-      _unsubs.push(unsub);
-    });
+function initDB(){
+  setSync('loading','Connecting...');
+  const cols=['measitems','clothing','clients','orders','appointments'];
+  let loaded=0;
+  unsubs.forEach(u=>u());unsubs=[];
+  cols.forEach(function(col){
+    const unsub=db.collection(col).onSnapshot(function(snap){
+      DB[col]=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+      loaded++;
+      if(loaded>=cols.length){setSync('ok','Synced ✓');}
+      render();
+    },function(e){setSync('err','Offline');console.error(e);});
+    unsubs.push(unsub);
   });
 }
 
-async function dbSave(colName,item){
-  waitForFirebase(async()=>{
-    try{
-      setSyncStatus('loading','Saving...');
-      await window.$doc(colName,item.id).set(item);
-      setSyncStatus('ok','Saved ✓');
-    }catch(e){setSyncStatus('error','Save failed');console.error(e);}
-  });
+function dbSave(col,item){
+  setSync('loading','Saving...');
+  db.collection(col).doc(item.id).set(item)
+    .then(function(){setSync('ok','Saved ✓');})
+    .catch(function(e){setSync('err','Error');console.error(e);});
 }
 
-async function dbDelete(colName,id){
-  waitForFirebase(async()=>{
-    try{
-      setSyncStatus('loading','Deleting...');
-      await window.$doc(colName,id).delete();
-      setSyncStatus('ok','Synced');
-    }catch(e){setSyncStatus('error','Delete failed');console.error(e);}
-  });
+function dbDel(col,id){
+  setSync('loading','Deleting...');
+  db.collection(col).doc(id).delete()
+    .then(function(){setSync('ok','Synced ✓');})
+    .catch(function(e){setSync('err','Error');console.error(e);});
 }
 
-function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function initials(n){return (n||'?').split(' ').map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();}
+function fmtMoney(v){return '₹'+Number(v||0).toLocaleString('en-IN');}
+function statusBadge(s){
+  var m={Pending:'b-pending','In Progress':'b-prog',Ready:'b-active',Delivered:'b-done',Cancelled:'b-cancelled'};
+  return '<span class="badge '+(m[s]||'b-pending')+'">'+esc(s)+'</span>';
+}
 
-// ── NAV ──────────────────────────────────────────────────────────────────
-let page='measitems',selClient=null,selCloth=null;
+// NAV
+var page='measitems',selClient=null,selCloth=null;
 function nav(p){
   page=p;selClient=null;selCloth=null;
-  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
-  document.getElementById('nav-'+p)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
+  var el=document.getElementById('nav-'+p);
+  if(el)el.classList.add('active');
   render();
 }
 function render(){
-  const map={measitems:renderMeasItems,clothing:renderClothing,clients:renderClients,
+  var mc=document.getElementById('main-content');
+  if(!mc)return;
+  var map={measitems:renderMeasItems,clothing:renderClothing,clients:renderClients,
     orders:renderOrders,appointments:renderAppointments,dashboard:renderDashboard};
-  document.getElementById('main-content').innerHTML=(map[page]||renderDashboard)();
+  mc.innerHTML=(map[page]||renderDashboard)();
 }
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function initials(n){return(n||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}
-function statusBadge(s){const m={Pending:'b-pending','In Progress':'b-prog',Ready:'b-active',Delivered:'b-done',Cancelled:'b-cancelled'};return`<span class="badge ${m[s]||'b-pending'}">${esc(s)}</span>`}
-function fmtMoney(v){return'₹'+Number(v||0).toLocaleString('en-IN')}
 
-// ── MEASUREMENT ITEMS ────────────────────────────────────────────────────
+// MEASUREMENT ITEMS
 function renderMeasItems(){
-  return`<div class="page-header">
-    <div><div class="page-title">Measurement Items</div><div class="page-sub">Global list — link these to clothing types</div></div>
-    <button class="btn btn-primary" onclick="addMeasItem()">+ Add Item</button>
-  </div>
-  <div class="card-p0">
-  ${DB.measitems.length===0?`<div class="empty">No items yet.<br>Add fields like "Bust", "Waist", "Sleeve Length" etc.</div>`:`
-  <table><thead><tr><th>#</th><th>Name</th><th>Unit</th><th>Used in</th><th>Actions</th></tr></thead><tbody>
-  ${DB.measitems.map((m,i)=>{
-    const used=DB.clothing.filter(c=>(c.measitemIds||[]).includes(m.id)).map(c=>c.name);
-    return`<tr>
-      <td><span class="pill">${i+1}</span></td>
-      <td><strong>${esc(m.name)}</strong></td>
-      <td style="color:#888">${esc(m.unit)||'—'}</td>
-      <td>${used.length?used.map(n=>`<span class="pill">${esc(n)}</span>`).join(''):`<span style="color:#ccc;font-size:12px">Not linked</span>`}</td>
-      <td><div style="display:flex;gap:6px">
-        <button class="btn btn-xs" onclick="editMeasItem('${m.id}')">Edit</button>
-        <button class="btn-danger" onclick="delMeasItem('${m.id}')">Delete</button>
-      </div></td>
-    </tr>`;})}.join('')}</tbody></table>`}
-  </div>`;
+  var rows='';
+  DB.measitems.forEach(function(m,i){
+    var used=DB.clothing.filter(function(c){return (c.measitemIds||[]).indexOf(m.id)>=0;}).map(function(c){return c.name;});
+    rows+='<tr><td><span class="pill">'+(i+1)+'</span></td>'+
+      '<td><strong>'+esc(m.name)+'</strong></td>'+
+      '<td style="color:#888">'+(esc(m.unit)||'—')+'</td>'+
+      '<td>'+(used.length?used.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''):'<span style="color:#ccc;font-size:12px">Not linked</span>')+'</td>'+
+      '<td><div style="display:flex;gap:6px">'+
+        '<button class="btn btn-xs" onclick="editMeasItem(\''+m.id+'\')">Edit</button>'+
+        '<button class="btn-danger" onclick="delMeasItem(\''+m.id+'\')">Delete</button>'+
+      '</div></td></tr>';
+  });
+  return '<div class="page-header">'+
+    '<div><div class="page-title">Measurement Items</div><div class="page-sub">Global list — link to clothing types</div></div>'+
+    '<button class="btn btn-primary" onclick="addMeasItem()">+ Add Item</button></div>'+
+    '<div class="card-p0">'+
+    (DB.measitems.length===0?'<div class="empty">No items yet.<br>Add fields like "Bust", "Waist", "Sleeve Length" etc.</div>':
+    '<table><thead><tr><th>#</th><th>Name</th><th>Unit</th><th>Used in</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>')+
+    '</div>';
 }
 function addMeasItem(){
-  showModal(`<div class="modal-title">Add measurement item</div>
-    <div class="modal-sub">Will be available to link to any clothing type.</div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" placeholder="e.g. Bust, Sleeve Length"></div>
-      <div class="form-group"><label class="form-label">Unit (optional)</label><input class="form-input" id="m-unit" placeholder="e.g. inches, cm"></div>
-    </div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem()">Add</button></div>`);
-  setTimeout(()=>document.getElementById('m-name')?.focus(),50);
+  showModal('<div class="modal-title">Add measurement item</div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" placeholder="e.g. Bust, Sleeve Length"></div>'+
+    '<div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" placeholder="e.g. inches, cm"></div>'+
+    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem()">Add</button></div>');
+  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
 }
 function editMeasItem(id){
-  const m=DB.measitems.find(x=>x.id===id);
-  showModal(`<div class="modal-title">Edit measurement item</div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" value="${esc(m.name)}"></div>
-      <div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" value="${esc(m.unit||'')}"></div>
-    </div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem('${id}')">Save</button></div>`);
+  var m=DB.measitems.find(function(x){return x.id===id;});
+  showModal('<div class="modal-title">Edit measurement item</div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" value="'+esc(m.name)+'"></div>'+
+    '<div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" value="'+esc(m.unit||'')+'"></div>'+
+    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem(\''+id+'\')">Save</button></div>');
 }
 function saveMeasItem(id){
-  const name=document.getElementById('m-name').value.trim();if(!name)return;
-  const unit=document.getElementById('m-unit').value.trim();
-  const item={id:id||uid(),name,unit};
-  dbSave('measitems',item);
+  var name=document.getElementById('m-name').value.trim();if(!name)return;
+  var unit=document.getElementById('m-unit').value.trim();
+  dbSave('measitems',{id:id||uid(),name:name,unit:unit});
   closeModal();
 }
 function delMeasItem(id){
-  const used=DB.clothing.some(c=>(c.measitemIds||[]).includes(id));
+  var used=DB.clothing.some(function(c){return (c.measitemIds||[]).indexOf(id)>=0;});
   if(used&&!confirm('This is linked to some clothing items. Delete anyway?'))return;
-  dbDelete('measitems',id);
-  // Also remove from clothing items
-  DB.clothing.forEach(c=>{
-    if((c.measitemIds||[]).includes(id)){
-      const updated={...c,measitemIds:c.measitemIds.filter(x=>x!==id)};
+  dbDel('measitems',id);
+  DB.clothing.forEach(function(c){
+    if((c.measitemIds||[]).indexOf(id)>=0){
+      var updated=Object.assign({},c,{measitemIds:c.measitemIds.filter(function(x){return x!==id;})});
       dbSave('clothing',updated);
     }
   });
 }
 
-// ── CLOTHING ITEMS ───────────────────────────────────────────────────────
+// CLOTHING ITEMS
 function renderClothing(){
   if(selCloth){
-    const c=DB.clothing.find(x=>x.id===selCloth);if(!c)return'';
-    const linked=(c.measitemIds||[]).map(id=>DB.measitems.find(x=>x.id===id)).filter(Boolean);
-    return`<button class="back-btn" onclick="selCloth=null;render()">← Back</button>
-    <div class="page-header">
-      <div><div class="page-title">${esc(c.name)}</div><div class="page-sub">${linked.length} measurement item${linked.length!==1?'s':''} linked</div></div>
-      <div class="header-actions">
-        <button class="btn btn-sm" onclick="editClothing('${c.id}')">Edit name</button>
-        <button class="btn btn-primary btn-sm" onclick="linkMeasItems('${c.id}')">Manage measurements</button>
-      </div>
-    </div>
-    <div class="card-p0">
-    ${linked.length===0?`<div class="empty">No measurement items linked yet.</div>`:`
-    <table><thead><tr><th>#</th><th>Measurement name</th><th>Unit</th></tr></thead><tbody>
-    ${linked.map((m,i)=>`<tr><td><span class="pill">${i+1}</span></td><td><strong>${esc(m.name)}</strong></td><td style="color:#888">${esc(m.unit)||'—'}</td></tr>`).join('')}
-    </tbody></table>`}
-    </div>`;
+    var c=DB.clothing.find(function(x){return x.id===selCloth;});if(!c)return'';
+    var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+    var rows=linked.map(function(m,i){
+      return '<tr><td><span class="pill">'+(i+1)+'</span></td><td><strong>'+esc(m.name)+'</strong></td><td style="color:#888">'+(esc(m.unit)||'—')+'</td></tr>';
+    }).join('');
+    return '<button class="back-btn" onclick="selCloth=null;render()">← Back</button>'+
+      '<div class="page-header"><div><div class="page-title">'+esc(c.name)+'</div><div class="page-sub">'+linked.length+' measurement item'+(linked.length!==1?'s':'')+' linked</div></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClothing(\''+c.id+'\')">Edit name</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="linkMeasItems(\''+c.id+'\')">Manage measurements</button></div></div>'+
+      '<div class="card-p0">'+
+      (linked.length===0?'<div class="empty">No measurement items linked yet.</div>':
+      '<table><thead><tr><th>#</th><th>Measurement name</th><th>Unit</th></tr></thead><tbody>'+rows+'</tbody></table>')+
+      '</div>';
   }
-  return`<div class="page-header">
-    <div><div class="page-title">Clothing Items</div><div class="page-sub">Link measurement items to each clothing type</div></div>
-    <button class="btn btn-primary" onclick="addClothing()">+ Add Item</button>
-  </div>
-  ${DB.clothing.length===0?`<div class="card"><div class="empty">No items yet. Add "Blouse", "Lehenga", "Sharara" etc.</div></div>`:`
-  <div class="clothes-grid">${DB.clothing.map(c=>{
-    const linked=(c.measitemIds||[]).map(id=>DB.measitems.find(x=>x.id===id)).filter(Boolean);
-    return`<div class="cloth-card" onclick="selCloth='${c.id}';render()">
-      <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(c.name)}</div>
-      <div style="font-size:12px;color:#888;margin-bottom:10px">${linked.length} measurement${linked.length!==1?'s':''}</div>
-      <div style="margin-bottom:10px">${linked.slice(0,4).map(m=>`<span class="pill">${esc(m.name)}</span>`).join('')}${linked.length>4?`<span class="pill">+${linked.length-4}</span>`:''}</div>
-      <div style="display:flex;justify-content:flex-end;gap:6px" onclick="event.stopPropagation()">
-        <button class="btn btn-xs" onclick="linkMeasItems('${c.id}')">Edit fields</button>
-        <button class="btn-danger" onclick="delClothing('${c.id}')">Delete</button>
-      </div>
-    </div>`;})}.join('')}</div>`}`;
+  var cards=DB.clothing.map(function(c){
+    var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+    var pills=linked.slice(0,4).map(function(m){return '<span class="pill">'+esc(m.name)+'</span>';}).join('');
+    if(linked.length>4)pills+='<span class="pill">+'+(linked.length-4)+'</span>';
+    return '<div class="cloth-card" onclick="selCloth=\''+c.id+'\';render()">'+
+      '<div style="font-weight:600;font-size:14px;margin-bottom:4px">'+esc(c.name)+'</div>'+
+      '<div style="font-size:12px;color:#888;margin-bottom:8px">'+linked.length+' measurement'+(linked.length!==1?'s':'')+'</div>'+
+      '<div style="margin-bottom:10px">'+pills+'</div>'+
+      '<div style="display:flex;justify-content:flex-end;gap:6px" onclick="event.stopPropagation()">'+
+        '<button class="btn btn-xs" onclick="linkMeasItems(\''+c.id+'\')">Edit fields</button>'+
+        '<button class="btn-danger" onclick="delClothing(\''+c.id+'\')">Delete</button>'+
+      '</div></div>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Clothing Items</div><div class="page-sub">Link measurement items to each clothing type</div></div>'+
+    '<button class="btn btn-primary" onclick="addClothing()">+ Add Item</button></div>'+
+    (DB.clothing.length===0?'<div class="card"><div class="empty">No items yet. Add "Blouse", "Lehenga", "Sharara" etc.</div></div>':
+    '<div class="clothes-grid">'+cards+'</div>');
 }
 function addClothing(){
-  showModal(`<div class="modal-title">Add clothing item</div>
-    <div class="modal-sub">e.g. Blouse, Lehenga, Sharara, Saree Blouse</div>
-    <div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name" placeholder="Clothing item name"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing()">Add</button></div>`);
-  setTimeout(()=>document.getElementById('m-name')?.focus(),50);
+  showModal('<div class="modal-title">Add clothing item</div>'+
+    '<div class="modal-sub">e.g. Blouse, Lehenga, Sharara</div>'+
+    '<div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name"></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing()">Add</button></div>');
+  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
 }
 function editClothing(id){
-  const c=DB.clothing.find(x=>x.id===id);
-  showModal(`<div class="modal-title">Edit clothing item</div>
-    <div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name" value="${esc(c.name)}"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing('${id}')">Save</button></div>`);
+  var c=DB.clothing.find(function(x){return x.id===id;});
+  showModal('<div class="modal-title">Edit clothing item</div>'+
+    '<div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name" value="'+esc(c.name)+'"></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing(\''+id+'\')">Save</button></div>');
 }
 function saveClothing(id){
-  const name=document.getElementById('m-name').value.trim();if(!name)return;
-  const existing=id?DB.clothing.find(x=>x.id===id):null;
-  const item={id:id||uid(),name,measitemIds:existing?.measitemIds||[]};
-  dbSave('clothing',item);closeModal();
+  var name=document.getElementById('m-name').value.trim();if(!name)return;
+  var existing=id?DB.clothing.find(function(x){return x.id===id;}):null;
+  dbSave('clothing',{id:id||uid(),name:name,measitemIds:existing?existing.measitemIds||[]:[]});
+  closeModal();
 }
-function delClothing(id){if(!confirm('Delete this clothing item?'))return;dbDelete('clothing',id);selCloth=null;}
+function delClothing(id){if(!confirm('Delete?'))return;dbDel('clothing',id);selCloth=null;}
 
-let _linkCid=null,_linkSelected=[];
+var _linkCid=null,_linkSelected=[];
 function linkMeasItems(cid){
   if(!DB.measitems.length){alert('Add measurement items first.');return;}
-  _linkCid=cid;const c=DB.clothing.find(x=>x.id===cid);
-  _linkSelected=[...(c.measitemIds||[])];renderLinkModal();
+  _linkCid=cid;
+  var c=DB.clothing.find(function(x){return x.id===cid;});
+  _linkSelected=(c.measitemIds||[]).slice();
+  renderLinkModal();
 }
 function renderLinkModal(){
-  const c=DB.clothing.find(x=>x.id===_linkCid);
-  const available=DB.measitems.filter(m=>!_linkSelected.includes(m.id));
-  const selectedItems=_linkSelected.map(id=>DB.measitems.find(x=>x.id===id)).filter(Boolean);
-  const opts=available.length?available.map(m=>`<option value="${m.id}">${esc(m.name)}${m.unit?' ('+esc(m.unit)+')':''}</option>`).join(''):`<option value="" disabled>All items added</option>`;
-  const pillsHtml=selectedItems.length?selectedItems.map(m=>`<span class="pill-removable">${esc(m.name)}${m.unit?` <span style="opacity:.6;font-size:10px">(${esc(m.unit)})</span>`:''}<button onclick="removeLinkItem('${m.id}')">×</button></span>`).join(''):`<span style="font-size:12px;color:#bbb;padding:4px">None added yet</span>`;
-  showModal(`<div class="modal-title">Measurements for ${esc(c.name)}</div>
-    <div class="modal-sub">Select measurement items from the dropdown.</div>
-    <div class="form-group"><label class="form-label">Add measurement item</label>
-      <div class="add-meas-row">
-        <select class="form-input" id="link-select"><option value="">— Select —</option>${opts}</select>
-        <button class="btn btn-primary btn-sm" onclick="addLinkItem()">Add</button>
-      </div>
-    </div>
-    <div class="form-group"><label class="form-label">Added (${selectedItems.length})</label>
-      <div class="selected-meas-box">${pillsHtml}</div>
-    </div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveLinkMeasItems()">Save</button></div>`);
+  var c=DB.clothing.find(function(x){return x.id===_linkCid;});
+  var available=DB.measitems.filter(function(m){return _linkSelected.indexOf(m.id)<0;});
+  var selectedItems=_linkSelected.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+  var opts=available.length?available.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+(m.unit?' ('+esc(m.unit)+')')+'</option>';}).join(''):'<option value="" disabled>All items added</option>';
+  var pills=selectedItems.length?selectedItems.map(function(m){return '<span class="pill-removable">'+esc(m.name)+'<button onclick="removeLinkItem(\''+m.id+'\')">×</button></span>';}).join(''):'<span style="font-size:12px;color:#bbb;padding:4px">None added yet</span>';
+  showModal('<div class="modal-title">Measurements for '+esc(c.name)+'</div>'+
+    '<div class="modal-sub">Add measurement fields from the dropdown.</div>'+
+    '<div class="form-group"><label class="form-label">Add field</label>'+
+    '<div class="add-meas-row">'+
+    '<select class="form-input" id="link-select"><option value="">— Select —</option>'+opts+'</select>'+
+    '<button class="btn btn-primary btn-sm" onclick="addLinkItem()">Add</button></div></div>'+
+    '<div class="form-group"><label class="form-label">Added ('+selectedItems.length+')</label>'+
+    '<div class="selected-meas-box">'+pills+'</div></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveLinkMeasItems()">Save</button></div>');
 }
-function addLinkItem(){const id=document.getElementById('link-select')?.value;if(!id)return;if(!_linkSelected.includes(id))_linkSelected.push(id);renderLinkModal();}
-function removeLinkItem(id){_linkSelected=_linkSelected.filter(x=>x!==id);renderLinkModal();}
+function addLinkItem(){var id=document.getElementById('link-select').value;if(!id)return;if(_linkSelected.indexOf(id)<0)_linkSelected.push(id);renderLinkModal();}
+function removeLinkItem(id){_linkSelected=_linkSelected.filter(function(x){return x!==id;});renderLinkModal();}
 function saveLinkMeasItems(){
-  const c=DB.clothing.find(x=>x.id===_linkCid);
-  dbSave('clothing',{...c,measitemIds:[..._linkSelected]});
+  var c=DB.clothing.find(function(x){return x.id===_linkCid;});
+  dbSave('clothing',Object.assign({},c,{measitemIds:_linkSelected.slice()}));
   closeModal();
 }
 
-// ── CLIENTS ──────────────────────────────────────────────────────────────
+// CLIENTS
 function renderClients(){
   if(selClient){
-    const cl=DB.clients.find(x=>x.id===selClient);if(!cl)return'';
-    const orders=DB.orders.filter(o=>o.clientId===cl.id);
-    const measKeys=Object.keys(cl.measurements||{});
-    return`<button class="back-btn" onclick="selClient=null;render()">← Back to clients</button>
-    <div class="page-header">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div class="avatar" style="width:48px;height:48px;font-size:17px">${initials(cl.name)}</div>
-        <div><div class="page-title">${esc(cl.name)}</div><div class="page-sub">${esc(cl.phone||'—')}${cl.email?' · '+esc(cl.email):''}</div></div>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-sm" onclick="editClient('${cl.id}')">Edit</button>
-        <button class="btn btn-primary btn-sm" onclick="printMeasCard('${cl.id}')">🖨 Print card</button>
-      </div>
-    </div>
-    ${cl.notes?`<div class="info-box" style="margin-bottom:16px">📝 ${esc(cl.notes)}</div>`:''}
-    <div class="two-col">
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div class="section-title" style="margin:0">Measurements</div>
-          <button class="btn-meas" onclick="openTakeMeas('${cl.id}')">+ Take Measurements</button>
-        </div>
-        ${measKeys.length===0?`<div class="card"><div class="empty" style="padding:24px">No measurements yet.</div></div>`:`
-        ${measKeys.map(cid=>{const cloth=DB.clothing.find(x=>x.id===cid);if(!cloth)return'';
-          const vals=cl.measurements[cid]||{};
-          return`<div class="card" style="margin-bottom:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-              <span style="font-weight:600">${esc(cloth.name)}</span>
-              <button class="btn btn-xs" onclick="openTakeMeas('${cl.id}','${cid}')">Edit</button>
-            </div>
-            <div style="display:grid;gap:7px">${Object.entries(vals).map(([k,v])=>`<div class="meas-item-row"><span style="color:#888;font-size:12px">${esc(k)}</span><span class="meas-val">${esc(v)}</span></div>`).join('')}</div>
-          </div>`;})}.join('')}` }
-      </div>
-      <div>
-        <div class="section-title">Orders (${orders.length})</div>
-        ${orders.length===0?`<div class="card"><div class="empty" style="padding:24px">No orders yet.</div></div>`:`
-        <div class="card-p0">${orders.map(o=>`<div style="padding:12px 16px;border-bottom:1px solid #f5f5f5">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-            <span style="font-size:13px;font-weight:600">${esc(o.item)}</span>${statusBadge(o.status)}
-          </div>
-          <div style="font-size:11px;color:#888">Delivery: ${esc(o.delivery||'—')} · ${fmtMoney(o.amount)}</div>
-        </div>`).join('')}</div>`}
-      </div>
-    </div>`;
+    var cl=DB.clients.find(function(x){return x.id===selClient;});if(!cl)return'';
+    var orders=DB.orders.filter(function(o){return o.clientId===cl.id;});
+    var measKeys=Object.keys(cl.measurements||{});
+    var measHtml='';
+    measKeys.forEach(function(cid){
+      var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return;
+      var vals=cl.measurements[cid]||{};
+      var vRows=Object.keys(vals).map(function(k){
+        return '<div class="meas-item-row"><span style="color:#888;font-size:12px">'+esc(k)+'</span><span class="meas-val">'+esc(vals[k])+'</span></div>';
+      }).join('');
+      measHtml+='<div class="card" style="margin-bottom:12px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'+
+        '<span style="font-weight:600">'+esc(cloth.name)+'</span>'+
+        '<button class="btn btn-xs" onclick="openTakeMeas(\''+cl.id+'\',\''+cid+'\')">Edit</button></div>'+
+        '<div style="display:grid;gap:7px">'+vRows+'</div></div>';
+    });
+    var orderHtml=orders.length===0?'<div class="card"><div class="empty" style="padding:24px">No orders yet.</div></div>':
+      '<div class="card-p0">'+orders.map(function(o){
+        return '<div style="padding:12px 16px;border-bottom:1px solid #f5f5f5">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'+
+          '<span style="font-size:13px;font-weight:600">'+esc(o.item)+'</span>'+statusBadge(o.status)+'</div>'+
+          '<div style="font-size:11px;color:#888">Delivery: '+esc(o.delivery||'—')+' · '+fmtMoney(o.amount)+'</div></div>';
+      }).join('')+'</div>';
+    return '<button class="back-btn" onclick="selClient=null;render()">← Back to clients</button>'+
+      '<div class="page-header">'+
+      '<div style="display:flex;align-items:center;gap:14px">'+
+      '<div class="avatar" style="width:48px;height:48px;font-size:17px">'+initials(cl.name)+'</div>'+
+      '<div><div class="page-title">'+esc(cl.name)+'</div><div class="page-sub">'+(esc(cl.phone||'—'))+(cl.email?' · '+esc(cl.email):'')+'</div></div></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClient(\''+cl.id+'\')">Edit</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="printMeasCard(\''+cl.id+'\')">🖨 Print card</button></div></div>'+
+      (cl.notes?'<div class="info-box" style="margin-bottom:16px">📝 '+esc(cl.notes)+'</div>':'')+
+      '<div class="two-col">'+
+      '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
+      '<div class="section-title" style="margin:0">Measurements</div>'+
+      '<button class="btn-meas" onclick="openTakeMeas(\''+cl.id+'\')">+ Take Measurements</button></div>'+
+      (measKeys.length===0?'<div class="card"><div class="empty" style="padding:24px">No measurements yet.</div></div>':measHtml)+
+      '</div><div><div class="section-title">Orders ('+orders.length+')</div>'+orderHtml+'</div></div>';
   }
-  const q=(document.getElementById('cl-search')?.value||'').toLowerCase();
-  const list=DB.clients.filter(c=>!q||c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
-  return`<div class="page-header">
-    <div><div class="page-title">Clients</div><div class="page-sub">${DB.clients.length} registered</div></div>
-    <button class="btn btn-primary" onclick="addClient()">+ Add Client</button>
-  </div>
-  <div class="search-wrap">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M11 11l3 3"/></svg>
-    <input placeholder="Search by name or phone..." id="cl-search" oninput="render()" value="${esc(document.getElementById('cl-search')?.value||'')}">
-  </div>
-  <div class="card-p0">
-  ${list.length===0?`<div class="empty">No clients found.</div>`:`
-  <table><thead><tr><th>Client</th><th>Phone</th><th>Measurements</th><th>Actions</th></tr></thead><tbody>
-  ${list.map(c=>{
-    const mc=Object.keys(c.measurements||{}).length;
-    const names=Object.keys(c.measurements||{}).map(cid=>DB.clothing.find(x=>x.id===cid)?.name).filter(Boolean);
-    return`<tr>
-      <td onclick="selClient='${c.id}';render()" style="cursor:pointer">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="avatar">${initials(c.name)}</div>
-          <div><div style="font-weight:600">${esc(c.name)}</div>
-          ${c.notes?`<div style="font-size:11px;color:#aaa">${esc(c.notes.slice(0,45))}${c.notes.length>45?'…':''}</div>`:''}</div>
-        </div>
-      </td>
-      <td style="color:#666">${esc(c.phone||'—')}</td>
-      <td>${mc===0?`<span style="font-size:12px;color:#ccc">None yet</span>`:`<div>${names.map(n=>`<span class="pill">${esc(n)}</span>`).join('')}</div>`}</td>
-      <td><div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn-meas" onclick="openTakeMeas('${c.id}')">📏 Measurements</button>
-        <button class="btn btn-xs" onclick="selClient='${c.id}';render()">View</button>
-        <button class="btn-danger" onclick="delClient('${c.id}')">Delete</button>
-      </div></td>
-    </tr>`;})}.join('')}
-  </tbody></table>`}
-  </div>`;
+  var q=(document.getElementById('cl-search')?document.getElementById('cl-search').value:'').toLowerCase();
+  var list=DB.clients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q)>=0||(c.phone||'').indexOf(q)>=0;});
+  var rows=list.map(function(c){
+    var mc=Object.keys(c.measurements||{}).length;
+    var names=Object.keys(c.measurements||{}).map(function(cid){var cl=DB.clothing.find(function(x){return x.id===cid;});return cl?cl.name:null;}).filter(Boolean);
+    return '<tr>'+
+      '<td onclick="selClient=\''+c.id+'\';render()" style="cursor:pointer">'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+      '<div class="avatar">'+initials(c.name)+'</div>'+
+      '<div><div style="font-weight:600">'+esc(c.name)+'</div>'+
+      (c.notes?'<div style="font-size:11px;color:#aaa">'+esc(c.notes.slice(0,45))+(c.notes.length>45?'…':'')+'</div>':'')+
+      '</div></div></td>'+
+      '<td style="color:#666">'+(esc(c.phone)||'—')+'</td>'+
+      '<td>'+(mc===0?'<span style="font-size:12px;color:#ccc">None yet</span>':names.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''))+'</td>'+
+      '<td><div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="btn-meas" onclick="openTakeMeas(\''+c.id+'\')">📏 Measurements</button>'+
+      '<button class="btn btn-xs" onclick="selClient=\''+c.id+'\';render()">View</button>'+
+      '<button class="btn-danger" onclick="delClient(\''+c.id+'\')">Delete</button>'+
+      '</div></td></tr>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Clients</div><div class="page-sub">'+DB.clients.length+' registered</div></div>'+
+    '<button class="btn btn-primary" onclick="addClient()">+ Add Client</button></div>'+
+    '<div class="search-wrap"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M11 11l3 3"/></svg>'+
+    '<input placeholder="Search by name or phone..." id="cl-search" oninput="render()" value="'+(document.getElementById('cl-search')?esc(document.getElementById('cl-search').value):'')+'"></div>'+
+    '<div class="card-p0">'+
+    (list.length===0?'<div class="empty">No clients found.</div>':
+    '<table><thead><tr><th>Client</th><th>Phone</th><th>Measurements</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>')+
+    '</div>';
 }
 function addClient(){
-  showModal(`<div class="modal-title">Add client</div>
-    <div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" placeholder="Client name"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone"></div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2" placeholder="Fitting preferences..."></textarea></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient()">Add</button></div>`);
-  setTimeout(()=>document.getElementById('m-name')?.focus(),50);
+  showModal('<div class="modal-title">Add client</div>'+
+    '<div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" placeholder="Client name"></div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone"></div>'+
+    '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email"></div>'+
+    '</div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2"></textarea></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient()">Add</button></div>');
+  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
 }
 function editClient(id){
-  const c=DB.clients.find(x=>x.id===id);
-  showModal(`<div class="modal-title">Edit client</div>
-    <div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" value="${esc(c.name)}"></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone" value="${esc(c.phone||'')}"></div>
-      <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email" value="${esc(c.email||'')}"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">${esc(c.notes||'')}</textarea></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient('${id}')">Save</button></div>`);
+  var c=DB.clients.find(function(x){return x.id===id;});
+  showModal('<div class="modal-title">Edit client</div>'+
+    '<div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" value="'+esc(c.name)+'"></div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone" value="'+esc(c.phone||'')+'"></div>'+
+    '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email" value="'+esc(c.email||'')+'"></div>'+
+    '</div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(c.notes||'')+'</textarea></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient(\''+id+'\')">Save</button></div>');
 }
 function saveClient(id){
-  const name=document.getElementById('m-name').value.trim();if(!name)return;
-  const existing=id?DB.clients.find(x=>x.id===id):null;
-  const item={
-    id:id||uid(),name,
+  var name=document.getElementById('m-name').value.trim();if(!name)return;
+  var existing=id?DB.clients.find(function(x){return x.id===id;}):null;
+  var item={id:id||uid(),name:name,
     phone:document.getElementById('m-phone').value.trim(),
     email:document.getElementById('m-email').value.trim(),
     notes:document.getElementById('m-notes').value.trim(),
-    measurements:existing?.measurements||{}
+    measurements:existing?existing.measurements||{}:{}
   };
   dbSave('clients',item);closeModal();
 }
-function delClient(id){if(!confirm('Delete this client?'))return;dbDelete('clients',id);selClient=null;}
+function delClient(id){if(!confirm('Delete this client?'))return;dbDel('clients',id);selClient=null;}
 
-let _measClientId=null,_measActiveCloth=null;
+// TAKE MEASUREMENTS
+var _measClientId=null,_measActiveCloth=null;
 function openTakeMeas(clientId,prefillCid){
   if(!DB.clothing.length){alert('Add clothing items first.');return;}
-  const hasLinked=DB.clothing.some(c=>(c.measitemIds||[]).length>0);
+  var hasLinked=DB.clothing.some(function(c){return (c.measitemIds||[]).length>0;});
   if(!hasLinked){alert('Link measurement items to clothing items first.');return;}
   _measClientId=clientId;
-  _measActiveCloth=prefillCid||DB.clothing.find(c=>(c.measitemIds||[]).length>0)?.id||DB.clothing[0].id;
+  _measActiveCloth=prefillCid||DB.clothing.filter(function(c){return (c.measitemIds||[]).length>0;})[0].id;
   renderTakeMeasModal();
 }
 function renderTakeMeasModal(){
-  const cl=DB.clients.find(x=>x.id===_measClientId);
-  const tabs=DB.clothing.map(c=>{
-    const has=(c.measitemIds||[]).length>0;
-    const done=cl.measurements?.[c.id]&&Object.keys(cl.measurements[c.id]).length>0;
-    return`<button class="cloth-tab${c.id===_measActiveCloth?' active':''}" onclick="_measActiveCloth='${c.id}';renderTakeMeasModal()">${esc(c.name)}${done&&c.id!==_measActiveCloth?' ✓':''}${!has?' *':''}</button>`;
+  var cl=DB.clients.find(function(x){return x.id===_measClientId;});
+  var tabs=DB.clothing.map(function(c){
+    var has=(c.measitemIds||[]).length>0;
+    var done=cl.measurements&&cl.measurements[c.id]&&Object.keys(cl.measurements[c.id]).length>0;
+    return '<button class="cloth-tab'+(c.id===_measActiveCloth?' active':'')+'" onclick="_measActiveCloth=\''+c.id+'\';renderTakeMeasModal()">'+
+      esc(c.name)+(done&&c.id!==_measActiveCloth?' ✓':'')+(has?'':' *')+'</button>';
   }).join('');
-  const activeCloth=DB.clothing.find(x=>x.id===_measActiveCloth);
-  const linked=(activeCloth?.measitemIds||[]).map(id=>DB.measitems.find(x=>x.id===id)).filter(Boolean);
-  const existing=cl.measurements?.[_measActiveCloth]||{};
-  const fields=linked.length===0
-    ?`<div class="warn-box">No fields linked to "${esc(activeCloth?.name)}". Go to Clothing Items → Manage measurements.</div>`
-    :`<div class="meas-grid">${linked.map(m=>`<div class="form-group" style="margin-bottom:0">
-        <label class="form-label">${esc(m.name)}${m.unit?` <span style="font-weight:400;color:#bbb">(${esc(m.unit)})</span>`:''}</label>
-        <input class="form-input mf" data-name="${esc(m.name)}" value="${esc(existing[m.name]||'')}" placeholder="—">
-      </div>`).join('')}</div>`;
-  showModal(`<div class="modal-title">Take Measurements — ${esc(cl.name)}</div>
-    <div class="modal-sub">Select clothing item tab, fill in values, save. ✓ = already recorded.</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${tabs}</div>
-    <div id="meas-fields-body">${fields}</div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Close</button>
-      <button class="btn btn-primary" onclick="saveTakeMeas()">Save & next →</button>
-    </div>`);
+  var activeCloth=DB.clothing.find(function(x){return x.id===_measActiveCloth;});
+  var linked=(activeCloth.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+  var existing=cl.measurements&&cl.measurements[_measActiveCloth]?cl.measurements[_measActiveCloth]:{};
+  var fields=linked.length===0?
+    '<div class="warn-box">No fields linked to "'+esc(activeCloth.name)+'". Go to Clothing Items → Manage measurements.</div>':
+    '<div class="meas-grid">'+linked.map(function(m){
+      return '<div class="form-group" style="margin-bottom:0"><label class="form-label">'+esc(m.name)+(m.unit?' ('+esc(m.unit)+')':'')+'</label>'+
+        '<input class="form-input mf" data-name="'+esc(m.name)+'" value="'+esc(existing[m.name]||'')+'" placeholder="—"></div>';
+    }).join('')+'</div>';
+  showModal('<div class="modal-title">Take Measurements — '+esc(cl.name)+'</div>'+
+    '<div class="modal-sub">Select a clothing tab, fill values, save. ✓ = already recorded.</div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'+tabs+'</div>'+
+    '<div id="meas-fields-body">'+fields+'</div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button>'+
+    '<button class="btn btn-primary" onclick="saveTakeMeas()">Save & next →</button></div>');
 }
 function saveTakeMeas(){
-  const cl=DB.clients.find(x=>x.id===_measClientId);
-  const vals={};
-  document.querySelectorAll('.mf').forEach(el=>{if(el.value.trim())vals[el.dataset.name]=el.value.trim();});
-  const updated={...cl,measurements:{...(cl.measurements||{}),[${_measActiveCloth}]:vals}};
+  var cl=DB.clients.find(function(x){return x.id===_measClientId;});
+  var vals={};
+  document.querySelectorAll('.mf').forEach(function(el){if(el.value.trim())vals[el.dataset.name]=el.value.trim();});
+  var meas=Object.assign({},cl.measurements||{});
+  meas[_measActiveCloth]=vals;
+  var updated=Object.assign({},cl,{measurements:meas});
   dbSave('clients',updated);
-  const clothIds=DB.clothing.map(c=>c.id);
-  const next=clothIds[clothIds.indexOf(_measActiveCloth)+1];
+  var clothIds=DB.clothing.map(function(c){return c.id;});
+  var next=clothIds[clothIds.indexOf(_measActiveCloth)+1];
   if(next){_measActiveCloth=next;renderTakeMeasModal();}
-  else{closeModal();}
+  else closeModal();
 }
 
+// PRINT
 function printMeasCard(clientId){
-  const cl=DB.clients.find(x=>x.id===clientId);
-  const measKeys=Object.keys(cl.measurements||{});
-  const today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  const orderInfo=DB.orders.filter(o=>o.clientId===clientId&&!['Delivered','Cancelled'].includes(o.status));
-  const sections=measKeys.map(cid=>{
-    const cloth=DB.clothing.find(x=>x.id===cid);if(!cloth)return'';
-    const vals=cl.measurements[cid]||{};
-    const rows=Object.entries(vals).map(([k,v])=>`<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px;color:#444">${k}</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;color:#222;text-align:center;width:35%">${v}</td></tr>`).join('');
-    return`<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0;letter-spacing:.03em">${cloth.name.toUpperCase()}</div>
-    <table style="width:100%;border-collapse:collapse"><thead><tr>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td>
-      <td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td>
-    </tr></thead><tbody>${rows}</tbody></table></div>`;})}.join('');
-  const orderSection=orderInfo.length?`<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">
-    <div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px">ACTIVE ORDERS</div>
-    ${orderInfo.map(o=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>${o.item}</span><span style="color:#B45309;font-weight:600">${o.status}${o.delivery?' · By '+o.delivery:''}</span></div>`).join('')}</div>`:'';
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Measurement Card — ${cl.name}</title>
-  <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#fff}@media print{body{padding:12px}}</style>
-  </head><body>
-  <div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0">
-      <div>
-        <div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>
-        <div style="font-size:22px;font-weight:800;color:#1a1a1a">${cl.name}</div>
-        <div style="font-size:13px;color:#666;margin-top:5px">${cl.phone||''}${cl.email?' · '+cl.email:''}</div>
-      </div>
-      <div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px">
-        <div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div>
-        <div style="font-size:13px;font-weight:700;color:#2D6B5E">${today}</div>
-      </div>
-    </div>
-    ${measKeys.length===0?'<p style="color:#aaa">No measurements recorded.</p>':sections}
-    ${cl.notes?`<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px;color:#555;border-radius:0 6px 6px 0"><strong>Notes:</strong> ${cl.notes}</div>`:''}
-    ${orderSection}
-    <div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · ${today}</div>
-  </div></body></html>`;
-  const win=window.open('','_blank');
-  if(win){win.document.write(html);win.document.close();setTimeout(()=>win.print(),500);}
+  var cl=DB.clients.find(function(x){return x.id===clientId;});
+  var measKeys=Object.keys(cl.measurements||{});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var sections=measKeys.map(function(cid){
+    var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return'';
+    var vals=cl.measurements[cid]||{};
+    var rows=Object.keys(vals).map(function(k){
+      return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px;color:#444">'+k+'</td>'+
+        '<td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;color:#222;text-align:center;width:35%">'+vals[k]+'</td></tr>';
+    }).join('');
+    return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div>'+
+      '<table style="width:100%;border-collapse:collapse"><thead><tr>'+
+      '<td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td>'+
+      '<td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }).join('');
+  var orderInfo=DB.orders.filter(function(o){return o.clientId===clientId&&['Delivered','Cancelled'].indexOf(o.status)<0;});
+  var orderSection=orderInfo.length?'<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">'+
+    '<div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px">ACTIVE ORDERS</div>'+
+    orderInfo.map(function(o){return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>'+o.item+'</span><span style="color:#B45309;font-weight:600">'+o.status+(o.delivery?' · By '+o.delivery:'')+'</span></div>';}).join('')+
+    '</div>':'';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Measurement Card — '+cl.name+'</title>'+
+    '<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#fff}@media print{body{padding:12px}}</style></head><body>'+
+    '<div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0">'+
+    '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
+    '<div style="font-size:22px;font-weight:800;color:#1a1a1a">'+cl.name+'</div>'+
+    '<div style="font-size:13px;color:#666;margin-top:5px">'+(cl.phone||'')+(cl.email?' · '+cl.email:'')+'</div></div>'+
+    '<div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px">'+
+    '<div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div>'+
+    '<div style="font-size:13px;font-weight:700;color:#2D6B5E">'+today+'</div></div></div>'+
+    (measKeys.length===0?'<p style="color:#aaa">No measurements recorded.</p>':sections)+
+    (cl.notes?'<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px;color:#555;border-radius:0 6px 6px 0"><strong>Notes:</strong> '+cl.notes+'</div>':'')+
+    orderSection+
+    '<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · '+today+'</div></div></body></html>';
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Please allow popups to print.');
 }
 
-// ── ORDERS ───────────────────────────────────────────────────────────────
+// ORDERS
 function renderOrders(){
-  const statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
-  return`<div class="page-header">
-    <div><div class="page-title">Orders</div><div class="page-sub">${DB.orders.length} total</div></div>
-    <button class="btn btn-primary" onclick="addOrder()">+ New Order</button>
-  </div>
-  <div class="card-p0">
-  ${DB.orders.length===0?`<div class="empty">No orders yet.</div>`:`
-  <table><thead><tr><th>Client</th><th>Item</th><th>Amount</th><th>Advance</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody>
-  ${DB.orders.slice().reverse().map(o=>{
-    const cl=DB.clients.find(x=>x.id===o.clientId);
-    return`<tr>
-      <td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">${initials(cl?.name)}</div><span style="font-weight:500">${esc(cl?.name||'?')}</span></div></td>
-      <td>${esc(o.item)}</td><td style="font-weight:600">${fmtMoney(o.amount)}</td>
-      <td style="color:#888">${o.advance?fmtMoney(o.advance):'—'}</td>
-      <td style="color:#888">${esc(o.delivery||'—')}</td>
-      <td><select style="border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555" onchange="updateOrderStatus('${o.id}',this.value)">
-        ${statuses.map(s=>`<option${o.status===s?' selected':''}>${s}</option>`).join('')}
-      </select></td>
-      <td><div style="display:flex;gap:5px">
-        <button class="btn btn-xs" onclick="editOrder('${o.id}')">Edit</button>
-        <button class="btn-danger" onclick="delOrder('${o.id}')">Del</button>
-      </div></td>
-    </tr>`;})}.join('')}
-  </tbody></table>`}
-  </div>`;
+  var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
+  var rows=DB.orders.slice().reverse().map(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var opts=statuses.map(function(s){return '<option'+(o.status===s?' selected':'')+'>'+s+'</option>';}).join('');
+    return '<tr>'+
+      '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">'+initials(cl?cl.name:'?')+'</div><span style="font-weight:500">'+esc(cl?cl.name:'?')+'</span></div></td>'+
+      '<td>'+esc(o.item)+'</td>'+
+      '<td style="font-weight:600">'+fmtMoney(o.amount)+'</td>'+
+      '<td style="color:#888">'+(o.advance?fmtMoney(o.advance):'—')+'</td>'+
+      '<td style="color:#888">'+esc(o.delivery||'—')+'</td>'+
+      '<td><select style="border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555" onchange="updateOrderStatus(\''+o.id+'\',this.value)">'+opts+'</select></td>'+
+      '<td><div style="display:flex;gap:5px"><button class="btn btn-xs" onclick="editOrder(\''+o.id+'\')">Edit</button><button class="btn-danger" onclick="delOrder(\''+o.id+'\')">Del</button></div></td>'+
+      '</tr>';
+  }).join('');
+  return '<div class="page-header"><div><div class="page-title">Orders</div><div class="page-sub">'+DB.orders.length+' total</div></div>'+
+    '<button class="btn btn-primary" onclick="addOrder()">+ New Order</button></div>'+
+    '<div class="card-p0">'+
+    (DB.orders.length===0?'<div class="empty">No orders yet.</div>':
+    '<table><thead><tr><th>Client</th><th>Item</th><th>Amount</th><th>Advance</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>')+
+    '</div>';
 }
 function addOrder(){
-  const co=DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  const io=DB.clothing.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
-  showModal(`<div class="modal-title">New order</div>
-    <div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>${co}</select></div>
-    <div class="form-group"><label class="form-label">Clothing item *</label><select class="form-input" id="m-item"><option value="">Select...</option>${io}</select></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Total amount (₹)</label><input class="form-input" id="m-amount" type="number" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">Advance paid (₹)</label><input class="form-input" id="m-advance" type="number" placeholder="0"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date"></div>
-    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2"></textarea></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder()">Add</button></div>`);
+  var co=DB.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
+  var io=DB.clothing.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+  showModal('<div class="modal-title">New order</div>'+
+    '<div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>'+co+'</select></div>'+
+    '<div class="form-group"><label class="form-label">Clothing item *</label><select class="form-input" id="m-item"><option value="">Select...</option>'+io+'</select></div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Total amount (₹)</label><input class="form-input" id="m-amount" type="number" placeholder="0"></div>'+
+    '<div class="form-group"><label class="form-label">Advance paid (₹)</label><input class="form-input" id="m-advance" type="number" placeholder="0"></div>'+
+    '</div><div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date"></div>'+
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2"></textarea></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder()">Add</button></div>');
 }
 function editOrder(id){
-  const o=DB.orders.find(x=>x.id===id);
-  const co=DB.clients.map(c=>`<option value="${c.id}"${c.id===o.clientId?' selected':''}>${esc(c.name)}</option>`).join('');
-  const io=DB.clothing.map(c=>`<option value="${esc(c.name)}"${c.name===o.item?' selected':''}>${esc(c.name)}</option>`).join('');
-  showModal(`<div class="modal-title">Edit order</div>
-    <div class="form-group"><label class="form-label">Client</label><select class="form-input" id="m-client">${co}</select></div>
-    <div class="form-group"><label class="form-label">Item</label><select class="form-input" id="m-item">${io}</select></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Total amount (₹)</label><input class="form-input" id="m-amount" type="number" value="${o.amount||0}"></div>
-      <div class="form-group"><label class="form-label">Advance paid (₹)</label><input class="form-input" id="m-advance" type="number" value="${o.advance||0}"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date" value="${esc(o.delivery||'')}"></div>
-    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">${esc(o.notes||'')}</textarea></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder('${id}')">Save</button></div>`);
+  var o=DB.orders.find(function(x){return x.id===id;});
+  var co=DB.clients.map(function(c){return '<option value="'+c.id+'"'+(c.id===o.clientId?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+  var io=DB.clothing.map(function(c){return '<option value="'+esc(c.name)+'"'+(c.name===o.item?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
+  showModal('<div class="modal-title">Edit order</div>'+
+    '<div class="form-group"><label class="form-label">Client</label><select class="form-input" id="m-client">'+co+'</select></div>'+
+    '<div class="form-group"><label class="form-label">Item</label><select class="form-input" id="m-item">'+io+'</select></div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Total (₹)</label><input class="form-input" id="m-amount" type="number" value="'+(o.amount||0)+'"></div>'+
+    '<div class="form-group"><label class="form-label">Advance (₹)</label><input class="form-input" id="m-advance" type="number" value="'+(o.advance||0)+'"></div>'+
+    '</div><div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date" value="'+esc(o.delivery||'')+'"></div>'+
+    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(o.notes||'')+'</textarea></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder(\''+id+'\')">Save</button></div>');
 }
 function saveOrder(id){
-  const clientId=document.getElementById('m-client').value;const item=document.getElementById('m-item').value;
+  var clientId=document.getElementById('m-client').value;
+  var item=document.getElementById('m-item').value;
   if(!clientId||!item)return;
-  const existing=id?DB.orders.find(x=>x.id===id):null;
-  const o={
-    id:id||uid(),clientId,item,
+  var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
+  dbSave('orders',{id:id||uid(),clientId:clientId,item:item,
     amount:document.getElementById('m-amount').value,
     advance:document.getElementById('m-advance').value,
     delivery:document.getElementById('m-delivery').value,
     notes:document.getElementById('m-notes').value,
-    status:existing?.status||'Pending',
-    created:existing?.created||Date.now()
-  };
-  dbSave('orders',o);closeModal();
-}
-function updateOrderStatus(id,s){
-  const o=DB.orders.find(x=>x.id===id);
-  if(o)dbSave('orders',{...o,status:s});
-}
-function delOrder(id){if(!confirm('Delete this order?'))return;dbDelete('orders',id);}
-
-// ── APPOINTMENTS ─────────────────────────────────────────────────────────
-function renderAppointments(){
-  const today=new Date().toISOString().split('T')[0];
-  const up=DB.appointments.filter(a=>a.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
-  const past=DB.appointments.filter(a=>a.date<today).sort((a,b)=>b.date.localeCompare(a.date));
-  const tbl=(list,dim)=>`<table><thead><tr><th>Client</th><th>Date</th><th>Time</th><th>Purpose</th><th></th></tr></thead><tbody>
-    ${list.map(a=>{const cl=DB.clients.find(x=>x.id===a.clientId);
-      return`<tr style="${dim?'opacity:.55':''}">
-        <td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">${initials(cl?.name)}</div>${esc(cl?.name||'?')}</div></td>
-        <td style="font-weight:500">${esc(a.date)}</td><td style="color:#888">${esc(a.time||'—')}</td><td>${esc(a.purpose||'—')}</td>
-        <td><button class="btn-danger" onclick="delAppt('${a.id}')">Delete</button></td>
-      </tr>`;})}.join('')}</tbody></table>`;
-  return`<div class="page-header">
-    <div><div class="page-title">Appointments</div><div class="page-sub">${up.length} upcoming</div></div>
-    <button class="btn btn-primary" onclick="addAppt()">+ Schedule</button>
-  </div>
-  <div class="section-title">Upcoming</div>
-  <div class="card-p0" style="margin-bottom:20px">${up.length===0?`<div class="empty">No upcoming appointments.</div>`:tbl(up,false)}</div>
-  <div class="section-title" style="color:#aaa">Past</div>
-  <div class="card-p0">${past.length===0?`<div class="empty">No past appointments.</div>`:tbl(past.slice(0,20),true)}</div>`;
-}
-function addAppt(){
-  const co=DB.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  showModal(`<div class="modal-title">Schedule appointment</div>
-    <div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>${co}</select></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Date *</label><input class="form-input" id="m-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
-      <div class="form-group"><label class="form-label">Time</label><input class="form-input" id="m-time" type="time"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Purpose</label><input class="form-input" id="m-purpose" placeholder="e.g. First fitting, Trial, Delivery"></div>
-    <div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAppt()">Schedule</button></div>`);
-}
-function saveAppt(){
-  const cid=document.getElementById('m-client').value;const date=document.getElementById('m-date').value;if(!cid||!date)return;
-  dbSave('appointments',{id:uid(),clientId:cid,date,time:document.getElementById('m-time').value,purpose:document.getElementById('m-purpose').value});
+    status:existing?existing.status:'Pending',
+    created:existing?existing.created:Date.now()
+  });
   closeModal();
 }
-function delAppt(id){dbDelete('appointments',id);}
+function updateOrderStatus(id,s){
+  var o=DB.orders.find(function(x){return x.id===id;});
+  if(o)dbSave('orders',Object.assign({},o,{status:s}));
+}
+function delOrder(id){if(!confirm('Delete this order?'))return;dbDel('orders',id);}
 
-// ── DASHBOARD ────────────────────────────────────────────────────────────
+// APPOINTMENTS
+function renderAppointments(){
+  var today=new Date().toISOString().split('T')[0];
+  var up=DB.appointments.filter(function(a){return a.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  var past=DB.appointments.filter(function(a){return a.date<today;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  function tbl(list,dim){
+    var rows=list.map(function(a){
+      var cl=DB.clients.find(function(x){return x.id===a.clientId;});
+      return '<tr style="'+(dim?'opacity:.55;':'')+'">'+
+        '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">'+initials(cl?cl.name:'?')+'</div>'+esc(cl?cl.name:'?')+'</div></td>'+
+        '<td style="font-weight:500">'+esc(a.date)+'</td><td style="color:#888">'+esc(a.time||'—')+'</td><td>'+esc(a.purpose||'—')+'</td>'+
+        '<td><button class="btn-danger" onclick="delAppt(\''+a.id+'\')">Delete</button></td></tr>';
+    }).join('');
+    return '<table><thead><tr><th>Client</th><th>Date</th><th>Time</th><th>Purpose</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  return '<div class="page-header"><div><div class="page-title">Appointments</div><div class="page-sub">'+up.length+' upcoming</div></div>'+
+    '<button class="btn btn-primary" onclick="addAppt()">+ Schedule</button></div>'+
+    '<div class="section-title">Upcoming</div>'+
+    '<div class="card-p0" style="margin-bottom:20px">'+(up.length===0?'<div class="empty">No upcoming appointments.</div>':tbl(up,false))+'</div>'+
+    '<div class="section-title" style="color:#aaa">Past</div>'+
+    '<div class="card-p0">'+(past.length===0?'<div class="empty">No past appointments.</div>':tbl(past.slice(0,20),true))+'</div>';
+}
+function addAppt(){
+  var co=DB.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
+  showModal('<div class="modal-title">Schedule appointment</div>'+
+    '<div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>'+co+'</select></div>'+
+    '<div class="form-row">'+
+    '<div class="form-group"><label class="form-label">Date *</label><input class="form-input" id="m-date" type="date" value="'+new Date().toISOString().split('T')[0]+'"></div>'+
+    '<div class="form-group"><label class="form-label">Time</label><input class="form-input" id="m-time" type="time"></div>'+
+    '</div><div class="form-group"><label class="form-label">Purpose</label><input class="form-input" id="m-purpose" placeholder="e.g. First fitting, Trial, Delivery"></div>'+
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAppt()">Schedule</button></div>');
+}
+function saveAppt(){
+  var cid=document.getElementById('m-client').value;
+  var date=document.getElementById('m-date').value;
+  if(!cid||!date)return;
+  dbSave('appointments',{id:uid(),clientId:cid,date:date,
+    time:document.getElementById('m-time').value,
+    purpose:document.getElementById('m-purpose').value
+  });
+  closeModal();
+}
+function delAppt(id){dbDel('appointments',id);}
+
+// DASHBOARD
 function renderDashboard(){
-  const today=new Date().toISOString().split('T')[0];
-  const active=DB.orders.filter(o=>['Pending','In Progress','Ready'].includes(o.status)).length;
-  const rev=DB.orders.filter(o=>o.status==='Delivered').reduce((a,o)=>a+Number(o.amount||0),0);
-  const todayA=DB.appointments.filter(a=>a.date===today).length;
-  const recentO=DB.orders.slice().reverse().slice(0,6);
-  const upA=DB.appointments.filter(a=>a.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);
-  return`<div class="page-header"><div class="page-title">Dashboard</div></div>
-  <div class="stats-row">
-    <div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-val">${DB.clients.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Active orders</div><div class="stat-val" style="color:#2D6B5E">${active}</div></div>
-    <div class="stat-card"><div class="stat-label">Today's appointments</div><div class="stat-val" style="color:#2D6B5E">${todayA}</div></div>
-    <div class="stat-card"><div class="stat-label">Revenue collected</div><div class="stat-val" style="color:#C9A84C">${fmtMoney(rev)}</div></div>
-  </div>
-  <div class="two-col">
-    <div><div class="section-title">Recent orders</div>
-      <div class="card-p0">${recentO.length===0?`<div class="empty" style="padding:24px">No orders yet.</div>`:`
-      ${recentO.map(o=>{const cl=DB.clients.find(x=>x.id===o.clientId);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">
-        <div><div style="font-size:13px;font-weight:600">${esc(cl?.name||'?')}</div><div style="font-size:11px;color:#aaa">${esc(o.item)} · ${fmtMoney(o.amount)}</div></div>${statusBadge(o.status)}</div>`;})}.join('')}` }
-      </div>
-    </div>
-    <div><div class="section-title">Upcoming appointments</div>
-      <div class="card-p0">${upA.length===0?`<div class="empty" style="padding:24px">No upcoming appointments.</div>`:`
-      ${upA.map(a=>{const cl=DB.clients.find(x=>x.id===a.clientId);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">
-        <div><div style="font-size:13px;font-weight:600">${esc(cl?.name||'?')}</div><div style="font-size:11px;color:#aaa">${esc(a.purpose||'Appointment')}</div></div>
-        <div style="text-align:right"><div style="font-size:13px;font-weight:600;color:#2D6B5E">${esc(a.date)}</div><div style="font-size:11px;color:#aaa">${esc(a.time||'')}</div></div>
-      </div>`;})}.join('')}` }
-      </div>
-    </div>
-  </div>`;
+  var today=new Date().toISOString().split('T')[0];
+  var active=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
+  var rev=DB.orders.filter(function(o){return o.status==='Delivered';}).reduce(function(a,o){return a+Number(o.amount||0);},0);
+  var todayA=DB.appointments.filter(function(a){return a.date===today;}).length;
+  var recentO=DB.orders.slice().reverse().slice(0,6);
+  var upA=DB.appointments.filter(function(a){return a.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);}).slice(0,6);
+  var oRows=recentO.map(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">'+
+      '<div><div style="font-size:13px;font-weight:600">'+esc(cl?cl.name:'?')+'</div><div style="font-size:11px;color:#aaa">'+esc(o.item)+' · '+fmtMoney(o.amount)+'</div></div>'+
+      statusBadge(o.status)+'</div>';
+  }).join('');
+  var aRows=upA.map(function(a){
+    var cl=DB.clients.find(function(x){return x.id===a.clientId;});
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">'+
+      '<div><div style="font-size:13px;font-weight:600">'+esc(cl?cl.name:'?')+'</div><div style="font-size:11px;color:#aaa">'+esc(a.purpose||'Appointment')+'</div></div>'+
+      '<div style="text-align:right"><div style="font-size:13px;font-weight:600;color:#2D6B5E">'+esc(a.date)+'</div><div style="font-size:11px;color:#aaa">'+esc(a.time||'')+'</div></div></div>';
+  }).join('');
+  return '<div class="page-header"><div class="page-title">Dashboard</div></div>'+
+    '<div class="stats-row">'+
+    '<div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-val">'+DB.clients.length+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Active orders</div><div class="stat-val" style="color:#2D6B5E">'+active+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Today\'s appointments</div><div class="stat-val" style="color:#2D6B5E">'+todayA+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Revenue collected</div><div class="stat-val" style="color:#C9A84C">'+fmtMoney(rev)+'</div></div>'+
+    '</div>'+
+    '<div class="two-col">'+
+    '<div><div class="section-title">Recent orders</div><div class="card-p0">'+(recentO.length===0?'<div class="empty" style="padding:24px">No orders yet.</div>':oRows)+'</div></div>'+
+    '<div><div class="section-title">Upcoming appointments</div><div class="card-p0">'+(upA.length===0?'<div class="empty" style="padding:24px">No upcoming appointments.</div>':aRows)+'</div></div>'+
+    '</div>';
 }
 
-// ── MODAL ────────────────────────────────────────────────────────────────
-function showModal(html){document.getElementById('modal-root').innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`;}
+// MODAL
+function showModal(html){
+  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">'+html+'</div></div>';
+}
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
-// ── INIT ─────────────────────────────────────────────────────────────────
 initAuth();
 </script>
 </body>
