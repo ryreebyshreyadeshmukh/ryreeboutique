@@ -1004,3 +1004,461 @@ var PAY_MODES=['Cash','UPI','Card'];
 var _expDateFilter=new Date().toISOString().split('T')[0];
 
 
+// ── STAFF ─────────────────────────────────────────────────────────────────
+function pgStaff(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Staff','Tailors and their assignments',mkBtn('+ Add Staff',function(){openStaffModal();},'btn btn-primary')));
+  if(!DB.staff.length){var c=mk('div','card');c.appendChild(mk('div','empty','No staff added yet.'));wrap.appendChild(c);return wrap;}
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
+  DB.staff.forEach(function(s){
+    var active=DB.orders.filter(function(o){return o.assignedTo===s.id&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+    var card=mk('div','card');
+    var hdr=mkRow('display:flex;align-items:center;gap:12px;margin-bottom:12px');
+    var av=mkAvatar(s.name,40);
+    var info=mk('div');
+    var nm=mk('div');nm.style.cssText='font-weight:600;font-size:15px';nm.textContent=s.name;
+    var role=mk('div');role.style.cssText='font-size:12px;color:#888';role.textContent=(s.role||'Tailor')+(s.phone?' · '+s.phone:'');
+    app(info,[nm,role]);app(hdr,[av,info]);card.appendChild(hdr);
+    var ot=mk('div');ot.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em';ot.textContent='Active orders ('+active.length+')';
+    card.appendChild(ot);
+    if(!active.length){var fr=mk('div');fr.style.cssText='font-size:12px;color:#aaa;padding:4px 0';fr.textContent='Available';card.appendChild(fr);}
+    else active.forEach(function(o){
+      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px';
+      var l=mk('div');var it=mk('div');it.style.fontWeight='500';it.textContent=o.item+(cl?' — '+cl.name:'');
+      var dl=mk('div');dl.style.color='#aaa';dl.textContent='By '+(o.delivery||'—');app(l,[it,dl]);app(row,[l,mkBadge(o.status)]);card.appendChild(row);
+    });
+    var acts=mkRow('display:flex;gap:6px;margin-top:12px');
+    app(acts,[mkBtn('Edit',function(){openStaffModal(s.id);},'btn btn-xs'),mkBtn('Assign',function(){openAssignModal(s.id);},'btn btn-xs btn-primary'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('staff',s.id);},'btn-danger')]);
+    card.appendChild(acts);grid.appendChild(card);
+  });
+  wrap.appendChild(grid);return wrap;
+}
+function openStaffModal(id){
+  var s=id?DB.staff.find(function(x){return x.id===id;}):null;
+  var roles=[{value:'Tailor',label:'Tailor'},{value:'Helper',label:'Helper'},{value:'Embroidery',label:'Embroidery specialist'},{value:'Cutting master',label:'Cutting master'},{value:'Other',label:'Other'}];
+  var nm=mkInput('s-name','text','Full name',s?s.name:'');
+  var ph=mkInput('s-phone','text','Phone',s?(s.phone||''):'');
+  var roleSel=mkSelect('s-role',roles,s?(s.role||'Tailor'):'Tailor');
+  var sal=mkInput('s-salary','number','Monthly salary',s?(s.salary||''):'');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' staff'),mkFg('Full name *',nm),app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Role',roleSel)]),mkFg('Monthly salary (₹)',sal),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+    var name=document.getElementById('s-name').value.trim();if(!name)return;
+    dbSave('staff',{id:id||uid(),name:name,phone:document.getElementById('s-phone').value.trim(),role:document.getElementById('s-role').value,salary:document.getElementById('s-salary').value});closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();},50);
+}
+function openAssignModal(staffId){
+  var s=DB.staff.find(function(x){return x.id===staffId;});
+  var unassigned=DB.orders.filter(function(o){return ['Pending','In Progress'].indexOf(o.status)>=0;});
+  if(!unassigned.length){alert('No active orders to assign.');return;}
+  var opts=[{value:'',label:'Select order...'}].concat(unassigned.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});return {value:o.id,label:(cl?cl.name+' — ':'')+o.item};}));
+  var sel=mkSelect('assign-order',opts,'');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Assign order to '+s.name),mkFg('Select order',sel),mkActions([mkBtn('Cancel',closeModal),mkBtn('Assign',function(){
+    var oid=document.getElementById('assign-order').value;if(!oid)return;
+    var o=DB.orders.find(function(x){return x.id===oid;});
+    if(o)dbSave('orders',Object.assign({},o,{assignedTo:staffId,status:'In Progress'}));closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);
+}
+
+// ── INVENTORY ─────────────────────────────────────────────────────────────
+function pgInventory(){
+  var wrap=mk('div');
+  var lowStock=DB.inventory.filter(function(i){return Number(i.qty||0)<=Number(i.minQty||0)&&Number(i.minQty||0)>0;});
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(3,1fr);margin-bottom:20px';
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  app(stats,[sc('Total items',DB.inventory.length),sc('Low stock',lowStock.length,lowStock.length>0?'#991B1B':'#166534',lowStock.length>0?'#FEF2F2':'#F0FDF4'),sc('Total tracked',DB.inventory.reduce(function(a,i){return a+Number(i.qty||0);},0))]);
+  wrap.appendChild(mkPageHeader('Inventory','Fabric and material stock',mkBtn('+ Add Item',function(){openInventoryModal();},'btn btn-primary')));
+  wrap.appendChild(stats);
+  if(lowStock.length>0){var al=mk('div');al.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991B1B;font-weight:500';al.textContent='Low stock: '+lowStock.map(function(i){return i.name;}).join(', ');wrap.appendChild(al);}
+  var tw=mk('div','card-p0');
+  if(!DB.inventory.length){tw.appendChild(mk('div','empty','No inventory items yet.'));}
+  else{
+    var t=mkTable(['Item','Category','In stock','Unit','Min qty','Value','']);
+    DB.inventory.slice().sort(function(a,b){return (Number(a.qty||0)<=Number(a.minQty||0))-(Number(b.qty||0)<=Number(b.minQty||0));}).reverse().forEach(function(item){
+      var isLow=Number(item.qty||0)<=Number(item.minQty||0)&&Number(item.minQty||0)>0;
+      var tr=mk('tr');if(isLow)tr.style.background='#FFF5F5';
+      var qtyTd=mk('td');var qv=mk('span');qv.style.cssText='font-weight:600;color:'+(isLow?'#991B1B':'#166534');qv.textContent=item.qty||'0';qtyTd.appendChild(qv);
+      if(isLow){var lb=mk('span');lb.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:6px';lb.textContent='LOW';qtyTd.appendChild(lb);}
+      var val=Number(item.qty||0)*Number(item.price||0);
+      var valTd=mk('td');valTd.style.color='#888';valTd.textContent=val>0?rupee(val):'—';
+      var acts=mkRow('display:flex;gap:5px');
+      var addB=mkBtn('+',function(){quickAddStock(item.id);},'btn btn-xs');addB.style.color='#166534';addB.style.borderColor='#86EFAC';
+      app(acts,[addB,mkBtn('Edit',function(){openInventoryModal(item.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('inventory',item.id);},'btn-danger')]);
+      var actTd=mk('td');actTd.appendChild(acts);
+      [mk('td',null,item.name),mk('td',null,item.category||'—'),qtyTd,mk('td',null,item.unit||'—'),mk('td',null,item.minQty||'—'),valTd,actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    });
+    tw.appendChild(t);
+  }
+  wrap.appendChild(tw);return wrap;
+}
+function openInventoryModal(id){
+  var item=id?DB.inventory.find(function(x){return x.id===id;}):null;
+  var cats=[{value:'Fabric',label:'Fabric'},{value:'Thread',label:'Thread'},{value:'Lace / border',label:'Lace / border'},{value:'Accessories',label:'Accessories'},{value:'Embellishment',label:'Embellishment'},{value:'Lining',label:'Lining'},{value:'Other',label:'Other'}];
+  var units=[{value:'metres',label:'Metres'},{value:'yards',label:'Yards'},{value:'kg',label:'Kg'},{value:'grams',label:'Grams'},{value:'pieces',label:'Pieces'},{value:'spools',label:'Spools'},{value:'packets',label:'Packets'}];
+  var nm=mkInput('inv-name','text','e.g. Banarasi silk',item?item.name:'');
+  var catSel=mkSelect('inv-cat',cats,item?(item.category||'Fabric'):'Fabric');
+  var qty=mkInput('inv-qty','number','Qty',item?(item.qty||''):'');
+  var unitSel=mkSelect('inv-unit',units,item?(item.unit||'metres'):'metres');
+  var minQty=mkInput('inv-min','number','Alert below',item?(item.minQty||''):'');
+  var price=mkInput('inv-price','number','Cost per unit (₹)',item?(item.price||''):'');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' inventory item'),mkFg('Item name *',nm),app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Unit',unitSel)]),app(mk('div','form-row'),[mkFg('Current qty',qty),mkFg('Low stock alert',minQty)]),mkFg('Cost per unit (₹)',price),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+    var name=document.getElementById('inv-name').value.trim();if(!name)return;
+    dbSave('inventory',{id:id||uid(),name:name,category:document.getElementById('inv-cat').value,qty:document.getElementById('inv-qty').value,unit:document.getElementById('inv-unit').value,minQty:document.getElementById('inv-min').value,price:document.getElementById('inv-price').value});closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('inv-name');if(e)e.focus();},50);
+}
+function quickAddStock(id){
+  var item=DB.inventory.find(function(x){return x.id===id;});
+  var qtyInp=mkInput('qa-qty','number','Quantity to add');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Add stock — '+item.name),mk('div','modal-sub','Current: '+item.qty+' '+item.unit),mkFg('Quantity to add',qtyInp),mkActions([mkBtn('Cancel',closeModal),mkBtn('Add',function(){
+    var add=Number(document.getElementById('qa-qty').value||0);if(!add)return;
+    dbSave('inventory',Object.assign({},item,{qty:Number(item.qty||0)+add}));closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('qa-qty');if(e)e.focus();},50);
+}
+
+// ── VENDORS ───────────────────────────────────────────────────────────────
+function pgVendors(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Vendors','Suppliers and purchase history',mkBtn('+ Add Vendor',function(){openVendorModal();},'btn btn-primary')));
+  if(!DB.vendors.length){var c=mk('div','card');c.appendChild(mk('div','empty','No vendors yet. Add your fabric suppliers, thread shops etc.'));wrap.appendChild(c);return wrap;}
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
+  DB.vendors.forEach(function(v){
+    var purchases=DB.purchases.filter(function(p){return p.vendorId===v.id;});
+    var totalSpent=purchases.reduce(function(a,p){return a+Number(p.totalAmount||0);},0);
+    var card=mk('div','card');
+    var hdr=mkRow('display:flex;align-items:center;gap:12px;margin-bottom:12px');
+    var av=mkAvatar(v.name,40);av.style.background='#FAEEDA';av.style.color='#854F0B';
+    var info=mk('div');var nm=mk('div');nm.style.cssText='font-weight:600;font-size:15px';nm.textContent=v.name;
+    var cat=mk('div');cat.style.cssText='font-size:12px;color:#888';cat.textContent=(v.category||'Supplier')+(v.phone?' · '+v.phone:'');
+    app(info,[nm,cat]);app(hdr,[av,info]);card.appendChild(hdr);
+    var statsRow=mk('div');statsRow.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px';
+    function mini(l,v2,c){var b=mk('div');b.style.cssText='background:#f9f9f9;border-radius:6px;padding:8px;border:1px solid #f0f0f0';var lb=mk('div');lb.style.cssText='font-size:10px;color:#aaa;margin-bottom:2px';lb.textContent=l;var vl=mk('div');vl.style.cssText='font-size:13px;font-weight:600;color:'+(c||'#1a1a1a');vl.textContent=v2;app(b,[lb,vl]);return b;}
+    app(statsRow,[mini('Purchases',purchases.length),mini('Total spent',rupee(totalSpent),'#854F0B')]);
+    card.appendChild(statsRow);
+    var acts=mkRow('display:flex;gap:6px');
+    app(acts,[mkBtn('Edit',function(){openVendorModal(v.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('vendors',v.id);},'btn-danger')]);
+    card.appendChild(acts);grid.appendChild(card);
+  });
+  wrap.appendChild(grid);return wrap;
+}
+function openVendorModal(id){
+  var v=id?DB.vendors.find(function(x){return x.id===id;}):null;
+  var cats=[{value:'Fabric supplier',label:'Fabric supplier'},{value:'Thread shop',label:'Thread shop'},{value:'Lace / border',label:'Lace / border'},{value:'Accessories',label:'Accessories'},{value:'General supplier',label:'General supplier'},{value:'Other',label:'Other'}];
+  var nm=mkInput('v-name','text','Vendor name',v?v.name:'');
+  var ph=mkInput('v-phone','text','Phone',v?(v.phone||''):'');
+  var catSel=mkSelect('v-cat',cats,v?(v.category||'Fabric supplier'):'Fabric supplier');
+  var addr=mkInput('v-addr','text','Address',v?(v.address||''):'');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' vendor'),mkFg('Vendor name *',nm),app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Category',catSel)]),mkFg('Address',addr),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+    var name=document.getElementById('v-name').value.trim();if(!name)return;
+    dbSave('vendors',{id:id||uid(),name:name,phone:document.getElementById('v-phone').value.trim(),category:document.getElementById('v-cat').value,address:document.getElementById('v-addr').value.trim()});closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('v-name');if(e)e.focus();},50);
+}
+
+// ── CASH BOOK ─────────────────────────────────────────────────────────────
+function pgExpenses(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Cash Book','Daily expenses and non-order cash',mkBtn('+ Add Entry',function(){openExpenseModal();},'btn btn-primary')));
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';stats.id='exp-stats';wrap.appendChild(stats);
+  var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
+  var dl=mk('label','form-label','Date:');dl.style.margin='0';
+  var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=_expDateFilter;di.style.width='160px';
+  di.oninput=function(){_expDateFilter=this.value;renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);};
+  app(df,[dl,di]);wrap.appendChild(df);
+  var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
+  setTimeout(function(){renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);},0);
+  return wrap;
+}
+function renderExpTable(dateVal){
+  var tw=document.getElementById('exp-table');if(!tw)return;
+  tw.innerHTML='';
+  var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;}).slice().reverse();
+  if(!filtered.length){tw.appendChild(mk('div','empty','No entries for this date.'));return;}
+  var t=mkTable(['Date','Type','Category','Amount','Mode','Description','']);
+  for(var i=0;i<filtered.length;i++){
+    (function(e){
+      var isIn=e.entryType==='cash-in';
+      var modeBadge=mk('span','badge');modeBadge.style.background=e.mode==='Cash'?'#F0FDF4':e.mode==='UPI'?'#EFF6FF':'#F5F3FF';modeBadge.style.color=e.mode==='Cash'?'#166534':e.mode==='UPI'?'#1D4ED8':'#6D28D9';modeBadge.textContent=e.mode||'—';
+      var typeBadge=mk('span','badge');typeBadge.style.background=isIn?'#F0FDF4':'#FEF2F2';typeBadge.style.color=isIn?'#166534':'#991B1B';typeBadge.textContent=isIn?'Cash in':'Expense';
+      var amtTd=mk('td');amtTd.style.cssText='font-weight:600;color:'+(isIn?'#166534':'#991B1B');amtTd.textContent=(isIn?'+ ':'\u2212 ')+rupee(e.amount);
+      var delB=mk('button','btn-danger','Del');delB.setAttribute('data-id',e.id);delB.onclick=function(){if(confirm('Delete?'))dbDel('expenses',this.getAttribute('data-id'));};
+      var editB=mk('button','btn btn-xs','Edit');editB.setAttribute('data-id',e.id);editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
+      var modeTd=mk('td');modeTd.appendChild(modeBadge);var typeTd=mk('td');typeTd.appendChild(typeBadge);
+      var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
+      var tr=mk('tr');[mk('td',null,e.date),typeTd,mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    })(filtered[i]);
+  }
+  tw.appendChild(t);
+}
+function updateExpStats(dateVal){
+  var sd=document.getElementById('exp-stats');if(!sd)return;
+  sd.innerHTML='';
+  var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;});
+  var cashIn=filtered.filter(function(e){return e.entryType==='cash-in';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var totalExp=filtered.filter(function(e){return e.entryType!=='cash-in';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cashExp=filtered.filter(function(e){return e.entryType!=='cash-in'&&e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var upiExp=filtered.filter(function(e){return e.entryType!=='cash-in'&&e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);val.style.color=c||'#1a1a1a';app(card,[lbl,val]);return card;}
+  app(sd,[sc('Cash in',rupee(cashIn),'#166534','#F0FDF4'),sc('Expenses out',rupee(totalExp),'#991B1B','#FEF2F2'),sc('Cash paid',rupee(cashExp),'#166534'),sc('UPI paid',rupee(upiExp),'#1D4ED8')]);
+}
+function openExpenseModal(){
+  var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income (cash-in)'},{value:'Other',label:'Other'}];
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var typeOpts=[{value:'expense',label:'Expense (money out)'},{value:'cash-in',label:'Cash in (non-order)'}];
+  var typeSel=mkSelect('e-type',typeOpts,'expense');
+  var catSel=mkSelect('e-cat',catOpts,'Raw material purchase');
+  var modeSel=mkSelect('e-mode',modeOpts,'Cash');
+  var amtInp=mkInput('e-amount','number','Amount (₹)');
+  var dateInp=mkInput('e-date','date','',new Date().toISOString().split('T')[0]);
+  var descInp=mkInput('e-desc','text','Description');
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Add Cash Book Entry'),mkFg('Entry type',typeSel),app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),mkFg('Description',descInp),mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+    var amt=document.getElementById('e-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
+    dbSave('expenses',{id:uid(),date:document.getElementById('e-date').value,amount:amt,entryType:document.getElementById('e-type').value,category:document.getElementById('e-cat').value,mode:document.getElementById('e-mode').value,description:document.getElementById('e-desc').value,created:Date.now()});closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('e-amount');if(e)e.focus();},50);
+}
+function openEditExpenseModal(id){
+  var e=DB.expenses.find(function(x){return x.id===id;});if(!e)return;
+  var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income'},{value:'Other',label:'Other'}];
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var typeOpts=[{value:'expense',label:'Expense (money out)'},{value:'cash-in',label:'Cash in'}];
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Edit Entry'),mkFg('Entry type',mkSelect('ee-type',typeOpts,e.entryType||'expense')),app(mk('div','form-row'),[mkFg('Date',mkInput('ee-date','date','',e.date||'')),mkFg('Amount (₹)',mkInput('ee-amount','number','',String(e.amount||'')))]),app(mk('div','form-row'),[mkFg('Category',mkSelect('ee-cat',catOpts,e.category||'')),mkFg('Mode',mkSelect('ee-mode',modeOpts,e.mode||'Cash'))]),mkFg('Description',mkInput('ee-desc','text','',e.description||'')),mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+    var amt=document.getElementById('ee-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
+    dbSave('expenses',Object.assign({},e,{date:document.getElementById('ee-date').value,amount:amt,entryType:document.getElementById('ee-type').value,category:document.getElementById('ee-cat').value,mode:document.getElementById('ee-mode').value,description:document.getElementById('ee-desc').value}));closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);
+}
+
+// ── ORDER RECEIPT ─────────────────────────────────────────────────────────
+function generateOrderReceipt(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var recNo='RCP-'+orderId.slice(-6).toUpperCase();
+  var total=Number(o.amount||0);var advance=Number(o.advance||0);var balance=total-advance;
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var modeSel=mkSelect('rcp-mode',modeOpts,o.lastPayMode||'Cash');
+  var amtInp=mkInput('rcp-amt','number','Amount received',String(balance>0?balance:advance||total));
+  var noteInp=mkInput('rcp-note','text','Optional note');
+  var infoDiv=mk('div');infoDiv.style.cssText='background:#f9f9f9;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:4px;border:1px solid #f0f0f0';
+  infoDiv.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#888">Order total</span><strong>'+rupee(total)+'</strong></div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#888">Already paid</span><strong>'+rupee(advance)+'</strong></div><div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e8e8e8"><span style="color:#888">Balance due</span><strong style="color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</strong></div>';
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Collect Payment'),mk('div','modal-sub',(cl?cl.name:'Client')+' — '+o.item),app(mk('div','form-row'),[mkFg('Amount received (₹)',amtInp),mkFg('Payment mode',modeSel)]),mkFg('Note (optional)',noteInp),infoDiv,mkActions([mkBtn('Cancel',closeModal),mkBtn('Save & print receipt',function(){
+    var paidNow=Number(document.getElementById('rcp-amt').value||0);if(!paidNow){alert('Enter amount.');return;}
+    var mode=document.getElementById('rcp-mode').value;
+    var note=document.getElementById('rcp-note').value;
+    var newAdv=advance+paidNow;
+    dbSave('orders',Object.assign({},o,{advance:newAdv,lastPayMode:mode}));
+    printOrderReceipt(o,cl,paidNow,mode,note,recNo,today);
+    closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap);setTimeout(function(){var e=document.getElementById('rcp-amt');if(e)e.focus();},50);
+}
+function printOrderReceipt(o,cl,paidNow,mode,note,recNo,today){
+  var total=Number(o.amount||0);var prevAdv=Number(o.advance||0);var newAdv=prevAdv+paidNow;var balance=total-newAdv;
+  var modeColor=mode==='Cash'?'#166534':mode==='UPI'?'#1D4ED8':'#6D28D9';
+  var modeBg=mode==='Cash'?'#F0FDF4':mode==='UPI'?'#EFF6FF':'#F5F3FF';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#fff;padding:30px}@media print{body{padding:15px}}.container{max-width:420px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden}.header{background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between}.brand{color:#C9A84C;font-size:18px;font-weight:800}.brand-sub{color:rgba(201,168,76,.7);font-size:10px;margin-top:2px}.rec-no{text-align:right;color:rgba(201,168,76,.8);font-size:11px}.body{padding:20px 24px}.client-name{font-size:18px;font-weight:700;margin-bottom:2px}.client-phone{font-size:12px;color:#888;margin-bottom:16px}hr{border:none;border-top:1px solid #f0f0f0;margin:14px 0}.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.label{color:#888}.paid-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;text-align:center}.paid-label{font-size:11px;color:#166534;font-weight:600;letter-spacing:.05em;margin-bottom:4px}.paid-amount{font-size:28px;font-weight:800;color:#166534}.mode-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px}.balance-row{display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #f0f0f0;font-size:14px}.footer{background:#f9f9f9;padding:12px 24px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #f0f0f0}</style></head><body><div class="container"><div class="header"><div><div class="brand">RYREE</div><div class="brand-sub">by Shreya Deshmukh</div></div><div class="rec-no"><div>RECEIPT</div><div>'+recNo+'</div><div style="margin-top:3px">'+today+'</div></div></div><div class="body"><div class="client-name">'+(cl?cl.name:'Client')+'</div><div class="client-phone">'+(cl&&cl.phone?cl.phone:'')+'</div><div class="row"><span class="label">Order item</span><span style="font-weight:600">'+o.item+'</span></div>'+(o.delivery?'<div class="row"><span class="label">Delivery by</span><span style="font-weight:600">'+o.delivery+'</span></div>':'')+'<hr><div class="paid-box"><div class="paid-label">AMOUNT RECEIVED</div><div class="paid-amount">'+rupee(paidNow)+'</div><div class="mode-badge" style="background:'+modeBg+';color:'+modeColor+'">'+mode+'</div></div><div class="row"><span class="label">Order total</span><span style="font-weight:600">'+rupee(total)+'</span></div><div class="row"><span class="label">Total paid so far</span><span style="font-weight:600">'+rupee(newAdv)+'</span></div><div class="balance-row"><span style="font-weight:600">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</span></div>'+(note?'<div style="font-size:12px;color:#888;margin-top:8px;padding:8px 12px;background:#fafafa;border-radius:6px">Note: '+note+'</div>':'')+'</div><div class="footer">Ryree by Shreya Deshmukh &middot; Thank you!</div></div></body></html>';
+  var win=window.open('','_blank','width=500,height=700');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Allow popups to print.');
+}
+
+// ── P&L REPORT ────────────────────────────────────────────────────────────
+function pgPL(){
+  var now=new Date();var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('P&L Report','Monthly profit & loss'));
+  var controls=mk('div');controls.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap';
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var monthSel=mkSelect('pl-month',months.map(function(m,i){return {value:String(i),label:m};}),String(now.getMonth()));
+  monthSel.style.width='140px';
+  var years=[];for(var y=now.getFullYear()-2;y<=now.getFullYear();y++)years.push({value:String(y),label:String(y)});
+  var yearSel=mkSelect('pl-year',years,String(now.getFullYear()));yearSel.style.width='100px';
+  app(controls,[mk('label','form-label','Month:'),monthSel,mk('label','form-label','Year:'),yearSel,mkBtn('View',function(){renderPLContent();},'btn btn-primary btn-sm'),mkBtn('Print',function(){printPL();},'btn btn-sm')]);
+  wrap.appendChild(controls);
+  var plContent=mk('div');plContent.id='pl-content';wrap.appendChild(plContent);
+  setTimeout(renderPLContent,0);
+  return wrap;
+}
+function getPLData(){
+  var m=Number(document.getElementById('pl-month')?document.getElementById('pl-month').value:new Date().getMonth());
+  var y=Number(document.getElementById('pl-year')?document.getElementById('pl-year').value:new Date().getFullYear());
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var prefix=y+'-'+pad(m+1);
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var orderAdvances=DB.orders.filter(function(o){return o.created&&new Date(o.created).toISOString().startsWith(prefix)&&Number(o.advance||0)>0;});
+  var orderAdvTotal=orderAdvances.reduce(function(a,o){return a+Number(o.advance||0);},0);
+  var cashIns=DB.expenses.filter(function(e){return (e.date||'').startsWith(prefix)&&e.entryType==='cash-in';});
+  var cashInTotal=cashIns.reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var totalIncome=orderAdvTotal+cashInTotal;
+  var exps=DB.expenses.filter(function(e){return (e.date||'').startsWith(prefix)&&e.entryType!=='cash-in';});
+  var totalExp=exps.reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cashExp=exps.filter(function(e){return e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var upiExp=exps.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cardExp=exps.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var catMap={};exps.forEach(function(e){var cat=e.category||'Other';catMap[cat]=(catMap[cat]||0)+Number(e.amount||0);});
+  return {m,y,months,prefix,orderAdvances,orderAdvTotal,cashIns,cashInTotal,totalIncome,exps,totalExp,cashExp,upiExp,cardExp,catMap,net:totalIncome-totalExp};
+}
+function renderPLContent(){
+  var c=document.getElementById('pl-content');if(!c)return;
+  c.innerHTML='';var d=getPLData();var isProfit=d.net>=0;
+  function bigCard(label,val,color,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';app(card,[mk('div','stat-label',label),Object.assign(mk('div','stat-val',rupee(val)),{style:'color:'+color})]);return card;}
+  var s1=mk('div','stats-row');s1.style.gridTemplateColumns='repeat(3,1fr)';s1.style.marginBottom='16px';
+  app(s1,[bigCard('Order advances',d.orderAdvTotal,'#166534','#F0FDF4'),bigCard('Other cash in',d.cashInTotal,'#1D4ED8','#EFF6FF'),bigCard('Total income',d.totalIncome,'#166534','#DCFCE7')]);
+  c.appendChild(s1);
+  var s2=mk('div','stats-row');s2.style.gridTemplateColumns='repeat(3,1fr)';s2.style.marginBottom='20px';
+  app(s2,[bigCard('Total expenses',d.totalExp,'#991B1B','#FEF2F2'),bigCard(isProfit?'Net profit':'Net loss',Math.abs(d.net),isProfit?'#166534':'#991B1B',isProfit?'#DCFCE7':'#FFE4E6'),(function(){var card=mk('div','stat-card');app(card,[mk('div','stat-label','Period'),Object.assign(mk('div'),{style:'font-size:16px;font-weight:600;margin-top:4px',textContent:d.months[d.m]+' '+d.y})]);return card;})()]);
+  c.appendChild(s2);
+  var two=mk('div','two-col');
+  var incCol=mk('div');incCol.appendChild(mk('div','section-title','Income'));
+  var incCard=mk('div','card-p0');
+  if(!d.orderAdvances.length&&!d.cashIns.length){incCard.appendChild(mk('div','empty','No income this month.'));}
+  else{
+    if(d.orderAdvances.length){var h1=mk('div');h1.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0';h1.textContent='Order advances';incCard.appendChild(h1);}
+    d.orderAdvances.forEach(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #f5f5f5;font-size:13px';var l=mk('span');l.textContent=(cl?cl.name:'?')+' — '+o.item;var v=mk('span');v.style.cssText='font-weight:600;color:#166534';v.textContent=rupee(o.advance);app(row,[l,v]);incCard.appendChild(row);});
+    if(d.cashIns.length){var h2=mk('div');h2.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';h2.textContent='Other cash in';incCard.appendChild(h2);}
+    d.cashIns.forEach(function(e){var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #f5f5f5;font-size:13px';var l=mk('span');l.style.color='#555';l.textContent=e.description||e.category||'Cash in';var v=mk('span');v.style.cssText='font-weight:600;color:#166534';v.textContent=rupee(e.amount);app(row,[l,v]);incCard.appendChild(row);});
+  }
+  incCol.appendChild(incCard);
+  var expCol=mk('div');expCol.appendChild(mk('div','section-title','Expenses'));
+  var expCard=mk('div','card-p0');
+  if(!Object.keys(d.catMap).length){expCard.appendChild(mk('div','empty','No expenses this month.'));}
+  else{
+    var eh=mk('div');eh.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0';eh.textContent='By category';expCard.appendChild(eh);
+    Object.keys(d.catMap).sort(function(a,b){return d.catMap[b]-d.catMap[a];}).forEach(function(cat){
+      var pct=d.totalExp>0?Math.round(d.catMap[cat]/d.totalExp*100):0;
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';
+      var left=mk('div');var lbl=mk('div');lbl.style.cssText='font-size:13px;color:#555';lbl.textContent=cat;var bar=mk('div');bar.style.cssText='height:3px;background:#f0f0f0;border-radius:2px;margin-top:4px;width:100px';var fill=mk('div');fill.style.cssText='height:3px;background:#E24B4A;border-radius:2px;width:'+pct+'%';bar.appendChild(fill);app(left,[lbl,bar]);
+      var right=mk('div');right.style.textAlign='right';var val=mk('span');val.style.cssText='font-weight:600;color:#991B1B';val.textContent=rupee(d.catMap[cat]);var ps=mk('div');ps.style.cssText='font-size:11px;color:#aaa';ps.textContent=pct+'%';app(right,[val,ps]);app(row,[left,right]);expCard.appendChild(row);
+    });
+    var mh=mk('div');mh.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';mh.textContent='By payment mode';expCard.appendChild(mh);
+    [{label:'Cash',val:d.cashExp},{label:'UPI',val:d.upiExp},{label:'Card',val:d.cardExp}].forEach(function(item){var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';var badge=mk('span','badge');badge.style.background=item.label==='Cash'?'#F0FDF4':item.label==='UPI'?'#EFF6FF':'#F5F3FF';badge.style.color=item.label==='Cash'?'#166534':item.label==='UPI'?'#1D4ED8':'#6D28D9';badge.textContent=item.label;var val=mk('span');val.style.cssText='font-weight:600;color:#991B1B';val.textContent=rupee(item.val);app(row,[badge,val]);expCard.appendChild(row);});
+  }
+  expCol.appendChild(expCard);
+  app(two,[incCol,expCol]);c.appendChild(two);
+  var summary=mk('div');summary.style.cssText='margin-top:16px;padding:16px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;border:1.5px solid '+(isProfit?'#86EFAC':'#FCA5A5')+';background:'+(isProfit?'#F0FDF4':'#FEF2F2');
+  var sl=mk('div');var slbl=mk('div');slbl.style.cssText='font-size:13px;font-weight:600;color:'+(isProfit?'#166534':'#991B1B');slbl.textContent=d.months[d.m]+' '+d.y+' — '+(isProfit?'Profitable':'Loss');var ssub=mk('div');ssub.style.cssText='font-size:12px;color:#888;margin-top:2px';ssub.textContent=d.orderAdvances.length+' orders · '+d.exps.length+' expenses';app(sl,[slbl,ssub]);
+  var sr=mk('div');sr.style.textAlign='right';var snl=mk('div');snl.style.cssText='font-size:11px;color:#888';snl.textContent=isProfit?'Net profit':'Net loss';var snv=mk('div');snv.style.cssText='font-size:22px;font-weight:700;color:'+(isProfit?'#166534':'#991B1B');snv.textContent=rupee(Math.abs(d.net));app(sr,[snl,snv]);app(summary,[sl,sr]);c.appendChild(summary);
+}
+function printPL(){
+  var d=getPLData();var isProfit=d.net>=0;
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>P&L</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}.summary{display:flex;gap:16px;margin:16px 0}.sum-box{flex:1;padding:12px;border-radius:8px;text-align:center}.sum-label{font-size:11px;color:#888;margin-bottom:4px}.sum-val{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}td{padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}@media print{body{padding:15px}}</style></head><body>'+
+  '<div style="display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:20px;font-weight:800">P&L Report — '+d.months[d.m]+' '+d.y+'</div></div><div style="font-size:11px;color:#aaa">'+today+'</div></div>'+
+  '<div class="summary"><div class="sum-box" style="background:#F0FDF4;border:1px solid #86EFAC"><div class="sum-label">Total Income</div><div class="sum-val" style="color:#166534">'+rupee(d.totalIncome)+'</div></div><div class="sum-box" style="background:#FEF2F2;border:1px solid #FCA5A5"><div class="sum-label">Total Expenses</div><div class="sum-val" style="color:#991B1B">'+rupee(d.totalExp)+'</div></div><div class="sum-box" style="background:'+(isProfit?'#DCFCE7':'#FFE4E6')+';border:1px solid '+(isProfit?'#86EFAC':'#FCA5A5')+'"><div class="sum-label">'+(isProfit?'Net Profit':'Net Loss')+'</div><div class="sum-val" style="color:'+(isProfit?'#166534':'#991B1B')+'">'+rupee(Math.abs(d.net))+'</div></div></div>'+
+  '<h3 style="margin:16px 0 8px;font-size:14px">Expense breakdown</h3><table><thead><tr><th>Category</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+Object.keys(d.catMap).map(function(cat){return '<tr><td>'+cat+'</td><td style="text-align:right;font-weight:600">'+rupee(d.catMap[cat])+'</td></tr>';}).join('')+'</tbody></table>'+
+  '<div style="margin-top:20px;padding:16px;border-radius:8px;background:'+(isProfit?'#F0FDF4':'#FEF2F2')+';display:flex;justify-content:space-between"><div style="font-weight:600;color:'+(isProfit?'#166534':'#991B1B')+'">'+(isProfit?'Profitable month':'Loss month')+'</div><div style="font-size:20px;font-weight:800;color:'+(isProfit?'#166534':'#991B1B')+'">'+rupee(Math.abs(d.net))+'</div></div>'+
+  '<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc">Ryree by Shreya Deshmukh · '+today+'</div></body></html>';
+  var win=window.open('','_blank');if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}else alert('Allow popups.');
+}
+
+// ── OUTSTANDING DUES ──────────────────────────────────────────────────────
+function pgDues(){
+  var wrap=mk('div');
+  var today=new Date().toISOString().split('T')[0];
+  var dueOrders=DB.orders.filter(function(o){return Number(o.amount||0)>Number(o.advance||0)&&o.status!=='Cancelled';});
+  var totalDue=dueOrders.reduce(function(a,o){return a+Number(o.amount||0)-Number(o.advance||0);},0);
+  var overdue=dueOrders.filter(function(o){return o.delivery&&o.delivery<today&&o.status!=='Delivered';});
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
+  app(stats,[sc('Orders with dues',dueOrders.length,'#B45309','#FFFBEB'),sc('Total due',rupee(totalDue),'#991B1B','#FEF2F2'),sc('Overdue',overdue.length,'#991B1B',overdue.length>0?'#FEF2F2':'#fff')]);
+  wrap.appendChild(mkPageHeader('Outstanding Dues','Clients with pending balance',mkBtn('Print list',function(){printDues(dueOrders);},'btn btn-sm')));
+  wrap.appendChild(stats);
+  var tabsDiv=mk('div');tabsDiv.style.cssText='display:flex;gap:8px;margin-bottom:16px';
+  var allTab=mkBtn('All ('+dueOrders.length+')',function(){renderDuesTable('all');},'btn btn-primary btn-sm');
+  var overTab=mkBtn('Overdue ('+overdue.length+')',function(){renderDuesTable('overdue');},'btn btn-sm');overTab.style.color='#991B1B';overTab.style.borderColor='#FCA5A5';
+  app(tabsDiv,[allTab,overTab]);wrap.appendChild(tabsDiv);
+  var tableWrap=mk('div','card-p0');tableWrap.id='dues-table';wrap.appendChild(tableWrap);
+  renderDuesTable('all');return wrap;
+}
+function renderDuesTable(filter){
+  var tw=document.getElementById('dues-table');if(!tw)return;tw.innerHTML='';
+  var today=new Date().toISOString().split('T')[0];
+  var orders=DB.orders.filter(function(o){
+    if(Number(o.amount||0)<=Number(o.advance||0)||o.status==='Cancelled')return false;
+    if(filter==='overdue')return o.delivery&&o.delivery<today&&o.status!=='Delivered';
+    return true;
+  }).sort(function(a,b){return (a.delivery||'9999').localeCompare(b.delivery||'9999');});
+  if(!orders.length){tw.appendChild(mk('div','empty',filter==='overdue'?'No overdue orders!':'No outstanding dues.'));return;}
+  var t=mkTable(['Client','Item','Total','Paid','Balance','Delivery','Status','']);
+  orders.forEach(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var bal=Number(o.amount||0)-Number(o.advance||0);
+    var isOverdue=o.delivery&&o.delivery<new Date().toISOString().split('T')[0]&&o.status!=='Delivered';
+    var tr=mk('tr');if(isOverdue)tr.style.background='#FFF5F5';
+    var clCell=mkRow();var av=mkAvatar(cl?cl.name:'?');var ns=mk('span');ns.style.fontWeight='600';ns.textContent=cl?cl.name:'?';app(clCell,[av,ns]);var clTd=mk('td');clTd.appendChild(clCell);
+    var balTd=mk('td');balTd.style.cssText='font-weight:700;color:#991B1B';balTd.textContent=rupee(bal);
+    var delTd=mk('td');delTd.textContent=o.delivery||'—';if(isOverdue){var od=mk('span');od.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:4px';od.textContent='OVERDUE';delTd.appendChild(od);}
+    var actTd=mk('td');actTd.appendChild(mkBtn('Collect',function(){generateOrderReceipt(o.id);},'btn btn-xs btn-primary'));
+    [clTd,mk('td',null,o.item),mk('td',null,rupee(o.amount||0)),mk('td',null,rupee(o.advance||0)),balTd,delTd,mk('td',null,o.status),actTd].forEach(function(td){tr.appendChild(td);});
+    t._body.appendChild(tr);
+  });
+  tw.appendChild(t);
+}
+function printDues(orders){
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var todayISO=new Date().toISOString().split('T')[0];
+  var total=orders.reduce(function(a,o){return a+Number(o.amount||0)-Number(o.advance||0);},0);
+  var rows=orders.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});var bal=Number(o.amount||0)-Number(o.advance||0);var isOD=o.delivery&&o.delivery<todayISO&&o.status!=='Delivered';return '<tr style="background:'+(isOD?'#FFF5F5':'#fff')+'"><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-weight:600">'+(cl?cl.name:'?')+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+(cl&&cl.phone?cl.phone:'—')+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+o.item+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">'+rupee(o.amount||0)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;color:#888">'+rupee(o.advance||0)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#991B1B">'+rupee(bal)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:'+(isOD?'#991B1B':'#555')+'">'+(o.delivery||'—')+(isOD?' ⚠':'')+'</td></tr>';}).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Outstanding Dues</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}table{width:100%;border-collapse:collapse}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}@media print{body{padding:15px}}</style></head><body><div style="display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:20px;font-weight:800">Outstanding Dues</div></div><div style="text-align:right"><div style="font-size:11px;color:#aaa">As of '+today+'</div><div style="font-size:18px;font-weight:700;color:#991B1B">Total: '+rupee(total)+'</div></div></div><table><thead><tr><th>Client</th><th>Phone</th><th>Item</th><th style="text-align:right">Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Delivery</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh · '+today+'</div></body></html>';
+  var win=window.open('','_blank');if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}else alert('Allow popups.');
+}
+
+// ── BIRTHDAY & WHATSAPP ───────────────────────────────────────────────────
+function getBirthdayReminders(){
+  var today=new Date();var upcoming=[];
+  DB.clients.forEach(function(c){
+    if(!c.birthday)return;
+    var parts=c.birthday.split('-');if(parts.length<3)return;
+    var bDate=new Date(today.getFullYear(),Number(parts[1])-1,Number(parts[2]));
+    if(bDate<today)bDate=new Date(today.getFullYear()+1,Number(parts[1])-1,Number(parts[2]));
+    var diff=Math.ceil((bDate-today)/(1000*60*60*24));
+    if(diff<=30)upcoming.push({client:c,diff:diff});
+  });
+  return upcoming.sort(function(a,b){return a.diff-b.diff;});
+}
+function whatsappMeasCard(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});if(!cl)return;
+  var lines=['*RYREE by Shreya Deshmukh*','_Measurement Card_','','*Client:* '+cl.name];
+  if(cl.phone)lines.push('*Phone:* '+cl.phone);
+  lines.push('*Date:* '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}),'');
+  Object.keys(cl.measurements||{}).forEach(function(cid){var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return;var vals=cl.measurements[cid]||{};lines.push('*'+cloth.name.toUpperCase()+'*');Object.keys(vals).forEach(function(k){lines.push('• '+k+': *'+vals[k]+'*');});lines.push('');});
+  if(cl.notes)lines.push('_Notes: '+cl.notes+'_','');
+  lines.push('_Ryree Boutique_');
+  var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
+  var url=phone?'https://wa.me/91'+phone+'?text='+encodeURIComponent(lines.join('\n')):'https://wa.me/?text='+encodeURIComponent(lines.join('\n'));
+  window.open(url,'_blank');
+}
+function whatsappBirthday(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});if(!cl)return;
+  var text='*RYREE by Shreya Deshmukh*\n\nDear '+cl.name+',\n\nWishing you a very Happy Birthday! \ud83c\udf82\ud83c\udf38\n\nThank you for being a valued client.\n\n_With love,_\n_Shreya Deshmukh_\n_Ryree Boutique_';
+  var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
+  var url=phone?'https://wa.me/91'+phone+'?text='+encodeURIComponent(text):'https://wa.me/?text='+encodeURIComponent(text);
+  window.open(url,'_blank');
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function showM(contentEl){
+  var ov=mk('div','modal-overlay');var modal=mk('div','modal');modal.appendChild(contentEl);ov.appendChild(modal);
+  ov.onclick=function(e){if(e.target===ov)closeModal();};
+  var root=document.getElementById('modal-root');root.innerHTML='';root.appendChild(ov);
+}
+function closeModal(){document.getElementById('modal-root').innerHTML='';}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+if(isLoggedIn()){showApp();}
+else{document.getElementById('login-wrap').style.display='flex';}
+</script>
+</body>
+</html>
