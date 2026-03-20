@@ -1007,29 +1007,36 @@ function pgDashboard(){
 var RECEIPT_TYPES=['Advance from client','Final payment on delivery','Payment against order','General receipt'];
 var PAY_MODES=['Cash','UPI','Card'];
 
+function updateRecStats(dateVal){
+  var statsDiv=document.getElementById('rec-stats');if(!statsDiv)return;
+  statsDiv.innerHTML='';
+  var filtered=DB.receipts.filter(function(r){return !dateVal||r.date===dateVal;});
+  var total=filtered.reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var cash=filtered.filter(function(r){return r.mode==='Cash';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var upi=filtered.filter(function(r){return r.mode==='UPI';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var card=filtered.filter(function(r){return r.mode==='Card';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  function sc2(l,v,c){var card2=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card2,[lbl,val]);return card2;}
+  [sc2('Total for date',rupee(total),'#2D6B5E'),sc2('Cash',rupee(cash),'#166534'),sc2('UPI',rupee(upi),'#1D4ED8'),sc2('Card',rupee(card),'#6D28D9')].forEach(function(c){statsDiv.appendChild(c);});
+}
+
 function pgReceipts(){
   var today=new Date().toISOString().split('T')[0];
   var wrap=mk('div');
   // Summary bar
-  var todayRecs=DB.receipts.filter(function(r){return r.date===today;});
-  var totalToday=todayRecs.reduce(function(a,r){return a+Number(r.amount||0);},0);
-  var cashToday=todayRecs.filter(function(r){return r.mode==='Cash';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
-  var upiToday=todayRecs.filter(function(r){return r.mode==='UPI';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
-  var cardToday=todayRecs.filter(function(r){return r.mode==='Card';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
-
-  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(4,1fr)';
-  function sc2(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
-  app(stats,[sc2("Today's total",rupee(totalToday),'#2D6B5E'),sc2('Cash',rupee(cashToday),'#166534'),sc2('UPI',rupee(upiToday),'#1D4ED8'),sc2('Card',rupee(cardToday),'#6D28D9')]);
-
   wrap.appendChild(mkPageHeader('Daily Receipts','Record all incoming payments',mkBtn('+ Add Receipt',function(){openReceiptModal();},'btn btn-primary')));
-  wrap.appendChild(stats);
 
-  // Date filter
+  // Date filter FIRST - so stats below reflect the filtered date
   var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
   var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
   var di=mk('input','form-input');di.id='rec-date-filter';di.type='date';di.value=today;di.style.width='160px';
-  di.oninput=function(){renderRecTable(this.value);};
+  di.oninput=function(){renderRecTable(this.value);updateRecStats(this.value);};
   app(df,[dl,di]);wrap.appendChild(df);
+
+  // Stats computed from filtered date
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:16px';
+  stats.id='rec-stats';
+  wrap.appendChild(stats);
+  updateRecStats(today);
 
   var tw=mk('div','card-p0');tw.id='rec-table';wrap.appendChild(tw);
   renderRecTable(today);
@@ -1098,27 +1105,33 @@ function openReceiptModal(prefillClientId){
 // ── EXPENSES ──────────────────────────────────────────────────────────────
 var EXPENSE_CATS=['Raw material purchase','Staff salary / wages','Rent & utilities','Miscellaneous','Other'];
 
+function updateExpStats(dateVal){
+  var statsDiv=document.getElementById('exp-stats');if(!statsDiv)return;
+  statsDiv.innerHTML='';
+  var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;});
+  var total=filtered.reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cash=filtered.filter(function(e){return e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var upi=filtered.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var card=filtered.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  function sc2(l,v,c){var card2=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card2,[lbl,val]);return card2;}
+  [sc2('Total for date',rupee(total),'#991B1B'),sc2('Cash',rupee(cash),'#166534'),sc2('UPI',rupee(upi),'#1D4ED8'),sc2('Card',rupee(card),'#6D28D9')].forEach(function(c){statsDiv.appendChild(c);});
+}
+
 function pgExpenses(){
   var today=new Date().toISOString().split('T')[0];
   var wrap=mk('div');
-  var todayExp=DB.expenses.filter(function(e){return e.date===today;});
-  var totalToday=todayExp.reduce(function(a,e){return a+Number(e.amount||0);},0);
-  var cashToday=todayExp.filter(function(e){return e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
-  var upiToday=todayExp.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
-  var cardToday=todayExp.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
-
-  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(4,1fr)';
-  function sc2(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
-  app(stats,[sc2("Today's total",rupee(totalToday),'#991B1B'),sc2('Cash',rupee(cashToday),'#166534'),sc2('UPI',rupee(upiToday),'#1D4ED8'),sc2('Card',rupee(cardToday),'#6D28D9')]);
-
   wrap.appendChild(mkPageHeader('Daily Expenses','Record all outgoing payments',mkBtn('+ Add Expense',function(){openExpenseModal();},'btn btn-primary')));
-  wrap.appendChild(stats);
 
   var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
   var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
   var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=today;di.style.width='160px';
-  di.oninput=function(){renderExpTable(this.value);};
+  di.oninput=function(){renderExpTable(this.value);updateExpStats(this.value);};
   app(df,[dl,di]);wrap.appendChild(df);
+
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:16px';
+  stats.id='exp-stats';
+  wrap.appendChild(stats);
+  updateExpStats(today);
 
   var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
   renderExpTable(today);
