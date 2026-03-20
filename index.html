@@ -138,6 +138,12 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
+    <div class="nav-item" id="nav-receipts" data-page="receipts">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 2h10l1 2v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4l1-2z"/><path d="M5 7h6M5 10h4" stroke-linecap="round"/></svg>Daily Receipts
+    </div>
+    <div class="nav-item" id="nav-expenses" data-page="expenses">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Daily Expenses
+    </div>
     <div class="nav-item" id="nav-appointments" data-page="appointments">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
     </div>
@@ -241,7 +247,7 @@ function showApp(){
   initDB();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -251,7 +257,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -363,7 +369,7 @@ function nav(p){
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,appointments:pgAppointments,dashboard:pgDashboard};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -919,6 +925,182 @@ function pgDashboard(){
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Dashboard',''));
   wrap.appendChild(stats);wrap.appendChild(two);return wrap;
+}
+
+// ── RECEIPTS ─────────────────────────────────────────────────────────────
+var RECEIPT_TYPES=['Advance from client','Final payment on delivery','Payment against order','General receipt'];
+var PAY_MODES=['Cash','UPI','Card'];
+
+function pgReceipts(){
+  var today=new Date().toISOString().split('T')[0];
+  var wrap=mk('div');
+  // Summary bar
+  var todayRecs=DB.receipts.filter(function(r){return r.date===today;});
+  var totalToday=todayRecs.reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var cashToday=todayRecs.filter(function(r){return r.mode==='Cash';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var upiToday=todayRecs.filter(function(r){return r.mode==='UPI';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var cardToday=todayRecs.filter(function(r){return r.mode==='Card';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(4,1fr)';
+  function sc2(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  app(stats,[sc2("Today's total",rupee(totalToday),'#2D6B5E'),sc2('Cash',rupee(cashToday),'#166534'),sc2('UPI',rupee(upiToday),'#1D4ED8'),sc2('Card',rupee(cardToday),'#6D28D9')]);
+
+  wrap.appendChild(mkPageHeader('Daily Receipts','Record all incoming payments',mkBtn('+ Add Receipt',function(){openReceiptModal();},'btn btn-primary')));
+  wrap.appendChild(stats);
+
+  // Date filter
+  var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
+  var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
+  var di=mk('input','form-input');di.id='rec-date-filter';di.type='date';di.value=today;di.style.width='160px';
+  di.oninput=function(){renderRecTable(this.value);};
+  app(df,[dl,di]);wrap.appendChild(df);
+
+  var tw=mk('div','card-p0');tw.id='rec-table';wrap.appendChild(tw);
+  renderRecTable(today);
+  return wrap;
+}
+
+function renderRecTable(dateVal){
+  var tw=document.getElementById('rec-table');if(!tw)return;
+  tw.innerHTML='';
+  var filtered=DB.receipts.filter(function(r){return !dateVal||r.date===dateVal;}).slice().reverse();
+  if(!filtered.length){tw.appendChild(mk('div','empty','No receipts for this date.'));return;}
+  var t=mkTable(['Date','Type','Client','Amount','Mode','Note','']);
+  filtered.forEach(function(r){
+    var cl=r.clientId?DB.clients.find(function(x){return x.id===r.clientId;}):null;
+    var modeBadge=mk('span','badge');
+    modeBadge.style.background=r.mode==='Cash'?'#F0FDF4':r.mode==='UPI'?'#EFF6FF':'#F5F3FF';
+    modeBadge.style.color=r.mode==='Cash'?'#166534':r.mode==='UPI'?'#1D4ED8':'#6D28D9';
+    modeBadge.textContent=r.mode||'—';
+    var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#166534';amtTd.textContent=rupee(r.amount);
+    var delB=mkBtn('Del',function(){if(confirm('Delete?'))dbDel('receipts',r.id);},'btn-danger');
+    var delTd=mk('td');delTd.appendChild(delB);
+    var modeTd=mk('td');modeTd.appendChild(modeBadge);
+    var tr=mk('tr');
+    [mk('td',null,r.date),mk('td',null,r.type||'—'),mk('td',null,cl?cl.name:'—'),amtTd,modeTd,mk('td',null,r.note||'—'),delTd].forEach(function(td){tr.appendChild(td);});
+    t._body.appendChild(tr);
+  });
+  tw.appendChild(t);
+}
+
+function openReceiptModal(prefillClientId){
+  var clOpts=[{value:'',label:'— None / Walk-in —'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
+  var typeOpts=RECEIPT_TYPES.map(function(t){return {value:t,label:t};});
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var clSel=mkSelect('r-client',clOpts,prefillClientId||'');
+  var typeSel=mkSelect('r-type',typeOpts,'');
+  var modeSel=mkSelect('r-mode',modeOpts,'Cash');
+  var amtInp=mkInput('r-amount','number','Amount (₹)');
+  var dateInp=mkInput('r-date','date','',new Date().toISOString().split('T')[0]);
+  var noteInp=mkInput('r-note','text','Optional note');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Add Receipt'),
+    mk('div','modal-sub','Record an incoming payment.'),
+    app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
+    mkFg('Receipt type',typeSel),
+    mkFg('Client (if applicable)',clSel),
+    app(mk('div','form-row'),[mkFg('Payment mode',modeSel),mkFg('Note',noteInp)]),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('r-amount').value;if(!amt)return;
+      dbSave('receipts',{id:uid(),
+        date:document.getElementById('r-date').value,
+        amount:amt,
+        type:document.getElementById('r-type').value,
+        clientId:document.getElementById('r-client').value,
+        mode:document.getElementById('r-mode').value,
+        note:document.getElementById('r-note').value,
+        created:Date.now()
+      });
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('r-amount');if(e)e.focus();},50);
+}
+
+// ── EXPENSES ──────────────────────────────────────────────────────────────
+var EXPENSE_CATS=['Raw material purchase','Staff salary / wages','Rent & utilities','Miscellaneous','Other'];
+
+function pgExpenses(){
+  var today=new Date().toISOString().split('T')[0];
+  var wrap=mk('div');
+  var todayExp=DB.expenses.filter(function(e){return e.date===today;});
+  var totalToday=todayExp.reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cashToday=todayExp.filter(function(e){return e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var upiToday=todayExp.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cardToday=todayExp.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(4,1fr)';
+  function sc2(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  app(stats,[sc2("Today's total",rupee(totalToday),'#991B1B'),sc2('Cash',rupee(cashToday),'#166534'),sc2('UPI',rupee(upiToday),'#1D4ED8'),sc2('Card',rupee(cardToday),'#6D28D9')]);
+
+  wrap.appendChild(mkPageHeader('Daily Expenses','Record all outgoing payments',mkBtn('+ Add Expense',function(){openExpenseModal();},'btn btn-primary')));
+  wrap.appendChild(stats);
+
+  var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
+  var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
+  var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=today;di.style.width='160px';
+  di.oninput=function(){renderExpTable(this.value);};
+  app(df,[dl,di]);wrap.appendChild(df);
+
+  var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
+  renderExpTable(today);
+  return wrap;
+}
+
+function renderExpTable(dateVal){
+  var tw=document.getElementById('exp-table');if(!tw)return;
+  tw.innerHTML='';
+  var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;}).slice().reverse();
+  if(!filtered.length){tw.appendChild(mk('div','empty','No expenses for this date.'));return;}
+  var t=mkTable(['Date','Category','Amount','Mode','Description','']);
+  filtered.forEach(function(e){
+    var modeBadge=mk('span','badge');
+    modeBadge.style.background=e.mode==='Cash'?'#F0FDF4':e.mode==='UPI'?'#EFF6FF':'#F5F3FF';
+    modeBadge.style.color=e.mode==='Cash'?'#166534':e.mode==='UPI'?'#1D4ED8':'#6D28D9';
+    modeBadge.textContent=e.mode||'—';
+    var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#991B1B';amtTd.textContent=rupee(e.amount);
+    var delB=mkBtn('Del',function(){if(confirm('Delete?'))dbDel('expenses',e.id);},'btn-danger');
+    var delTd=mk('td');delTd.appendChild(delB);
+    var modeTd=mk('td');modeTd.appendChild(modeBadge);
+    var tr=mk('tr');
+    [mk('td',null,e.date),mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),delTd].forEach(function(td){tr.appendChild(td);});
+    t._body.appendChild(tr);
+  });
+  tw.appendChild(t);
+}
+
+function openExpenseModal(){
+  var catOpts=EXPENSE_CATS.map(function(c){return {value:c,label:c};});
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var catSel=mkSelect('e-cat',catOpts,'');
+  var modeSel=mkSelect('e-mode',modeOpts,'Cash');
+  var amtInp=mkInput('e-amount','number','Amount (₹)');
+  var dateInp=mkInput('e-date','date','',new Date().toISOString().split('T')[0]);
+  var descInp=mkInput('e-desc','text','e.g. Zardosi thread, Salary to Priya...');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Add Expense'),
+    mk('div','modal-sub','Record an outgoing payment.'),
+    app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
+    mkFg('Category',catSel),
+    app(mk('div','form-row'),[mkFg('Payment mode',modeSel),mkFg('Description',descInp)]),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('e-amount').value;if(!amt)return;
+      dbSave('expenses',{id:uid(),
+        date:document.getElementById('e-date').value,
+        amount:amt,
+        category:document.getElementById('e-cat').value,
+        mode:document.getElementById('e-mode').value,
+        description:document.getElementById('e-desc').value,
+        created:Date.now()
+      });
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('e-amount');if(e)e.focus();},50);
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
