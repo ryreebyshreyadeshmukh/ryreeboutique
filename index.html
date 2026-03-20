@@ -836,12 +836,24 @@ function openOrderModal(id){
       var item=document.getElementById('m-item').value;
       if(!cid||!item)return;
       var ex=id?DB.orders.find(function(x){return x.id===id;}):null;
-      dbSave('orders',{id:id||uid(),clientId:cid,item:item,
+      var newId=id||uid();
+      var advAmt=document.getElementById('m-advance').value;
+      var prevAdv=ex?Number(ex.advance||0):0;
+      dbSave('orders',{id:newId,clientId:cid,item:item,
         amount:document.getElementById('m-amount').value,
-        advance:document.getElementById('m-advance').value,
+        advance:advAmt,
         delivery:document.getElementById('m-delivery').value,
         notes:document.getElementById('m-notes').value,
         status:ex?ex.status:'Pending',created:ex?ex.created:Date.now()});
+      // Auto-create receipt if advance entered on new order
+      if(!ex&&Number(advAmt||0)>0){
+        dbSave('receipts',{id:uid(),
+          date:new Date().toISOString().split('T')[0],
+          amount:advAmt,type:'Advance from client',
+          clientId:cid,mode:'Cash',
+          note:item+' - advance payment',
+          orderId:newId,created:Date.now()});
+      }
       closeModal();
     },'btn btn-primary')])
   ]);
@@ -1213,7 +1225,7 @@ function generateOrderReceipt(orderId){
         // Also save to receipts ledger
         dbSave('receipts',{id:uid(),date:new Date().toISOString().split('T')[0],
           amount:paidNow,type:'Payment against order',clientId:o.clientId,
-          mode:mode,note:o.item+(note?' - '+note:''),created:Date.now()});
+          mode:mode,note:o.item+(note?' - '+note:''),orderId:o.id,created:Date.now()});
         printOrderReceipt(o,cl,paidNow,mode,note,recNo,today);
         closeModal();
       },'btn btn-primary')
