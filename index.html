@@ -1332,6 +1332,13 @@ function openExpenseModal(){
   var amtInp=mkInput('e-amount','number','Amount (₹)');
   var dateInp=mkInput('e-date','date','',new Date().toISOString().split('T')[0]);
   var descInp=mkInput('e-desc','text','e.g. Zardosi thread, 5 metres silk...');
+  // Show/hide vendor based on entry type
+  var vendorFg=mkFg('Vendor / Supplier',vendorSel);vendorFg.id='e-vendor-fg';
+  typeSel.onchange=function(){
+    var isCashIn=this.value==='cash-in';
+    document.getElementById('e-vendor-fg').style.display=isCashIn?'none':'block';
+    if(isCashIn)vendorSel.value='';
+  };
   // When vendor is selected, auto-fill description if empty
   vendorSel.onchange=function(){
     var vid=this.value;
@@ -1347,7 +1354,7 @@ function openExpenseModal(){
     mkFg('Entry type',typeSel),
     app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
     app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),
-    mkFg('Vendor / Supplier (optional)',vendorSel),
+    vendorFg,
     mkFg('Description',descInp),
     mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
       var amt=document.getElementById('e-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
