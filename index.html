@@ -1208,7 +1208,9 @@ function pgVendors(){
   var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
   DB.vendors.forEach(function(v){
     var purchases=DB.purchases.filter(function(p){return p.vendorId===v.id;});
-    var totalSpent=purchases.reduce(function(a,p){return a+Number(p.totalAmount||0);},0);
+    var vendorExpsAll=DB.expenses.filter(function(e){return e.vendorId===v.id;});
+    var totalSpent=vendorExpsAll.reduce(function(a,e){return a+Number(e.amount||0);},0);
+    var purchases=vendorExpsAll;
     var card=mk('div','card');
     var hdr=mkRow('display:flex;align-items:center;gap:12px;margin-bottom:12px');
     var av=mkAvatar(v.name,40);av.style.background='#FAEEDA';av.style.color='#854F0B';
@@ -1219,11 +1221,42 @@ function pgVendors(){
     function mini(l,v2,c){var b=mk('div');b.style.cssText='background:#f9f9f9;border-radius:6px;padding:8px;border:1px solid #f0f0f0';var lb=mk('div');lb.style.cssText='font-size:10px;color:#aaa;margin-bottom:2px';lb.textContent=l;var vl=mk('div');vl.style.cssText='font-size:13px;font-weight:600;color:'+(c||'#1a1a1a');vl.textContent=v2;app(b,[lb,vl]);return b;}
     app(statsRow,[mini('Purchases',purchases.length),mini('Total spent',rupee(totalSpent),'#854F0B')]);
     card.appendChild(statsRow);
-    var acts=mkRow('display:flex;gap:6px');
-    app(acts,[mkBtn('Edit',function(){openVendorModal(v.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('vendors',v.id);},'btn-danger')]);
+    // Recent expenses from this vendor
+    var vendorExps=DB.expenses.filter(function(e){return e.vendorId===v.id;}).slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,3);
+    if(vendorExps.length){
+      var expTitle=mk('div');expTitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px';expTitle.textContent='Recent purchases';
+      card.appendChild(expTitle);
+      vendorExps.forEach(function(exp){
+        var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f5f5f5;color:#555';
+        var l=mk('span');l.textContent=(exp.date||'—')+' · '+(exp.description||exp.category||'Purchase');
+        var r=mk('span');r.style.cssText='font-weight:600;color:#854F0B';r.textContent=rupee(exp.amount);
+        app(row,[l,r]);card.appendChild(row);
+      });
+    }
+    var acts=mkRow('display:flex;gap:6px;margin-top:12px');
+    app(acts,[
+      mkBtn('+ Add expense',function(){openExpenseWithVendor(v.id);},'btn btn-xs btn-primary'),
+      mkBtn('Edit',function(){openVendorModal(v.id);},'btn btn-xs'),
+      mkBtn('Del',function(){if(confirm('Delete?'))dbDel('vendors',v.id);},'btn-danger')
+    ]);
     card.appendChild(acts);grid.appendChild(card);
   });
   wrap.appendChild(grid);return wrap;
+}
+function openExpenseWithVendor(vendorId){
+  // Navigate to cash book and open modal pre-filled with vendor
+  nav('expenses');
+  setTimeout(function(){openExpenseModalWithVendor(vendorId);},100);
+}
+function openExpenseModalWithVendor(vendorId){
+  openExpenseModal();
+  setTimeout(function(){
+    var sel=document.getElementById('e-vendor');
+    if(sel)sel.value=vendorId;
+    var v=DB.vendors.find(function(x){return x.id===vendorId;});
+    var descEl=document.getElementById('e-desc');
+    if(v&&descEl&&!descEl.value)descEl.value='Purchase from '+v.name;
+  },60);
 }
 function openVendorModal(id){
   var v=id?DB.vendors.find(function(x){return x.id===id;}):null;
@@ -1291,17 +1324,49 @@ function openExpenseModal(){
   var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income (cash-in)'},{value:'Other',label:'Other'}];
   var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
   var typeOpts=[{value:'expense',label:'Expense (money out)'},{value:'cash-in',label:'Cash in (non-order)'}];
+  var vendorOpts=[{value:'',label:'— None / not applicable —'}].concat(DB.vendors.map(function(v){return {value:v.id,label:v.name+(v.category?' ('+v.category+')':'')};}));
   var typeSel=mkSelect('e-type',typeOpts,'expense');
   var catSel=mkSelect('e-cat',catOpts,'Raw material purchase');
   var modeSel=mkSelect('e-mode',modeOpts,'Cash');
+  var vendorSel=mkSelect('e-vendor',vendorOpts,'');
   var amtInp=mkInput('e-amount','number','Amount (₹)');
   var dateInp=mkInput('e-date','date','',new Date().toISOString().split('T')[0]);
-  var descInp=mkInput('e-desc','text','Description');
+  var descInp=mkInput('e-desc','text','e.g. Zardosi thread, 5 metres silk...');
+  // When vendor is selected, auto-fill description if empty
+  vendorSel.onchange=function(){
+    var vid=this.value;
+    var descEl=document.getElementById('e-desc');
+    if(vid&&descEl&&!descEl.value){
+      var v=DB.vendors.find(function(x){return x.id===vid;});
+      if(v)descEl.value='Purchase from '+v.name;
+    }
+  };
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title','Add Cash Book Entry'),mkFg('Entry type',typeSel),app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),mkFg('Description',descInp),mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
-    var amt=document.getElementById('e-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
-    dbSave('expenses',{id:uid(),date:document.getElementById('e-date').value,amount:amt,entryType:document.getElementById('e-type').value,category:document.getElementById('e-cat').value,mode:document.getElementById('e-mode').value,description:document.getElementById('e-desc').value,created:Date.now()});closeModal();
-  },'btn btn-primary')])]);
+  app(wrap,[
+    mk('div','modal-title','Add Cash Book Entry'),
+    mkFg('Entry type',typeSel),
+    app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
+    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),
+    mkFg('Vendor / Supplier (optional)',vendorSel),
+    mkFg('Description',descInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('e-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
+      var vid=document.getElementById('e-vendor').value;
+      var v=vid?DB.vendors.find(function(x){return x.id===vid;}):null;
+      dbSave('expenses',{id:uid(),
+        date:document.getElementById('e-date').value,
+        amount:amt,
+        entryType:document.getElementById('e-type').value,
+        category:document.getElementById('e-cat').value,
+        mode:document.getElementById('e-mode').value,
+        vendorId:vid||'',
+        vendorName:v?v.name:'',
+        description:document.getElementById('e-desc').value,
+        created:Date.now()
+      });
+      closeModal();
+    },'btn btn-primary')])
+  ]);
   showM(wrap);setTimeout(function(){var e=document.getElementById('e-amount');if(e)e.focus();},50);
 }
 function openEditExpenseModal(id){
@@ -1309,11 +1374,29 @@ function openEditExpenseModal(id){
   var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income'},{value:'Other',label:'Other'}];
   var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
   var typeOpts=[{value:'expense',label:'Expense (money out)'},{value:'cash-in',label:'Cash in'}];
+  var vendorOpts=[{value:'',label:'— None —'}].concat(DB.vendors.map(function(v){return {value:v.id,label:v.name};}));
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title','Edit Entry'),mkFg('Entry type',mkSelect('ee-type',typeOpts,e.entryType||'expense')),app(mk('div','form-row'),[mkFg('Date',mkInput('ee-date','date','',e.date||'')),mkFg('Amount (₹)',mkInput('ee-amount','number','',String(e.amount||'')))]),app(mk('div','form-row'),[mkFg('Category',mkSelect('ee-cat',catOpts,e.category||'')),mkFg('Mode',mkSelect('ee-mode',modeOpts,e.mode||'Cash'))]),mkFg('Description',mkInput('ee-desc','text','',e.description||'')),mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
-    var amt=document.getElementById('ee-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
-    dbSave('expenses',Object.assign({},e,{date:document.getElementById('ee-date').value,amount:amt,entryType:document.getElementById('ee-type').value,category:document.getElementById('ee-cat').value,mode:document.getElementById('ee-mode').value,description:document.getElementById('ee-desc').value}));closeModal();
-  },'btn btn-primary')])]);
+  app(wrap,[
+    mk('div','modal-title','Edit Entry'),
+    mkFg('Entry type',mkSelect('ee-type',typeOpts,e.entryType||'expense')),
+    app(mk('div','form-row'),[mkFg('Date',mkInput('ee-date','date','',e.date||'')),mkFg('Amount (₹)',mkInput('ee-amount','number','',String(e.amount||'')))]),
+    app(mk('div','form-row'),[mkFg('Category',mkSelect('ee-cat',catOpts,e.category||'')),mkFg('Mode',mkSelect('ee-mode',modeOpts,e.mode||'Cash'))]),
+    mkFg('Vendor / Supplier',mkSelect('ee-vendor',vendorOpts,e.vendorId||'')),
+    mkFg('Description',mkInput('ee-desc','text','',e.description||'')),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('ee-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
+      var vid=document.getElementById('ee-vendor').value;
+      var v=vid?DB.vendors.find(function(x){return x.id===vid;}):null;
+      dbSave('expenses',Object.assign({},e,{
+        date:document.getElementById('ee-date').value,amount:amt,
+        entryType:document.getElementById('ee-type').value,
+        category:document.getElementById('ee-cat').value,
+        mode:document.getElementById('ee-mode').value,
+        vendorId:vid||'',vendorName:v?v.name:'',
+        description:document.getElementById('ee-desc').value
+      }));closeModal();
+    },'btn btn-primary')])
+  ]);
   showM(wrap);
 }
 
