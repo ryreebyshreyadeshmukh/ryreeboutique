@@ -309,8 +309,8 @@ function renderMeasItems(){
       '<td style="color:#888">'+(esc(m.unit)||'—')+'</td>'+
       '<td>'+(used.length?used.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''):'<span style="color:#ccc;font-size:12px">Not linked</span>')+'</td>'+
       '<td><div style="display:flex;gap:6px">'+
-        '<button class="btn btn-xs" onclick="editMeasItem(\''+m.id+'\')">Edit</button>'+
-        '<button class="btn-danger" onclick="delMeasItem(\''+m.id+'\')">Delete</button>'+
+        '<button class="btn btn-xs" onclick="editMeasItem('\''+m.id+'\'')">Edit</button>'+
+        '<button class="btn-danger" onclick="delMeasItem('\''+m.id+'\'')">Delete</button>'+
       '</div></td></tr>';
   });
   return '<div class="page-header">'+
@@ -335,7 +335,7 @@ function editMeasItem(id){
     '<div class="form-row">'+
     '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" value="'+esc(m.name)+'"></div>'+
     '<div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" value="'+esc(m.unit||'')+'"></div>'+
-    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem(\''+id+'\')">Save</button></div>');
+    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem('\''+id+'\'')">Save</button></div>');
 }
 function saveMeasItem(id){
   var name=document.getElementById('m-name').value.trim();if(!name)return;
@@ -365,8 +365,8 @@ function renderClothing(){
     }).join('');
     return '<button class="back-btn" onclick="selCloth=null;render()">← Back</button>'+
       '<div class="page-header"><div><div class="page-title">'+esc(c.name)+'</div><div class="page-sub">'+linked.length+' measurement item'+(linked.length!==1?'s':'')+' linked</div></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClothing(\''+c.id+'\')">Edit name</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="linkMeasItems(\''+c.id+'\')">Manage measurements</button></div></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClothing('\''+c.id+'\'')">Edit name</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="linkMeasItems('\''+c.id+'\'')">Manage measurements</button></div></div>'+
       '<div class="card-p0">'+
       (linked.length===0?'<div class="empty">No measurement items linked yet.</div>':
       '<table><thead><tr><th>#</th><th>Measurement name</th><th>Unit</th></tr></thead><tbody>'+rows+'</tbody></table>')+
@@ -376,13 +376,13 @@ function renderClothing(){
     var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
     var pills=linked.slice(0,4).map(function(m){return '<span class="pill">'+esc(m.name)+'</span>';}).join('');
     if(linked.length>4)pills+='<span class="pill">+'+(linked.length-4)+'</span>';
-    return '<div class="cloth-card" onclick="selCloth=\''+c.id+'\';render()">'+
+    return '<div class="cloth-card" onclick="selCloth='\''+c.id+'\'';render()">'+
       '<div style="font-weight:600;font-size:14px;margin-bottom:4px">'+esc(c.name)+'</div>'+
       '<div style="font-size:12px;color:#888;margin-bottom:8px">'+linked.length+' measurement'+(linked.length!==1?'s':'')+'</div>'+
       '<div style="margin-bottom:10px">'+pills+'</div>'+
       '<div style="display:flex;justify-content:flex-end;gap:6px" onclick="event.stopPropagation()">'+
-        '<button class="btn btn-xs" onclick="linkMeasItems(\''+c.id+'\')">Edit fields</button>'+
-        '<button class="btn-danger" onclick="delClothing(\''+c.id+'\')">Delete</button>'+
+        '<button class="btn btn-xs" onclick="linkMeasItems('\''+c.id+'\'')">Edit fields</button>'+
+        '<button class="btn-danger" onclick="delClothing('\''+c.id+'\'')">Delete</button>'+
       '</div></div>';
   }).join('');
   return '<div class="page-header"><div><div class="page-title">Clothing Items</div><div class="page-sub">Link measurement items to each clothing type</div></div>'+
@@ -401,7 +401,7 @@ function editClothing(id){
   var c=DB.clothing.find(function(x){return x.id===id;});
   showModal('<div class="modal-title">Edit clothing item</div>'+
     '<div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name" value="'+esc(c.name)+'"></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing(\''+id+'\')">Save</button></div>');
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing('\''+id+'\'')">Save</button></div>');
 }
 function saveClothing(id){
   var name=document.getElementById('m-name').value.trim();if(!name)return;
@@ -424,7 +424,10 @@ function renderLinkModal(){
   var available=DB.measitems.filter(function(m){return _linkSelected.indexOf(m.id)<0;});
   var selectedItems=_linkSelected.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
   var opts=available.length?available.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+(m.unit?' ('+esc(m.unit)+')')+'</option>';}).join(''):'<option value="" disabled>All items added</option>';
-  var pills=selectedItems.length?selectedItems.map(function(m){return '<span class="pill-removable">'+esc(m.name)+'<button onclick="removeLinkItem(\''+m.id+'\')">×</button></span>';}).join(''):'<span style="font-size:12px;color:#bbb;padding:4px">None added yet</span>';
+  var pills=selectedItems.length?selectedItems.map(function(m){
+    return '<span class="pill-removable">'+esc(m.name)+
+      '<button data-id="'+m.id+'" onclick="removeLinkItem(this.dataset.id)">×</button></span>';
+  }).join(''):'<span style="font-size:12px;color:#bbb;padding:4px">None added yet</span>';
   showModal('<div class="modal-title">Measurements for '+esc(c.name)+'</div>'+
     '<div class="modal-sub">Add measurement fields from the dropdown.</div>'+
     '<div class="form-group"><label class="form-label">Add field</label>'+
@@ -459,7 +462,7 @@ function renderClients(){
       measHtml+='<div class="card" style="margin-bottom:12px">'+
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'+
         '<span style="font-weight:600">'+esc(cloth.name)+'</span>'+
-        '<button class="btn btn-xs" onclick="openTakeMeas(\''+cl.id+'\',\''+cid+'\')">Edit</button></div>'+
+        '<button class="btn btn-xs" onclick="openTakeMeas('\''+cl.id+'\'','\''+cid+'\'')">Edit</button></div>'+
         '<div style="display:grid;gap:7px">'+vRows+'</div></div>';
     });
     var orderHtml=orders.length===0?'<div class="card"><div class="empty" style="padding:24px">No orders yet.</div></div>':
@@ -474,13 +477,13 @@ function renderClients(){
       '<div style="display:flex;align-items:center;gap:14px">'+
       '<div class="avatar" style="width:48px;height:48px;font-size:17px">'+initials(cl.name)+'</div>'+
       '<div><div class="page-title">'+esc(cl.name)+'</div><div class="page-sub">'+(esc(cl.phone||'—'))+(cl.email?' · '+esc(cl.email):'')+'</div></div></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClient(\''+cl.id+'\')">Edit</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="printMeasCard(\''+cl.id+'\')">🖨 Print card</button></div></div>'+
+      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClient('\''+cl.id+'\'')">Edit</button>'+
+      '<button class="btn btn-primary btn-sm" onclick="printMeasCard('\''+cl.id+'\'')">🖨 Print card</button></div></div>'+
       (cl.notes?'<div class="info-box" style="margin-bottom:16px">📝 '+esc(cl.notes)+'</div>':'')+
       '<div class="two-col">'+
       '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
       '<div class="section-title" style="margin:0">Measurements</div>'+
-      '<button class="btn-meas" onclick="openTakeMeas(\''+cl.id+'\')">+ Take Measurements</button></div>'+
+      '<button class="btn-meas" onclick="openTakeMeas('\''+cl.id+'\'')">+ Take Measurements</button></div>'+
       (measKeys.length===0?'<div class="card"><div class="empty" style="padding:24px">No measurements yet.</div></div>':measHtml)+
       '</div><div><div class="section-title">Orders ('+orders.length+')</div>'+orderHtml+'</div></div>';
   }
@@ -490,7 +493,7 @@ function renderClients(){
     var mc=Object.keys(c.measurements||{}).length;
     var names=Object.keys(c.measurements||{}).map(function(cid){var cl=DB.clothing.find(function(x){return x.id===cid;});return cl?cl.name:null;}).filter(Boolean);
     return '<tr>'+
-      '<td onclick="selClient=\''+c.id+'\';render()" style="cursor:pointer">'+
+      '<td onclick="selClient='\''+c.id+'\'';render()" style="cursor:pointer">'+
       '<div style="display:flex;align-items:center;gap:10px">'+
       '<div class="avatar">'+initials(c.name)+'</div>'+
       '<div><div style="font-weight:600">'+esc(c.name)+'</div>'+
@@ -499,9 +502,9 @@ function renderClients(){
       '<td style="color:#666">'+(esc(c.phone)||'—')+'</td>'+
       '<td>'+(mc===0?'<span style="font-size:12px;color:#ccc">None yet</span>':names.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''))+'</td>'+
       '<td><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn-meas" onclick="openTakeMeas(\''+c.id+'\')">📏 Measurements</button>'+
-      '<button class="btn btn-xs" onclick="selClient=\''+c.id+'\';render()">View</button>'+
-      '<button class="btn-danger" onclick="delClient(\''+c.id+'\')">Delete</button>'+
+      '<button class="btn-meas" onclick="openTakeMeas('\''+c.id+'\'')">📏 Measurements</button>'+
+      '<button class="btn btn-xs" onclick="selClient='\''+c.id+'\'';render()">View</button>'+
+      '<button class="btn-danger" onclick="delClient('\''+c.id+'\'')">Delete</button>'+
       '</div></td></tr>';
   }).join('');
   return '<div class="page-header"><div><div class="page-title">Clients</div><div class="page-sub">'+DB.clients.length+' registered</div></div>'+
@@ -531,7 +534,7 @@ function editClient(id){
     '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone" value="'+esc(c.phone||'')+'"></div>'+
     '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email" value="'+esc(c.email||'')+'"></div>'+
     '</div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(c.notes||'')+'</textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient(\''+id+'\')">Save</button></div>');
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient('\''+id+'\'')">Save</button></div>');
 }
 function saveClient(id){
   var name=document.getElementById('m-name').value.trim();if(!name)return;
@@ -561,7 +564,7 @@ function renderTakeMeasModal(){
   var tabs=DB.clothing.map(function(c){
     var has=(c.measitemIds||[]).length>0;
     var done=cl.measurements&&cl.measurements[c.id]&&Object.keys(cl.measurements[c.id]).length>0;
-    return '<button class="cloth-tab'+(c.id===_measActiveCloth?' active':'')+'" onclick="_measActiveCloth=\''+c.id+'\';renderTakeMeasModal()">'+
+    return '<button class="cloth-tab'+(c.id===_measActiveCloth?' active':'')+'" onclick="_measActiveCloth='\''+c.id+'\'';renderTakeMeasModal()">'+
       esc(c.name)+(done&&c.id!==_measActiveCloth?' ✓':'')+(has?'':' *')+'</button>';
   }).join('');
   var activeCloth=DB.clothing.find(function(x){return x.id===_measActiveCloth;});
@@ -648,8 +651,8 @@ function renderOrders(){
       '<td style="font-weight:600">'+fmtMoney(o.amount)+'</td>'+
       '<td style="color:#888">'+(o.advance?fmtMoney(o.advance):'—')+'</td>'+
       '<td style="color:#888">'+esc(o.delivery||'—')+'</td>'+
-      '<td><select style="border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555" onchange="updateOrderStatus(\''+o.id+'\',this.value)">'+opts+'</select></td>'+
-      '<td><div style="display:flex;gap:5px"><button class="btn btn-xs" onclick="editOrder(\''+o.id+'\')">Edit</button><button class="btn-danger" onclick="delOrder(\''+o.id+'\')">Del</button></div></td>'+
+      '<td><select style="border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555" onchange="updateOrderStatus('\''+o.id+'\'',this.value)">'+opts+'</select></td>'+
+      '<td><div style="display:flex;gap:5px"><button class="btn btn-xs" onclick="editOrder('\''+o.id+'\'')">Edit</button><button class="btn-danger" onclick="delOrder('\''+o.id+'\'')">Del</button></div></td>'+
       '</tr>';
   }).join('');
   return '<div class="page-header"><div><div class="page-title">Orders</div><div class="page-sub">'+DB.orders.length+' total</div></div>'+
@@ -684,7 +687,7 @@ function editOrder(id){
     '<div class="form-group"><label class="form-label">Advance (₹)</label><input class="form-input" id="m-advance" type="number" value="'+(o.advance||0)+'"></div>'+
     '</div><div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date" value="'+esc(o.delivery||'')+'"></div>'+
     '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(o.notes||'')+'</textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder(\''+id+'\')">Save</button></div>');
+    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder('\''+id+'\'')">Save</button></div>');
 }
 function saveOrder(id){
   var clientId=document.getElementById('m-client').value;
@@ -718,7 +721,7 @@ function renderAppointments(){
       return '<tr style="'+(dim?'opacity:.55;':'')+'">'+
         '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">'+initials(cl?cl.name:'?')+'</div>'+esc(cl?cl.name:'?')+'</div></td>'+
         '<td style="font-weight:500">'+esc(a.date)+'</td><td style="color:#888">'+esc(a.time||'—')+'</td><td>'+esc(a.purpose||'—')+'</td>'+
-        '<td><button class="btn-danger" onclick="delAppt(\''+a.id+'\')">Delete</button></td></tr>';
+        '<td><button class="btn-danger" onclick="delAppt('\''+a.id+'\'')">Delete</button></td></tr>';
     }).join('');
     return '<table><thead><tr><th>Client</th><th>Date</th><th>Time</th><th>Purpose</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
@@ -775,7 +778,7 @@ function renderDashboard(){
     '<div class="stats-row">'+
     '<div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-val">'+DB.clients.length+'</div></div>'+
     '<div class="stat-card"><div class="stat-label">Active orders</div><div class="stat-val" style="color:#2D6B5E">'+active+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Today\'s appointments</div><div class="stat-val" style="color:#2D6B5E">'+todayA+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Today's appointments</div><div class="stat-val" style="color:#2D6B5E">'+todayA+'</div></div>'+
     '<div class="stat-card"><div class="stat-label">Revenue collected</div><div class="stat-val" style="color:#C9A84C">'+fmtMoney(rev)+'</div></div>'+
     '</div>'+
     '<div class="two-col">'+
