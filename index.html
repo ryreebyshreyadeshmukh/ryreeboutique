@@ -1006,6 +1006,8 @@ function pgDashboard(){
 // ── RECEIPTS ─────────────────────────────────────────────────────────────
 var RECEIPT_TYPES=['Advance from client','Final payment on delivery','Payment against order','General receipt'];
 var PAY_MODES=['Cash','UPI','Card'];
+var _recDateFilter=new Date().toISOString().split('T')[0];
+var _expDateFilter=new Date().toISOString().split('T')[0];
 
 function updateRecStats(dateVal){
   var statsDiv=document.getElementById('rec-stats');if(!statsDiv)return;
@@ -1126,17 +1128,17 @@ function pgExpenses(){
 
   var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
   var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
-  var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=today;di.style.width='160px';
-  di.oninput=function(){renderExpTable(this.value);updateExpStats(this.value);};
+  var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=_expDateFilter;di.style.width='160px';
+  di.oninput=function(){_expDateFilter=this.value;renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);};
   app(df,[dl,di]);wrap.appendChild(df);
 
   var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:16px';
   stats.id='exp-stats';
   wrap.appendChild(stats);
-  updateExpStats(today);
+  updateExpStats(_expDateFilter);
 
   var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
-  renderExpTable(today);
+  renderExpTable(_expDateFilter);
   return wrap;
 }
 
