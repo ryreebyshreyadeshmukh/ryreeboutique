@@ -151,6 +151,12 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-dashboard" data-page="dashboard">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
     </div>
+    <div class="nav-item" id="nav-pl" data-page="pl">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L6 7l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2"/></svg>P&amp;L Report
+    </div>
+    <div class="nav-item" id="nav-dues" data-page="dues">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Outstanding Dues
+    </div>
     <div style="flex:1"></div>
     <div style="padding:12px 16px;border-top:1px solid rgba(201,168,76,.2)">
       <div style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px">
@@ -369,7 +375,7 @@ function nav(p){
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -775,7 +781,9 @@ function pgOrders(){
       sel.setAttribute('data-oid',o.id);
       sel.onchange=function(){var ord=DB.orders.find(function(x){return x.id===this.getAttribute('data-oid');}.bind(this));if(ord)dbSave('orders',Object.assign({},ord,{status:this.value}));};
       var acts=mkRow('display:flex;gap:5px');
-      app(acts,[mkBtn('Edit',function(){openOrderModal(o.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('orders',o.id);},'btn-danger')]);
+      var rcpBtn=mkBtn('Receipt',function(){generateOrderReceipt(o.id);},'btn btn-xs btn-primary');
+      rcpBtn.style.fontSize='11px';
+      app(acts,[mkBtn('Edit',function(){openOrderModal(o.id);},'btn btn-xs'),rcpBtn,mkBtn('Del',function(){if(confirm('Delete?'))dbDel('orders',o.id);},'btn-danger')]);
       var clTd=mk('td');clTd.appendChild(clCell);
       var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.textContent=rupee(o.amount);
       var advTd=mk('td');advTd.style.color='#888';advTd.textContent=o.advance?rupee(o.advance):'—';
@@ -1101,6 +1109,439 @@ function openExpenseModal(){
   ]);
   showM(wrap);
   setTimeout(function(){var e=document.getElementById('e-amount');if(e)e.focus();},50);
+}
+
+// ── ORDER RECEIPT ────────────────────────────────────────────────────────
+function generateOrderReceipt(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});
+  if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var recNo='RCP-'+orderId.slice(-6).toUpperCase();
+  var total=Number(o.amount||0);
+  var advance=Number(o.advance||0);
+  var balance=total-advance;
+
+  // Ask for payment details
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var modeSel=mkSelect('rcp-mode',modeOpts,o.lastPayMode||'Cash');
+  var amtInp=mkInput('rcp-amt','number','Amount being acknowledged',String(advance||total));
+  var noteInp=mkInput('rcp-note','text','Optional note');
+
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Generate Payment Receipt'),
+    mk('div','modal-sub','For: '+( cl?cl.name:'Client')+' — '+o.item),
+    app(mk('div','form-row'),[
+      mkFg('Amount acknowledged (₹)',amtInp),
+      mkFg('Payment mode',modeSel)
+    ]),
+    mkFg('Note (optional)',noteInp),
+    // Summary
+    (function(){
+      var d=mk('div');d.style.cssText='background:#f9f9f9;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:4px;border:1px solid #f0f0f0';
+      d.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#888">Order total</span><strong>'+rupee(total)+'</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#888">Previously paid</span><strong>'+rupee(advance)+'</strong></div>'+
+        '<div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #e8e8e8"><span style="color:#888">Balance due</span><strong style="color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</strong></div>';
+      return d;
+    })(),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Print / Share',function(){
+        var paidNow=Number(document.getElementById('rcp-amt').value||0);
+        var mode=document.getElementById('rcp-mode').value;
+        var note=document.getElementById('rcp-note').value;
+        // Update order advance
+        var newAdv=advance+paidNow;
+        dbSave('orders',Object.assign({},o,{advance:newAdv,lastPayMode:mode}));
+        // Also save to receipts ledger
+        dbSave('receipts',{id:uid(),date:new Date().toISOString().split('T')[0],
+          amount:paidNow,type:'Payment against order',clientId:o.clientId,
+          mode:mode,note:o.item+(note?' - '+note:''),created:Date.now()});
+        printOrderReceipt(o,cl,paidNow,mode,note,recNo,today);
+        closeModal();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('rcp-amt');if(e)e.focus();},50);
+}
+
+function printOrderReceipt(o,cl,paidNow,mode,note,recNo,today){
+  var total=Number(o.amount||0);
+  var prevAdv=Number(o.advance||0);
+  var newAdv=prevAdv+paidNow;
+  var balance=total-newAdv;
+  var modeColor=mode==='Cash'?'#166534':mode==='UPI'?'#1D4ED8':'#6D28D9';
+  var modeBg=mode==='Cash'?'#F0FDF4':mode==='UPI'?'#EFF6FF':'#F5F3FF';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt - '+(cl?cl.name:'')+' </title>'+
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;background:#fff;padding:30px}'+
+    '@media print{body{padding:15px}}.container{max-width:420px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden}'+
+    '.header{background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start}'+
+    '.brand{color:#C9A84C;font-size:18px;font-weight:800;letter-spacing:.05em}'+
+    '.brand-sub{color:rgba(201,168,76,.7);font-size:10px;margin-top:2px}'+
+    '.rec-no{text-align:right;color:rgba(201,168,76,.8);font-size:11px;font-weight:600}'+
+    '.body{padding:20px 24px}.client-name{font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:2px}'+
+    '.client-phone{font-size:12px;color:#888;margin-bottom:16px}'+
+    '.divider{border:none;border-top:1px solid #f0f0f0;margin:14px 0}'+
+    '.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}'+
+    '.label{color:#888}.value{font-weight:600;color:#1a1a1a}'+
+    '.paid-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;text-align:center}'+
+    '.paid-label{font-size:11px;color:#166534;font-weight:600;letter-spacing:.05em;margin-bottom:4px}'+
+    '.paid-amount{font-size:28px;font-weight:800;color:#166534}'+
+    '.mode-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px;background:'+modeBg+';color:'+modeColor+'}'+
+    '.balance-row{display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #f0f0f0;font-size:14px}'+
+    '.footer{background:#f9f9f9;padding:12px 24px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #f0f0f0}'+
+    '</style></head><body><div class="container">'+
+    '<div class="header"><div><div class="brand">RYREE</div><div class="brand-sub">by Shreya Deshmukh</div></div>'+
+    '<div class="rec-no"><div>RECEIPT</div><div>'+recNo+'</div><div style="margin-top:3px">'+today+'</div></div></div>'+
+    '<div class="body">'+
+    '<div class="client-name">'+(cl?cl.name:'Client')+'</div>'+
+    '<div class="client-phone">'+(cl&&cl.phone?cl.phone:'')+'</div>'+
+    '<div class="row"><span class="label">Order item</span><span class="value">'+o.item+'</span></div>'+
+    (o.delivery?'<div class="row"><span class="label">Delivery by</span><span class="value">'+o.delivery+'</span></div>':'')+
+    '<hr class="divider">'+
+    '<div class="paid-box">'+
+    '<div class="paid-label">AMOUNT RECEIVED</div>'+
+    '<div class="paid-amount">'+rupee(paidNow)+'</div>'+
+    '<div class="mode-badge">'+mode+'</div>'+
+    '</div>'+
+    '<div class="row"><span class="label">Order total</span><span class="value">'+rupee(total)+'</span></div>'+
+    '<div class="row"><span class="label">Total paid</span><span class="value">'+rupee(newAdv)+'</span></div>'+
+    '<div class="balance-row"><span style="font-weight:600">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</span></div>'+
+    (note?'<div style="font-size:12px;color:#888;margin-top:8px;padding:8px 12px;background:#fafafa;border-radius:6px">Note: '+note+'</div>':'')+
+    '</div>'+
+    '<div class="footer">Ryree by Shreya Deshmukh &nbsp;&middot;&nbsp; Thank you for your trust!</div>'+
+    '</div></body></html>';
+
+  var win=window.open('','_blank','width=500,height=700');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Please allow popups to generate the receipt.');
+}
+
+// ── P&L REPORT ───────────────────────────────────────────────────────────
+function pgPL(){
+  var now=new Date();
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('P&L Report','Monthly profit & loss summary'));
+
+  // Month/Year selector
+  var controls=mk('div');controls.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap';
+  var monthSel=mkSelect('pl-month',[
+    {value:'0',label:'January'},{value:'1',label:'February'},{value:'2',label:'March'},
+    {value:'3',label:'April'},{value:'4',label:'May'},{value:'5',label:'June'},
+    {value:'6',label:'July'},{value:'7',label:'August'},{value:'8',label:'September'},
+    {value:'9',label:'October'},{value:'10',label:'November'},{value:'11',label:'December'}
+  ],String(now.getMonth()));
+  monthSel.style.width='140px';
+  var years=[];
+  for(var y=now.getFullYear()-2;y<=now.getFullYear();y++)years.push({value:String(y),label:String(y)});
+  var yearSel=mkSelect('pl-year',years,String(now.getFullYear()));
+  yearSel.style.width='100px';
+  var printBtn=mkBtn('Print / Export',function(){printPL();},'btn btn-sm');
+  app(controls,[
+    mk('label','form-label','Month:'),monthSel,
+    mk('label','form-label','Year:'),yearSel,
+    mkBtn('View',function(){renderPLContent();},'btn btn-primary btn-sm'),
+    printBtn
+  ]);
+  wrap.appendChild(controls);
+
+  var content2=mk('div');content2.id='pl-content';
+  wrap.appendChild(content2);
+  renderPLContent();
+  return wrap;
+}
+
+function getPLData(){
+  var m=Number(document.getElementById('pl-month')?document.getElementById('pl-month').value:new Date().getMonth());
+  var y=Number(document.getElementById('pl-year')?document.getElementById('pl-year').value:new Date().getFullYear());
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var prefix=y+'-'+pad(m+1);
+
+  // Receipts for month
+  var recs=DB.receipts.filter(function(r){return (r.date||'').startsWith(prefix);});
+  var totalRec=recs.reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var cashRec=recs.filter(function(r){return r.mode==='Cash';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var upiRec=recs.filter(function(r){return r.mode==='UPI';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+  var cardRec=recs.filter(function(r){return r.mode==='Card';}).reduce(function(a,r){return a+Number(r.amount||0);},0);
+
+  // Expenses for month
+  var exps=DB.expenses.filter(function(e){return (e.date||'').startsWith(prefix);});
+  var totalExp=exps.reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cashExp=exps.filter(function(e){return e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var upiExp=exps.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cardExp=exps.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+
+  // Expense by category
+  var catMap={};
+  exps.forEach(function(e){
+    var cat=e.category||'Other';
+    catMap[cat]=(catMap[cat]||0)+Number(e.amount||0);
+  });
+
+  // Receipt by type
+  var typeMap={};
+  recs.forEach(function(r){
+    var t=r.type||'General';
+    typeMap[t]=(typeMap[t]||0)+Number(r.amount||0);
+  });
+
+  var net=totalRec-totalExp;
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return {m,y,prefix,months,recs,exps,totalRec,totalExp,net,cashRec,upiRec,cardRec,cashExp,upiExp,cardExp,catMap,typeMap};
+}
+
+function renderPLContent(){
+  var c=document.getElementById('pl-content');if(!c)return;
+  c.innerHTML='';
+  var d=getPLData();
+  var net=d.net;
+  var isProfit=net>=0;
+
+  // Big summary cards
+  var statsRow=mk('div','stats-row');statsRow.style.gridTemplateColumns='repeat(3,1fr)';statsRow.style.marginBottom='20px';
+  function bigCard(label,val,color,bg){
+    var card=mk('div','stat-card');card.style.background=bg||'#fff';
+    var l=mk('div','stat-label',label);
+    var v=mk('div','stat-val',rupee(val));v.style.color=color;
+    app(card,[l,v]);return card;
+  }
+  app(statsRow,[
+    bigCard('Total Income',d.totalRec,'#166534','#F0FDF4'),
+    bigCard('Total Expenses',d.totalExp,'#991B1B','#FEF2F2'),
+    bigCard(isProfit?'Net Profit':'Net Loss',Math.abs(net),isProfit?'#166534':'#991B1B',isProfit?'#DCFCE7':'#FFE4E6')
+  ]);
+  c.appendChild(statsRow);
+
+  var twoCol=mk('div','two-col');
+
+  // Income breakdown
+  var incCol=mk('div');
+  incCol.appendChild(mk('div','section-title','Income breakdown'));
+  var incCard=mk('div','card-p0');
+
+  // By type
+  var incTypeTitle=mk('div');incTypeTitle.style.cssText='padding:10px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;background:#fafafa;border-bottom:1px solid #f0f0f0';incTypeTitle.textContent='By receipt type';
+  incCard.appendChild(incTypeTitle);
+  Object.keys(d.typeMap).forEach(function(t){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';
+    var label=mk('span');label.style.color='#555';label.textContent=t;
+    var val=mk('span');val.style.cssText='font-weight:600;color:#166534';val.textContent=rupee(d.typeMap[t]);
+    app(row,[label,val]);incCard.appendChild(row);
+  });
+
+  // By mode
+  var incModeTitle=mk('div');incModeTitle.style.cssText='padding:10px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';incModeTitle.textContent='By payment mode';
+  incCard.appendChild(incModeTitle);
+  [{label:'Cash',val:d.cashRec},{label:'UPI',val:d.upiRec},{label:'Card',val:d.cardRec}].forEach(function(item){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';
+    var badge=mk('span','badge');badge.style.background=item.label==='Cash'?'#F0FDF4':item.label==='UPI'?'#EFF6FF':'#F5F3FF';badge.style.color=item.label==='Cash'?'#166534':item.label==='UPI'?'#1D4ED8':'#6D28D9';badge.textContent=item.label;
+    var val=mk('span');val.style.cssText='font-weight:600;color:#166534';val.textContent=rupee(item.val);
+    app(row,[badge,val]);incCard.appendChild(row);
+  });
+  incCol.appendChild(incCard);
+
+  // Expense breakdown
+  var expCol=mk('div');
+  expCol.appendChild(mk('div','section-title','Expense breakdown'));
+  var expCard=mk('div','card-p0');
+
+  var expCatTitle=mk('div');expCatTitle.style.cssText='padding:10px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;background:#fafafa;border-bottom:1px solid #f0f0f0';expCatTitle.textContent='By category';
+  expCard.appendChild(expCatTitle);
+  Object.keys(d.catMap).sort(function(a,b){return d.catMap[b]-d.catMap[a];}).forEach(function(cat){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';
+    var pct=d.totalExp>0?Math.round(d.catMap[cat]/d.totalExp*100):0;
+    var left=mk('div');
+    var label=mk('div');label.style.color='#555';label.textContent=cat;
+    var bar=mk('div');bar.style.cssText='height:3px;background:#f0f0f0;border-radius:2px;margin-top:4px;width:120px';
+    var fill=mk('div');fill.style.cssText='height:3px;background:#E24B4A;border-radius:2px;width:'+pct+'%';
+    bar.appendChild(fill);app(left,[label,bar]);
+    var right=mk('div');right.style.textAlign='right';
+    var val=mk('span');val.style.cssText='font-weight:600;color:#991B1B';val.textContent=rupee(d.catMap[cat]);
+    var pctSpan=mk('div');pctSpan.style.cssText='font-size:11px;color:#aaa';pctSpan.textContent=pct+'% of expenses';
+    app(right,[val,pctSpan]);app(row,[left,right]);expCard.appendChild(row);
+  });
+
+  var expModeTitle=mk('div');expModeTitle.style.cssText='padding:10px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';expModeTitle.textContent='By payment mode';
+  expCard.appendChild(expModeTitle);
+  [{label:'Cash',val:d.cashExp},{label:'UPI',val:d.upiExp},{label:'Card',val:d.cardExp}].forEach(function(item){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5';
+    var badge=mk('span','badge');badge.style.background=item.label==='Cash'?'#F0FDF4':item.label==='UPI'?'#EFF6FF':'#F5F3FF';badge.style.color=item.label==='Cash'?'#166534':item.label==='UPI'?'#1D4ED8':'#6D28D9';badge.textContent=item.label;
+    var val=mk('span');val.style.cssText='font-weight:600;color:#991B1B';val.textContent=rupee(item.val);
+    app(row,[badge,val]);expCard.appendChild(row);
+  });
+  expCol.appendChild(expCard);
+
+  app(twoCol,[incCol,expCol]);
+  c.appendChild(twoCol);
+
+  // Net summary bar
+  var summary=mk('div');summary.style.cssText='margin-top:16px;padding:16px 20px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;border:1.5px solid '+(isProfit?'#86EFAC':'#FCA5A5');summary.style.background=isProfit?'#F0FDF4':'#FEF2F2';
+  var left=mk('div');
+  var lbl=mk('div');lbl.style.cssText='font-size:13px;font-weight:600;color:'+(isProfit?'#166534':'#991B1B');lbl.textContent=d.months[d.m]+' '+d.y+' — '+(isProfit?'Profitable month':'Loss month');
+  var sub=mk('div');sub.style.cssText='font-size:12px;color:#888;margin-top:2px';sub.textContent=d.recs.length+' receipts · '+d.exps.length+' expenses';
+  app(left,[lbl,sub]);
+  var right=mk('div');right.style.textAlign='right';
+  var netLbl=mk('div');netLbl.style.cssText='font-size:11px;color:#888';netLbl.textContent=isProfit?'Net profit':'Net loss';
+  var netVal=mk('div');netVal.style.cssText='font-size:22px;font-weight:700;color:'+(isProfit?'#166534':'#991B1B');netVal.textContent=rupee(Math.abs(net));
+  app(right,[netLbl,netVal]);app(summary,[left,right]);
+  c.appendChild(summary);
+}
+
+function printPL(){
+  var d=getPLData();
+  var isProfit=d.net>=0;
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var catRows=Object.keys(d.catMap).sort(function(a,b){return d.catMap[b]-d.catMap[a];}).map(function(cat){
+    return '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;color:#555">'+cat+'</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#991B1B">'+rupee(d.catMap[cat])+'</td></tr>';
+  }).join('');
+  var typeRows=Object.keys(d.typeMap).map(function(t){
+    return '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;color:#555">'+t+'</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#166534">'+rupee(d.typeMap[t])+'</td></tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>P&L Report - '+d.months[d.m]+' '+d.y+'</title>'+
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}h1{font-size:20px;margin-bottom:4px}h2{font-size:14px;font-weight:600;margin:20px 0 8px;color:#555}table{width:100%;border-collapse:collapse}.summary{display:flex;gap:20px;margin:16px 0}.sum-box{flex:1;padding:14px;border-radius:8px;text-align:center}.sum-label{font-size:11px;color:#888;margin-bottom:4px}.sum-val{font-size:22px;font-weight:700}.net-box{margin-top:20px;padding:16px 20px;border-radius:8px;display:flex;justify-content:space-between;align-items:center}@media print{body{padding:15px}}</style></head><body>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0">'+
+    '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
+    '<h1>Profit &amp; Loss Report</h1><div style="color:#888;font-size:13px">'+d.months[d.m]+' '+d.y+'</div></div>'+
+    '<div style="text-align:right;font-size:12px;color:#aaa">Generated: '+today+'</div></div>'+
+    '<div class="summary">'+
+    '<div class="sum-box" style="background:#F0FDF4;border:1px solid #86EFAC"><div class="sum-label">Total Income</div><div class="sum-val" style="color:#166534">'+rupee(d.totalRec)+'</div></div>'+
+    '<div class="sum-box" style="background:#FEF2F2;border:1px solid #FCA5A5"><div class="sum-label">Total Expenses</div><div class="sum-val" style="color:#991B1B">'+rupee(d.totalExp)+'</div></div>'+
+    '<div class="sum-box" style="background:'+(isProfit?'#DCFCE7':'#FFE4E6')+';border:1px solid '+(isProfit?'#86EFAC':'#FCA5A5')+'"><div class="sum-label">'+(isProfit?'Net Profit':'Net Loss')+'</div><div class="sum-val" style="color:'+(isProfit?'#166534':'#991B1B')+'">'+rupee(Math.abs(d.net))+'</div></div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px">'+
+    '<div><h2>Income by type</h2><table style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">'+typeRows+'</table>'+
+    '<h2>Income by mode</h2><table style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">'+
+    '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0">Cash</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+rupee(d.cashRec)+'</td></tr>'+
+    '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0">UPI</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+rupee(d.upiRec)+'</td></tr>'+
+    '<tr><td style="padding:7px 14px">Card</td><td style="padding:7px 14px;text-align:right;font-weight:600">'+rupee(d.cardRec)+'</td></tr>'+
+    '</table></div>'+
+    '<div><h2>Expenses by category</h2><table style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">'+catRows+'</table>'+
+    '<h2>Expenses by mode</h2><table style="border:1px solid #f0f0f0;border-radius:8px;overflow:hidden">'+
+    '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0">Cash</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+rupee(d.cashExp)+'</td></tr>'+
+    '<tr><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0">UPI</td><td style="padding:7px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">'+rupee(d.upiExp)+'</td></tr>'+
+    '<tr><td style="padding:7px 14px">Card</td><td style="padding:7px 14px;text-align:right;font-weight:600">'+rupee(d.cardExp)+'</td></tr>'+
+    '</table></div></div>'+
+    '<div class="net-box" style="background:'+(isProfit?'#F0FDF4':'#FEF2F2')+';border:1.5px solid '+(isProfit?'#86EFAC':'#FCA5A5')+'">'+
+    '<div style="font-size:14px;font-weight:600;color:'+(isProfit?'#166534':'#991B1B')+'">'+d.months[d.m]+' '+d.y+' — '+(isProfit?'Profitable month ✓':'Loss month')+'</div>'+
+    '<div style="text-align:right"><div style="font-size:11px;color:#888">'+(isProfit?'Net profit':'Net loss')+'</div><div style="font-size:24px;font-weight:800;color:'+(isProfit?'#166534':'#991B1B')+'">'+rupee(Math.abs(d.net))+'</div></div></div>'+
+    '<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc">Ryree by Shreya Deshmukh · '+today+'</div>'+
+    '</body></html>';
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Allow popups to print.');
+}
+
+// ── OUTSTANDING DUES ─────────────────────────────────────────────────────
+function pgDues(){
+  var wrap=mk('div');
+  // Summary
+  var dueOrders=DB.orders.filter(function(o){
+    var total=Number(o.amount||0);var adv=Number(o.advance||0);
+    return total>adv&&o.status!=='Cancelled';
+  });
+  var totalDue=dueOrders.reduce(function(a,o){return a+Number(o.amount||0)-Number(o.advance||0);},0);
+  var overdue=dueOrders.filter(function(o){return o.delivery&&o.delivery<new Date().toISOString().split('T')[0]&&o.status!=='Delivered';});
+
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  app(stats,[
+    sc('Orders with dues',dueOrders.length,'#B45309','#FFFBEB'),
+    sc('Total amount due',rupee(totalDue),'#991B1B','#FEF2F2'),
+    sc('Overdue (past delivery)',overdue.length,'#991B1B','#FEF2F2')
+  ]);
+
+  wrap.appendChild(mkPageHeader('Outstanding Dues','Clients with pending balance',mkBtn('Print list',function(){printDues(dueOrders);},'btn btn-sm')));
+  wrap.appendChild(stats);
+
+  // Filter tabs
+  var tabsDiv=mk('div');tabsDiv.style.cssText='display:flex;gap:8px;margin-bottom:16px';
+  var allTab=mkBtn('All ('+dueOrders.length+')',function(){renderDuesTable('all');},'btn btn-sm btn-primary');allTab.id='dues-tab-all';
+  var overTab=mkBtn('Overdue ('+overdue.length+')',function(){renderDuesTable('overdue');},'btn btn-sm');overTab.id='dues-tab-overdue';overTab.style.color='#991B1B';overTab.style.borderColor='#FCA5A5';
+  app(tabsDiv,[allTab,overTab]);
+  wrap.appendChild(tabsDiv);
+
+  var tableWrap=mk('div','card-p0');tableWrap.id='dues-table';
+  wrap.appendChild(tableWrap);
+  renderDuesTable('all');
+  return wrap;
+}
+
+function renderDuesTable(filter){
+  var tw=document.getElementById('dues-table');if(!tw)return;
+  tw.innerHTML='';
+  var today=new Date().toISOString().split('T')[0];
+  var orders=DB.orders.filter(function(o){
+    var total=Number(o.amount||0);var adv=Number(o.advance||0);
+    if(total<=adv||o.status==='Cancelled')return false;
+    if(filter==='overdue')return o.delivery&&o.delivery<today&&o.status!=='Delivered';
+    return true;
+  }).sort(function(a,b){return (a.delivery||'9999').localeCompare(b.delivery||'9999');});
+
+  if(!orders.length){tw.appendChild(mk('div','empty',filter==='overdue'?'No overdue orders!':'No outstanding dues.'));return;}
+  var t=mkTable(['Client','Item','Order total','Paid','Balance due','Delivery','Status','Action']);
+  orders.forEach(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var total=Number(o.amount||0);var adv=Number(o.advance||0);var bal=total-adv;
+    var isOverdue=o.delivery&&o.delivery<today&&o.status!=='Delivered';
+    var tr=mk('tr');if(isOverdue)tr.style.background='#FFF5F5';
+
+    var clCell=mkRow();var av=mkAvatar(cl?cl.name:'?');var ns=mk('span');ns.style.fontWeight='600';ns.textContent=cl?cl.name:'?';app(clCell,[av,ns]);
+    var clTd=mk('td');clTd.appendChild(clCell);
+
+    var balTd=mk('td');balTd.style.cssText='font-weight:700;color:#991B1B;font-size:14px';balTd.textContent=rupee(bal);
+
+    var delTd=mk('td');
+    if(isOverdue){var od=mk('div');od.style.cssText='font-weight:600;color:#991B1B';od.textContent=(o.delivery||'—');var odBadge=mk('span');odBadge.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:4px';odBadge.textContent='OVERDUE';od.appendChild(odBadge);delTd.appendChild(od);}
+    else{delTd.textContent=o.delivery||'—';}
+
+    var actTd=mk('td');
+    var rcpBtn=mkBtn('Collect',function(){generateOrderReceipt(o.id);},'btn btn-xs btn-primary');
+    actTd.appendChild(rcpBtn);
+
+    var paidTd=mk('td');paidTd.style.color='#888';paidTd.textContent=rupee(adv);
+    var totalTd=mk('td');totalTd.textContent=rupee(total);
+
+    [clTd,mk('td',null,o.item),totalTd,paidTd,balTd,delTd,mk('td',null,o.status),actTd].forEach(function(td){tr.appendChild(td);});
+    t._body.appendChild(tr);
+  });
+  tw.appendChild(t);
+}
+
+function printDues(orders){
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var todayISO=new Date().toISOString().split('T')[0];
+  var rows=orders.sort(function(a,b){return (a.delivery||'9999').localeCompare(b.delivery||'9999');}).map(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var bal=Number(o.amount||0)-Number(o.advance||0);
+    var isOverdue=o.delivery&&o.delivery<todayISO&&o.status!=='Delivered';
+    return '<tr style="background:'+(isOverdue?'#FFF5F5':'#fff')+'">'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-weight:600">'+(cl?cl.name:'?')+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+(cl&&cl.phone?cl.phone:'—')+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+o.item+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">'+rupee(o.amount||0)+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;color:#888">'+rupee(o.advance||0)+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#991B1B">'+rupee(bal)+'</td>'+
+      '<td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:'+(isOverdue?'#991B1B':'#555')+'">'+(o.delivery||'—')+(isOverdue?' ⚠':'')+'</td>'+
+      '</tr>';
+  }).join('');
+  var total=orders.reduce(function(a,o){return a+Number(o.amount||0)-Number(o.advance||0);},0);
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Outstanding Dues</title>'+
+    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}table{width:100%;border-collapse:collapse;border:1px solid #f0f0f0;border-radius:8px;overflow:hidden}th{background:#fafafa;text-align:left;padding:10px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em}@media print{body{padding:15px}}</style>'+
+    '</head><body>'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0">'+
+    '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
+    '<div style="font-size:20px;font-weight:800">Outstanding Dues</div></div>'+
+    '<div style="text-align:right"><div style="font-size:11px;color:#aaa">As of '+today+'</div>'+
+    '<div style="font-size:18px;font-weight:700;color:#991B1B;margin-top:4px">Total: '+rupee(total)+'</div></div></div>'+
+    '<table><thead><tr><th>Client</th><th>Phone</th><th>Item</th><th style="text-align:right">Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Delivery</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">⚠ Overdue orders are highlighted in red &nbsp;·&nbsp; Ryree by Shreya Deshmukh · '+today+'</div>'+
+    '</body></html>';
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Allow popups to print.');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
