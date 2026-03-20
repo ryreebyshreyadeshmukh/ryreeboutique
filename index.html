@@ -1723,8 +1723,7 @@ function pgInventory(){
   }
 
   var tw=mk('div','card-p0');
-  if(!DB.inventory.length){tw.appendChild(mk('div','empty','No inventory items yet.
-Add fabrics, threads, accessories etc.'));}
+  if(!DB.inventory.length){tw.appendChild(mk('div','empty','No inventory items yet. Add fabrics, threads, accessories etc.'));}
   else{
     var t=mkTable(['Item','Category','In stock','Unit','Min. qty','Value','Actions']);
     DB.inventory.slice().sort(function(a,b){
@@ -1823,8 +1822,7 @@ function whatsappMeasCard(clientId){
   });
   if(cl.notes)lines.push('_Notes: '+cl.notes+'_');
   lines.push('');lines.push('_Ryree Boutique Management_');
-  var text=lines.join('
-');
+  var text=lines.join('\n');
   var encoded=encodeURIComponent(text);
   var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
   var url=phone?'https://wa.me/91'+phone+'?text='+encoded:'https://wa.me/?text='+encoded;
@@ -1852,17 +1850,7 @@ function getBirthdayReminders(){
 
 function whatsappBirthday(clientId){
   var cl=DB.clients.find(function(x){return x.id===clientId;});if(!cl)return;
-  var text='*RYREE by Shreya Deshmukh*
-
-Dear '+cl.name+',
-
-Wishing you a very Happy Birthday! 🎂🌸
-
-Thank you for being a valued client of Ryree. May your special day be as beautiful as you!
-
-_With love,_
-_Shreya Deshmukh_
-_Ryree Boutique_';
+  var text='*RYREE by Shreya Deshmukh*\n\nDear '+cl.name+',\n\nWishing you a very Happy Birthday! 🎂🌸\n\nThank you for being a valued client of Ryree. May your special day be as beautiful as you!\n\n_With love,_\n_Shreya Deshmukh_\n_Ryree Boutique_';
   var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
   var url=phone?'https://wa.me/91'+phone+'?text='+encodeURIComponent(text):'https://wa.me/?text='+encodeURIComponent(text);
   window.open(url,'_blank');
