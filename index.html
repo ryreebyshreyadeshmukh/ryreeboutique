@@ -386,6 +386,23 @@ function nav(p){
 }
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
+  // Smart refresh - update only table, not entire page
+  if(page==='receipts'&&document.getElementById('rec-table')){
+    renderRecTable(_recDateFilter);
+    updateRecStats(_recDateFilter);
+    return;
+  }
+  if(page==='expenses'&&document.getElementById('exp-table')){
+    renderExpTable(_expDateFilter);
+    updateExpStats(_expDateFilter);
+    return;
+  }
+  if(page==='purchases'&&document.getElementById('pur-table')){
+    renderPurchaseTable();return;
+  }
+  if(page==='dues'&&document.getElementById('dues-table')){
+    renderDuesTable('all');return;
+  }
   mc.innerHTML='';
   var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,purchases:pgPurchases,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
@@ -1021,29 +1038,22 @@ function updateRecStats(dateVal){
   [sc2('Total for date',rupee(total),'#2D6B5E'),sc2('Cash',rupee(cash),'#166534'),sc2('UPI',rupee(upi),'#1D4ED8'),sc2('Card',rupee(card),'#6D28D9')].forEach(function(c){statsDiv.appendChild(c);});
 }
 
-function pgReceipts(){
-  var today=new Date().toISOString().split('T')[0];
-  var wrap=mk('div');
-  // Summary bar
-  wrap.appendChild(mkPageHeader('Daily Receipts','Record all incoming payments',mkBtn('+ Add Receipt',function(){openReceiptModal();},'btn btn-primary')));
 
-  // Date filter FIRST - so stats below reflect the filtered date
+function pgReceipts(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Daily Receipts','Record all incoming payments',mkBtn('+ Add Receipt',function(){openReceiptModal();},'btn btn-primary')));
   var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
   var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
-  var di=mk('input','form-input');di.id='rec-date-filter';di.type='date';di.value=today;di.style.width='160px';
-  di.oninput=function(){renderRecTable(this.value);updateRecStats(this.value);};
+  var di=mk('input','form-input');di.id='rec-date-filter';di.type='date';di.value=_recDateFilter;di.style.width='160px';
+  di.oninput=function(){_recDateFilter=this.value;renderRecTable(_recDateFilter);updateRecStats(_recDateFilter);};
   app(df,[dl,di]);wrap.appendChild(df);
-
-  // Stats computed from filtered date
   var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:16px';
-  stats.id='rec-stats';
-  wrap.appendChild(stats);
-  updateRecStats(today);
-
+  stats.id='rec-stats';wrap.appendChild(stats);
   var tw=mk('div','card-p0');tw.id='rec-table';wrap.appendChild(tw);
-  renderRecTable(today);
+  setTimeout(function(){renderRecTable(_recDateFilter);updateRecStats(_recDateFilter);},0);
   return wrap;
 }
+
 
 function renderRecTable(dateVal){
   var tw=document.getElementById('rec-table');if(!tw)return;
@@ -1051,20 +1061,27 @@ function renderRecTable(dateVal){
   var filtered=DB.receipts.filter(function(r){return !dateVal||r.date===dateVal;}).slice().reverse();
   if(!filtered.length){tw.appendChild(mk('div','empty','No receipts for this date.'));return;}
   var t=mkTable(['Date','Type','Client','Amount','Mode','Note','']);
-  filtered.forEach(function(r){
-    var cl=r.clientId?DB.clients.find(function(x){return x.id===r.clientId;}):null;
-    var modeBadge=mk('span','badge');
-    modeBadge.style.background=r.mode==='Cash'?'#F0FDF4':r.mode==='UPI'?'#EFF6FF':'#F5F3FF';
-    modeBadge.style.color=r.mode==='Cash'?'#166534':r.mode==='UPI'?'#1D4ED8':'#6D28D9';
-    modeBadge.textContent=r.mode||'—';
-    var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#166534';amtTd.textContent=rupee(r.amount);
-    var delB=mkBtn('Del',function(){if(confirm('Delete?'))dbDel('receipts',r.id);},'btn-danger');
-    var delTd=mk('td');delTd.appendChild(delB);
-    var modeTd=mk('td');modeTd.appendChild(modeBadge);
-    var tr=mk('tr');
-    [mk('td',null,r.date),mk('td',null,r.type||'—'),mk('td',null,cl?cl.name:'—'),amtTd,modeTd,mk('td',null,r.note||'—'),delTd].forEach(function(td){tr.appendChild(td);});
-    t._body.appendChild(tr);
-  });
+  for(var i=0;i<filtered.length;i++){
+    (function(r){
+      var cl=r.clientId?DB.clients.find(function(x){return x.id===r.clientId;}):null;
+      var modeBadge=mk('span','badge');
+      modeBadge.style.background=r.mode==='Cash'?'#F0FDF4':r.mode==='UPI'?'#EFF6FF':'#F5F3FF';
+      modeBadge.style.color=r.mode==='Cash'?'#166534':r.mode==='UPI'?'#1D4ED8':'#6D28D9';
+      modeBadge.textContent=r.mode||'—';
+      var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#166534';amtTd.textContent=rupee(r.amount);
+      var delB=mk('button','btn-danger','Del');
+      delB.setAttribute('data-id',r.id);
+      delB.onclick=function(){if(confirm('Delete this receipt?'))dbDel('receipts',this.getAttribute('data-id'));};
+      var editB=mk('button','btn btn-xs','Edit');
+      editB.setAttribute('data-id',r.id);
+      editB.onclick=function(){openEditReceiptModal(this.getAttribute('data-id'));};
+      var modeTd=mk('td');modeTd.appendChild(modeBadge);
+      var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
+      var tr=mk('tr');
+      [mk('td',null,r.date),mk('td',null,r.type||'—'),mk('td',null,cl?cl.name:'—'),amtTd,modeTd,mk('td',null,r.note||'—'),actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    })(filtered[i]);
+  }
   tw.appendChild(t);
 }
 
@@ -1124,22 +1141,19 @@ function updateExpStats(dateVal){
 function pgExpenses(){
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Daily Expenses','Record all outgoing payments',mkBtn('+ Add Expense',function(){openExpenseModal();},'btn btn-primary')));
-
   var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
   var dl=mk('label','form-label','Filter by date:');dl.style.margin='0';
   var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=_expDateFilter;di.style.width='160px';
   di.oninput=function(){_expDateFilter=this.value;renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);};
   app(df,[dl,di]);wrap.appendChild(df);
-
   var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:16px';
   stats.id='exp-stats';
   wrap.appendChild(stats);
-  updateExpStats(_expDateFilter);
-
   var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
-  renderExpTable(_expDateFilter);
+  setTimeout(function(){renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);},0);
   return wrap;
 }
+
 
 function renderExpTable(dateVal){
   var tw=document.getElementById('exp-table');if(!tw)return;
@@ -1147,28 +1161,26 @@ function renderExpTable(dateVal){
   var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;}).slice().reverse();
   if(!filtered.length){tw.appendChild(mk('div','empty','No expenses for this date.'));return;}
   var t=mkTable(['Date','Category','Amount','Mode','Description','']);
-  filtered.forEach(function(e){
-    var eid=e.id;
-    var modeBadge=mk('span','badge');
-    modeBadge.style.background=e.mode==='Cash'?'#F0FDF4':e.mode==='UPI'?'#EFF6FF':'#F5F3FF';
-    modeBadge.style.color=e.mode==='Cash'?'#166534':e.mode==='UPI'?'#1D4ED8':'#6D28D9';
-    modeBadge.textContent=e.mode||'—';
-    var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#991B1B';amtTd.textContent=rupee(e.amount);
-    var delB=mk('button','btn-danger','Del');
-    delB.setAttribute('data-id',eid);
-    delB.onclick=function(){
-      var id=this.getAttribute('data-id');
-      if(confirm('Delete this expense?'))dbDel('expenses',id);
-    };
-    var editB=mk('button','btn btn-xs','Edit');
-    editB.setAttribute('data-id',eid);
-    editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
-    var modeTd=mk('td');modeTd.appendChild(modeBadge);
-    var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
-    var tr=mk('tr');
-    [mk('td',null,e.date),mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),actTd].forEach(function(td){tr.appendChild(td);});
-    t._body.appendChild(tr);
-  });
+  for(var i=0;i<filtered.length;i++){
+    (function(e){
+      var modeBadge=mk('span','badge');
+      modeBadge.style.background=e.mode==='Cash'?'#F0FDF4':e.mode==='UPI'?'#EFF6FF':'#F5F3FF';
+      modeBadge.style.color=e.mode==='Cash'?'#166534':e.mode==='UPI'?'#1D4ED8':'#6D28D9';
+      modeBadge.textContent=e.mode||'—';
+      var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#991B1B';amtTd.textContent=rupee(e.amount);
+      var delB=mk('button','btn-danger','Del');
+      delB.setAttribute('data-id',e.id);
+      delB.onclick=function(){if(confirm('Delete this expense?'))dbDel('expenses',this.getAttribute('data-id'));};
+      var editB=mk('button','btn btn-xs','Edit');
+      editB.setAttribute('data-id',e.id);
+      editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
+      var modeTd=mk('td');modeTd.appendChild(modeBadge);
+      var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
+      var tr=mk('tr');
+      [mk('td',null,e.date),mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    })(filtered[i]);
+  }
   tw.appendChild(t);
 }
 
