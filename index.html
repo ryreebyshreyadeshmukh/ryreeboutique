@@ -1122,7 +1122,6 @@ function updateExpStats(dateVal){
 }
 
 function pgExpenses(){
-  var today=new Date().toISOString().split('T')[0];
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Daily Expenses','Record all outgoing payments',mkBtn('+ Add Expense',function(){openExpenseModal();},'btn btn-primary')));
 
