@@ -1084,12 +1084,14 @@ function openReceiptModal(prefillClientId){
     mkFg('Receipt type',typeSel),
     mkFg('Client (if applicable)',clSel),
     app(mk('div','form-row'),[mkFg('Payment mode',modeSel),mkFg('Note',noteInp)]),
-    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
-      var amt=document.getElementById('r-amount').value;if(!amt)return;
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save receipt',function(){
+      var amt=document.getElementById('r-amount').value;
+      if(!amt||Number(amt)<=0){alert('Please enter a valid amount.');return;}
+      var type=document.getElementById('r-type').value||'General receipt';
       dbSave('receipts',{id:uid(),
         date:document.getElementById('r-date').value,
         amount:amt,
-        type:document.getElementById('r-type').value,
+        type:type,
         clientId:document.getElementById('r-client').value,
         mode:document.getElementById('r-mode').value,
         note:document.getElementById('r-note').value,
@@ -1145,16 +1147,25 @@ function renderExpTable(dateVal){
   if(!filtered.length){tw.appendChild(mk('div','empty','No expenses for this date.'));return;}
   var t=mkTable(['Date','Category','Amount','Mode','Description','']);
   filtered.forEach(function(e){
+    var eid=e.id;
     var modeBadge=mk('span','badge');
     modeBadge.style.background=e.mode==='Cash'?'#F0FDF4':e.mode==='UPI'?'#EFF6FF':'#F5F3FF';
     modeBadge.style.color=e.mode==='Cash'?'#166534':e.mode==='UPI'?'#1D4ED8':'#6D28D9';
     modeBadge.textContent=e.mode||'—';
     var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.style.color='#991B1B';amtTd.textContent=rupee(e.amount);
-    var delB=mkBtn('Del',function(){if(confirm('Delete?'))dbDel('expenses',e.id);},'btn-danger');
-    var delTd=mk('td');delTd.appendChild(delB);
+    var delB=mk('button','btn-danger','Del');
+    delB.setAttribute('data-id',eid);
+    delB.onclick=function(){
+      var id=this.getAttribute('data-id');
+      if(confirm('Delete this expense?'))dbDel('expenses',id);
+    };
+    var editB=mk('button','btn btn-xs','Edit');
+    editB.setAttribute('data-id',eid);
+    editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
     var modeTd=mk('td');modeTd.appendChild(modeBadge);
+    var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
     var tr=mk('tr');
-    [mk('td',null,e.date),mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),delTd].forEach(function(td){tr.appendChild(td);});
+    [mk('td',null,e.date),mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),actTd].forEach(function(td){tr.appendChild(td);});
     t._body.appendChild(tr);
   });
   tw.appendChild(t);
@@ -1175,8 +1186,9 @@ function openExpenseModal(){
     app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
     mkFg('Category',catSel),
     app(mk('div','form-row'),[mkFg('Payment mode',modeSel),mkFg('Description',descInp)]),
-    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
-      var amt=document.getElementById('e-amount').value;if(!amt)return;
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save expense',function(){
+      var amt=document.getElementById('e-amount').value;
+      if(!amt||Number(amt)<=0){alert('Please enter a valid amount.');return;}
       dbSave('expenses',{id:uid(),
         date:document.getElementById('e-date').value,
         amount:amt,
@@ -2204,6 +2216,74 @@ function viewPurchase(id){
   if(p.description){var nt=mk('div');nt.style.cssText='font-size:12px;color:#888;margin-top:10px;padding:8px;background:#f9f9f9;border-radius:6px';nt.textContent='Note: '+p.description;wrap.appendChild(nt);}
   if(p.inventoryUpdated){var iu=mk('div');iu.style.cssText='font-size:12px;color:#166534;margin-top:8px;padding:8px;background:#F0FDF4;border-radius:6px';iu.textContent='✓ Inventory was automatically updated when this purchase was recorded.';wrap.appendChild(iu);}
   wrap.appendChild(mkActions([mkBtn('Close',closeModal)]));
+  showM(wrap);
+}
+
+// ── EDIT RECEIPT MODAL ───────────────────────────────────────────────────
+function openEditReceiptModal(id){
+  var r=DB.receipts.find(function(x){return x.id===id;});if(!r)return;
+  var clOpts=[{value:'',label:'— None / Walk-in —'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
+  var typeOpts=RECEIPT_TYPES.map(function(t){return {value:t,label:t};});
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var dateInp=mkInput('re-date','date','',r.date||'');
+  var amtInp=mkInput('re-amount','number','Amount (₹)',String(r.amount||''));
+  var typeSel=mkSelect('re-type',typeOpts,r.type||'');
+  var clSel=mkSelect('re-client',clOpts,r.clientId||'');
+  var modeSel=mkSelect('re-mode',modeOpts,r.mode||'Cash');
+  var noteInp=mkInput('re-note','text','Optional note',r.note||'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Edit Receipt'),
+    app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
+    mkFg('Receipt type',typeSel),
+    mkFg('Client',clSel),
+    app(mk('div','form-row'),[mkFg('Payment mode',modeSel),mkFg('Note',noteInp)]),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('re-amount').value;
+      if(!amt||Number(amt)<=0){alert('Please enter a valid amount.');return;}
+      dbSave('receipts',Object.assign({},r,{
+        date:document.getElementById('re-date').value,
+        amount:amt,
+        type:document.getElementById('re-type').value||'General receipt',
+        clientId:document.getElementById('re-client').value,
+        mode:document.getElementById('re-mode').value,
+        note:document.getElementById('re-note').value
+      }));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+}
+
+// ── EDIT EXPENSE MODAL ────────────────────────────────────────────────────
+function openEditExpenseModal(id){
+  var e=DB.expenses.find(function(x){return x.id===id;});if(!e)return;
+  var catOpts=EXPENSE_CATS.map(function(c){return {value:c,label:c};});
+  var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
+  var dateInp=mkInput('ee-date','date','',e.date||'');
+  var amtInp=mkInput('ee-amount','number','Amount (₹)',String(e.amount||''));
+  var catSel=mkSelect('ee-cat',catOpts,e.category||'');
+  var modeSel=mkSelect('ee-mode',modeOpts,e.mode||'Cash');
+  var descInp=mkInput('ee-desc','text','Description',e.description||'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Edit Expense'),
+    app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
+    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),
+    mkFg('Description',descInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var amt=document.getElementById('ee-amount').value;
+      if(!amt||Number(amt)<=0){alert('Please enter a valid amount.');return;}
+      dbSave('expenses',Object.assign({},e,{
+        date:document.getElementById('ee-date').value,
+        amount:amt,
+        category:document.getElementById('ee-cat').value,
+        mode:document.getElementById('ee-mode').value,
+        description:document.getElementById('ee-desc').value
+      }));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
   showM(wrap);
 }
 
