@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ryree by Shreya Deshmukh</title>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<!-- Firebase compat SDKs (no modules needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
   const cfg = {
     apiKey:"AIzaSyBLQXASONjNoAxek0OYBWm8AD_1i9oQgsI",
     authDomain:"ryreeboutique.firebaseapp.com",
@@ -15,16 +16,16 @@
     messagingSenderId:"214509276840",
     appId:"1:214509276840:web:28d36a70a3a7d6698dbc9d"
   };
-  const app = initializeApp(cfg);
-  const db  = getFirestore(app);
+  firebase.initializeApp(cfg);
+  const db = firebase.firestore();
   window.$db         = db;
-  window.$col        = (name) => collection(db, name);
-  window.$doc        = (col, id) => doc(db, col, id);
-  window.$getDocs    = getDocs;
-  window.$setDoc     = setDoc;
-  window.$deleteDoc  = deleteDoc;
-  window.$onSnapshot = onSnapshot;
-  window.$getDoc     = getDoc;
+  window.$col        = (name) => db.collection(name);
+  window.$doc        = (col, id) => db.collection(col).doc(id);
+  window.$getDocs    = (ref) => ref.get();
+  window.$setDoc     = (ref, data) => ref.set(data);
+  window.$deleteDoc  = (ref) => ref.delete();
+  window.$onSnapshot = (ref, cb, err) => ref.onSnapshot(cb, err);
+  window.$getDoc     = (ref) => ref.get();
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <style>
@@ -306,10 +307,9 @@ function initFirebaseListeners(){
     let loaded=0;
     _unsubs.forEach(u=>u());_unsubs=[];
     cols.forEach(colName=>{
-      const unsub=window.$onSnapshot(
-        window.$col(colName),
+      const unsub=window.$db.collection(colName).onSnapshot(
         (snap)=>{
-          DB[colName]=snap.docs.map(d=>{return{id:d.id,...d.data()}});
+          DB[colName]=snap.docs.map(d=>({id:d.id,...d.data()}));
           loaded++;
           if(loaded>=cols.length){setSyncStatus('ok','Synced');render();}
           else render();
@@ -325,7 +325,7 @@ async function dbSave(colName,item){
   waitForFirebase(async()=>{
     try{
       setSyncStatus('loading','Saving...');
-      await window.$setDoc(window.$doc(colName,item.id),item);
+      await window.$doc(colName,item.id).set(item);
       setSyncStatus('ok','Saved ✓');
     }catch(e){setSyncStatus('error','Save failed');console.error(e);}
   });
@@ -335,7 +335,7 @@ async function dbDelete(colName,id){
   waitForFirebase(async()=>{
     try{
       setSyncStatus('loading','Deleting...');
-      await window.$deleteDoc(window.$doc(colName,id));
+      await window.$doc(colName,id).delete();
       setSyncStatus('ok','Synced');
     }catch(e){setSyncStatus('error','Delete failed');console.error(e);}
   });
