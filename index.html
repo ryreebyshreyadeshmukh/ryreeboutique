@@ -134,6 +134,12 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-clients" data-page="clients">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
     </div>
+    <div class="nav-item" id="nav-staff" data-page="staff">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.5 2-4 5-4"/><circle cx="11" cy="7" r="2"/><path d="M8.5 13c0-1.8 1.1-3 2.5-3s2.5 1.2 2.5 3"/></svg>Staff
+    </div>
+    <div class="nav-item" id="nav-inventory" data-page="inventory">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="12" height="8" rx="1.5"/><path d="M5 6V4a3 3 0 0 1 6 0v2"/><path d="M8 9v3" stroke-linecap="round"/></svg>Inventory
+    </div>
     <div class="nav-section">Entry</div>
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
@@ -253,7 +259,7 @@ function showApp(){
   initDB();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -263,7 +269,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -375,7 +381,7 @@ function nav(p){
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,staff:pgStaff,inventory:pgInventory,orders:pgOrders,receipts:pgReceipts,expenses:pgExpenses,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -673,6 +679,7 @@ function openClientModal(id){
     mkFg('Full name *',nm),
     app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Email',em)]),
     mkFg('Notes',no),
+    mkFg('Birthday (for reminders)',mkInput('m-bday','date','',c?(c.birthday||''):'')),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var name=document.getElementById('m-name').value.trim();if(!name)return;
       var ex=id?DB.clients.find(function(x){return x.id===id;}):null;
@@ -680,6 +687,7 @@ function openClientModal(id){
         phone:document.getElementById('m-phone').value.trim(),
         email:document.getElementById('m-email').value.trim(),
         notes:document.getElementById('m-notes').value.trim(),
+        birthday:document.getElementById('m-bday').value,
         measurements:ex?(ex.measurements||{}):{}});
       closeModal();
     },'btn btn-primary')])
@@ -769,7 +777,7 @@ function pgOrders(){
   if(!DB.orders.length){tw.appendChild(mk('div','empty','No orders yet.'));}
   else{
     var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
-    var t=mkTable(['Client','Item','Amount','Advance','Delivery','Status','']);
+    var t=mkTable(['Client','Item','Amount','Advance','Delivery','Assigned to','Status','']);
     DB.orders.slice().reverse().forEach(function(o){
       var cl=DB.clients.find(function(x){return x.id===o.clientId;});
       var clCell=mkRow();
@@ -791,7 +799,10 @@ function pgOrders(){
       var selTd=mk('td');selTd.appendChild(sel);
       var actTd=mk('td');actTd.appendChild(acts);
       var tr=mk('tr');
-      [clTd,mk('td',null,o.item),amtTd,advTd,delTd,selTd,actTd].forEach(function(td){tr.appendChild(td);});
+      var staffTd=mk('td');staffTd.style.color='#888';
+      var assignedStaff=o.assignedTo?DB.staff.find(function(x){return x.id===o.assignedTo;}):null;
+      staffTd.textContent=assignedStaff?assignedStaff.name:'—';
+      [clTd,mk('td',null,o.item),amtTd,advTd,delTd,staffTd,selTd,actTd].forEach(function(td){tr.appendChild(td);});
       t._body.appendChild(tr);
     });
     tw.appendChild(t);
@@ -930,9 +941,48 @@ function pgDashboard(){
   var col1=mk('div');app(col1,[mk('div','section-title','Recent orders'),oc]);
   var col2=mk('div');app(col2,[mk('div','section-title','Upcoming appointments'),ac]);
   var two=mk('div','two-col');app(two,[col1,col2]);
+
+  // Birthday reminders
+  var bdays=getBirthdayReminders();
+  var bdaySection=mk('div');bdaySection.style.marginTop='20px';
+  if(bdays.length>0){
+    bdaySection.appendChild(mk('div','section-title','Upcoming birthdays 🎂'));
+    var bdayCard=mk('div','card-p0');
+    bdays.forEach(function(b){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #f5f5f5';
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=b.client.name;
+      var dt=mk('div');dt.style.cssText='font-size:11px;color:#aaa';dt.textContent=b.diff===0?'Today! 🎉':b.diff===1?'Tomorrow':b.diff+' days away';
+      app(left,[nm,dt]);
+      var wa=mkBtn('💬 Wish',function(){whatsappBirthday(b.client.id);},'btn btn-xs btn-primary');
+      app(row,[left,wa]);bdayCard.appendChild(row);
+    });
+    bdaySection.appendChild(bdayCard);
+  }
+
+  // Low stock alerts on dashboard
+  var lowStock=DB.inventory.filter(function(i){return Number(i.qty||0)<=Number(i.minQty||0)&&Number(i.minQty||0)>0;});
+  var stockSection=mk('div');stockSection.style.marginTop='16px';
+  if(lowStock.length>0){
+    stockSection.appendChild(mk('div','section-title','Low stock alerts ⚠'));
+    var stockCard=mk('div','card-p0');
+    lowStock.forEach(function(item){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #f5f5f5;background:#FFF5F5';
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=item.name;
+      var dt=mk('div');dt.style.cssText='font-size:11px;color:#aaa';dt.textContent=(item.qty||0)+' '+item.unit+' remaining (min: '+item.minQty+')';
+      app(left,[nm,dt]);
+      var badge=mk('span','badge');badge.style.cssText='background:#FEF2F2;color:#991B1B';badge.textContent='Low stock';
+      app(row,[left,badge]);stockCard.appendChild(row);
+    });
+    stockSection.appendChild(stockCard);
+  }
+
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Dashboard',''));
-  wrap.appendChild(stats);wrap.appendChild(two);return wrap;
+  wrap.appendChild(stats);wrap.appendChild(two);
+  wrap.appendChild(bdaySection);wrap.appendChild(stockSection);
+  return wrap;
 }
 
 // ── RECEIPTS ─────────────────────────────────────────────────────────────
@@ -1542,6 +1592,280 @@ function printDues(orders){
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
+}
+
+// ── STAFF MANAGEMENT ─────────────────────────────────────────────────────
+function pgStaff(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Staff','Tailors and their current assignments',
+    mkBtn('+ Add Staff',function(){openStaffModal();},'btn btn-primary')));
+
+  if(!DB.staff.length){
+    var empty=mk('div','card');empty.appendChild(mk('div','empty','No staff added yet. Add your tailors and helpers.'));
+    wrap.appendChild(empty);return wrap;
+  }
+
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
+  DB.staff.forEach(function(s){
+    var activeOrders=DB.orders.filter(function(o){return o.assignedTo===s.id&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+    var card=mk('div','card');
+    // Header
+    var hdr=mkRow('display:flex;align-items:center;gap:12px;margin-bottom:12px');
+    var av=mkAvatar(s.name,40);av.style.background='#e6f0ee';
+    var info=mk('div');
+    var nm=mk('div');nm.style.cssText='font-weight:600;font-size:15px';nm.textContent=s.name;
+    var role=mk('div');role.style.cssText='font-size:12px;color:#888';role.textContent=s.role||'Tailor';
+    if(s.phone){var ph=mk('div');ph.style.cssText='font-size:12px;color:#aaa';ph.textContent=s.phone;app(info,[nm,role,ph]);}
+    else app(info,[nm,role]);
+    app(hdr,[av,info]);
+    card.appendChild(hdr);
+    // Active orders
+    var ordTitle=mk('div');ordTitle.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em';
+    ordTitle.textContent='Active orders ('+activeOrders.length+')';
+    card.appendChild(ordTitle);
+    if(!activeOrders.length){
+      var free=mk('div');free.style.cssText='font-size:12px;color:#aaa;padding:6px 0';free.textContent='No active assignments — available';
+      card.appendChild(free);
+    } else {
+      activeOrders.forEach(function(o){
+        var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+        var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f5f5f5;font-size:12px';
+        var left=mk('div');
+        var itm=mk('div');itm.style.fontWeight='500';itm.textContent=o.item+(cl?' — '+cl.name:'');
+        var del=mk('div');del.style.color='#aaa';del.textContent='Delivery: '+(o.delivery||'—');
+        app(left,[itm,del]);
+        app(row,[left,mkBadge(o.status)]);
+        card.appendChild(row);
+      });
+    }
+    // Actions
+    var acts=mkRow('display:flex;gap:6px;margin-top:12px');
+    app(acts,[
+      mkBtn('Edit',function(){openStaffModal(s.id);},'btn btn-xs'),
+      mkBtn('Assign order',function(){openAssignModal(s.id);},'btn btn-xs btn-primary'),
+      mkBtn('Delete',function(){if(confirm('Delete '+s.name+'?'))dbDel('staff',s.id);},'btn-danger')
+    ]);
+    card.appendChild(acts);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function openStaffModal(id){
+  var s=id?DB.staff.find(function(x){return x.id===id;}):null;
+  var roles=[{value:'Tailor',label:'Tailor'},{value:'Helper',label:'Helper'},{value:'Embroidery',label:'Embroidery specialist'},{value:'Cutting master',label:'Cutting master'},{value:'Other',label:'Other'}];
+  var nm=mkInput('s-name','text','Full name',s?s.name:'');
+  var ph=mkInput('s-phone','text','Phone number',s?(s.phone||''):'');
+  var roleSel=mkSelect('s-role',roles,s?(s.role||'Tailor'):'Tailor');
+  var sal=mkInput('s-salary','number','Monthly salary',s?(s.salary||''):'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' staff member'),
+    mkFg('Full name *',nm),
+    app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Role',roleSel)]),
+    mkFg('Monthly salary (₹)',sal),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('s-name').value.trim();if(!name)return;
+      dbSave('staff',{id:id||uid(),name:name,
+        phone:document.getElementById('s-phone').value.trim(),
+        role:document.getElementById('s-role').value,
+        salary:document.getElementById('s-salary').value});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();},50);
+}
+
+function openAssignModal(staffId){
+  var s=DB.staff.find(function(x){return x.id===staffId;});
+  var unassigned=DB.orders.filter(function(o){return ['Pending','In Progress'].indexOf(o.status)>=0;});
+  if(!unassigned.length){alert('No active orders to assign.');return;}
+  var opts=unassigned.map(function(o){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    return {value:o.id,label:(cl?cl.name+' — ':'')+o.item+(o.delivery?' (by '+o.delivery+')':'')};
+  });
+  var sel=mkSelect('assign-order',[{value:'',label:'Select order...'}].concat(opts),'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Assign order to '+s.name),
+    mkFg('Select order',sel),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Assign',function(){
+      var oid=document.getElementById('assign-order').value;if(!oid)return;
+      var o=DB.orders.find(function(x){return x.id===oid;});
+      if(o)dbSave('orders',Object.assign({},o,{assignedTo:staffId,status:'In Progress'}));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+}
+
+// ── INVENTORY ─────────────────────────────────────────────────────────────
+function pgInventory(){
+  var wrap=mk('div');
+  // Summary
+  var lowStock=DB.inventory.filter(function(i){return Number(i.qty||0)<=Number(i.minQty||0);});
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  app(stats,[
+    sc('Total items',DB.inventory.length),
+    sc('Low stock alerts',lowStock.length,lowStock.length>0?'#991B1B':'#166534',lowStock.length>0?'#FEF2F2':'#F0FDF4'),
+    sc('Total items tracked',DB.inventory.reduce(function(a,i){return a+Number(i.qty||0);},0))
+  ]);
+  wrap.appendChild(mkPageHeader('Inventory','Fabric and material stock levels',mkBtn('+ Add Item',function(){openInventoryModal();},'btn btn-primary')));
+  wrap.appendChild(stats);
+
+  if(lowStock.length>0){
+    var alert2=mk('div');alert2.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991B1B;font-weight:500';
+    alert2.textContent='⚠ Low stock: '+lowStock.map(function(i){return i.name;}).join(', ');
+    wrap.appendChild(alert2);
+  }
+
+  var tw=mk('div','card-p0');
+  if(!DB.inventory.length){tw.appendChild(mk('div','empty','No inventory items yet.
+Add fabrics, threads, accessories etc.'));}
+  else{
+    var t=mkTable(['Item','Category','In stock','Unit','Min. qty','Value','Actions']);
+    DB.inventory.slice().sort(function(a,b){
+      var aLow=Number(a.qty||0)<=Number(a.minQty||0);
+      var bLow=Number(b.qty||0)<=Number(b.minQty||0);
+      return bLow-aLow;
+    }).forEach(function(item){
+      var isLow=Number(item.qty||0)<=Number(item.minQty||0);
+      var tr=mk('tr');if(isLow)tr.style.background='#FFF5F5';
+      var qtyTd=mk('td');
+      var qtyVal=mk('span');qtyVal.style.cssText='font-weight:600;color:'+(isLow?'#991B1B':'#166534');qtyVal.textContent=item.qty||'0';
+      if(isLow){var low=mk('span');low.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:6px';low.textContent='LOW';qtyTd.appendChild(qtyVal);qtyTd.appendChild(low);}
+      else qtyTd.appendChild(qtyVal);
+      var val=Number(item.qty||0)*Number(item.price||0);
+      var valTd=mk('td');valTd.style.color='#888';valTd.textContent=val>0?rupee(val):'—';
+      var acts=mkRow('display:flex;gap:5px');
+      var addBtn=mkBtn('+',function(){quickAddStock(item.id);},'btn btn-xs');addBtn.title='Add stock';addBtn.style.color='#166534';addBtn.style.borderColor='#86EFAC';
+      var editB=mkBtn('Edit',function(){openInventoryModal(item.id);},'btn btn-xs');
+      var delB=mkBtn('Del',function(){if(confirm('Delete?'))dbDel('inventory',item.id);},'btn-danger');
+      app(acts,[addBtn,editB,delB]);
+      var actTd=mk('td');actTd.appendChild(acts);
+      [mk('td',null,item.name),mk('td',null,item.category||'—'),qtyTd,mk('td',null,item.unit||'—'),mk('td',null,item.minQty||'—'),valTd,actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    });
+    tw.appendChild(t);
+  }
+  wrap.appendChild(tw);return wrap;
+}
+
+function openInventoryModal(id){
+  var item=id?DB.inventory.find(function(x){return x.id===id;}):null;
+  var cats=[{value:'Fabric',label:'Fabric'},{value:'Thread',label:'Thread'},{value:'Lace / border',label:'Lace / border'},{value:'Accessories',label:'Accessories (buttons, zip etc.)'},{value:'Embellishment',label:'Embellishment (stones, sequins)'},{value:'Lining',label:'Lining material'},{value:'Other',label:'Other'}];
+  var units=[{value:'metres',label:'Metres'},{value:'yards',label:'Yards'},{value:'kg',label:'Kilograms'},{value:'grams',label:'Grams'},{value:'pieces',label:'Pieces'},{value:'spools',label:'Spools'},{value:'packets',label:'Packets'}];
+  var nm=mkInput('inv-name','text','e.g. Banarasi silk, Zari thread',item?item.name:'');
+  var catSel=mkSelect('inv-cat',cats,item?(item.category||'Fabric'):'Fabric');
+  var qty=mkInput('inv-qty','number','Current quantity',item?(item.qty||''):'');
+  var unitSel=mkSelect('inv-unit',units,item?(item.unit||'metres'):'metres');
+  var minQty=mkInput('inv-min','number','Alert below this',item?(item.minQty||''):'');
+  var price=mkInput('inv-price','number','Cost per unit (₹)',item?(item.price||''):'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' inventory item'),
+    mkFg('Item name *',nm),
+    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Unit',unitSel)]),
+    app(mk('div','form-row'),[mkFg('Current qty',qty),mkFg('Low stock alert qty',minQty)]),
+    mkFg('Cost per unit (₹)',price),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('inv-name').value.trim();if(!name)return;
+      dbSave('inventory',{id:id||uid(),name:name,
+        category:document.getElementById('inv-cat').value,
+        qty:document.getElementById('inv-qty').value,
+        unit:document.getElementById('inv-unit').value,
+        minQty:document.getElementById('inv-min').value,
+        price:document.getElementById('inv-price').value});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('inv-name');if(e)e.focus();},50);
+}
+
+function quickAddStock(id){
+  var item=DB.inventory.find(function(x){return x.id===id;});
+  var qtyInp=mkInput('qa-qty','number','Quantity to add');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Add stock — '+item.name),
+    mk('div','modal-sub','Current: '+item.qty+' '+item.unit),
+    mkFg('Quantity to add',qtyInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Add stock',function(){
+      var add=Number(document.getElementById('qa-qty').value||0);if(!add)return;
+      dbSave('inventory',Object.assign({},item,{qty:Number(item.qty||0)+add}));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('qa-qty');if(e)e.focus();},50);
+}
+
+// ── WHATSAPP SHARE ────────────────────────────────────────────────────────
+function whatsappMeasCard(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});
+  if(!cl){return;}
+  var measKeys=Object.keys(cl.measurements||{});
+  var lines=['*RYREE by Shreya Deshmukh*','_Measurement Card_',''];
+  lines.push('*Client:* '+cl.name);
+  if(cl.phone)lines.push('*Phone:* '+cl.phone);
+  lines.push('*Date:* '+new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}));
+  lines.push('');
+  measKeys.forEach(function(cid){
+    var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return;
+    var vals=cl.measurements[cid]||{};
+    lines.push('*'+cloth.name.toUpperCase()+'*');
+    Object.keys(vals).forEach(function(k){lines.push('• '+k+': *'+vals[k]+'*');});
+    lines.push('');
+  });
+  if(cl.notes)lines.push('_Notes: '+cl.notes+'_');
+  lines.push('');lines.push('_Ryree Boutique Management_');
+  var text=lines.join('
+');
+  var encoded=encodeURIComponent(text);
+  var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
+  var url=phone?'https://wa.me/91'+phone+'?text='+encoded:'https://wa.me/?text='+encoded;
+  window.open(url,'_blank');
+}
+
+// ── BIRTHDAY REMINDERS ────────────────────────────────────────────────────
+// Birthday is stored on client. Add birthday field to client modal and show reminders on dashboard.
+function getBirthdayReminders(){
+  var today=new Date();
+  var todayMD=(today.getMonth()+1)+'-'+today.getDate();
+  var upcoming=[];
+  DB.clients.forEach(function(c){
+    if(!c.birthday)return;
+    var parts=c.birthday.split('-');
+    if(parts.length<3)return;
+    var bMonth=Number(parts[1]);var bDay=Number(parts[2]);
+    var bDate=new Date(today.getFullYear(),bMonth-1,bDay);
+    if(bDate<today)bDate=new Date(today.getFullYear()+1,bMonth-1,bDay);
+    var diff=Math.ceil((bDate-today)/(1000*60*60*24));
+    if(diff<=30)upcoming.push({client:c,diff:diff,date:c.birthday});
+  });
+  return upcoming.sort(function(a,b){return a.diff-b.diff;});
+}
+
+function whatsappBirthday(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});if(!cl)return;
+  var text='*RYREE by Shreya Deshmukh*
+
+Dear '+cl.name+',
+
+Wishing you a very Happy Birthday! 🎂🌸
+
+Thank you for being a valued client of Ryree. May your special day be as beautiful as you!
+
+_With love,_
+_Shreya Deshmukh_
+_Ryree Boutique_';
+  var phone=cl.phone?(cl.phone.replace(/\D/g,'')):'' ;
+  var url=phone?'https://wa.me/91'+phone+'?text='+encodeURIComponent(text):'https://wa.me/?text='+encodeURIComponent(text);
+  window.open(url,'_blank');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
