@@ -6,28 +6,17 @@
 <title>Ryree by Shreya Deshmukh</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script>
-firebase.initializeApp({
-  apiKey:"AIzaSyBLQXASONjNoAxek0OYBWm8AD_1i9oQgsI",
-  authDomain:"ryreeboutique.firebaseapp.com",
-  projectId:"ryreeboutique",
-  storageBucket:"ryreeboutique.firebasestorage.app",
-  messagingSenderId:"214509276840",
-  appId:"1:214509276840:web:28d36a70a3a7d6698dbc9d"
-});
-const db = firebase.firestore();
-</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f0f4f3;min-height:100vh}
 .app{display:flex;min-height:100vh}
 .login-wrap{display:none;min-height:100vh;align-items:center;justify-content:center;background:#2D6B5E;flex-direction:column;padding:20px}
 .login-box{background:#fff;border-radius:20px;padding:36px;width:380px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,.25);text-align:center}
-.login-logo-text{font-size:28px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:4px}
-.login-by{font-size:13px;color:#C9A84C;opacity:.8;margin-bottom:28px;font-style:italic}
+.login-brand{font-size:26px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:4px}
+.login-by{font-size:13px;color:rgba(201,168,76,.75);margin-bottom:28px;font-style:italic}
 .login-title{font-size:20px;font-weight:700;margin-bottom:6px}
 .login-sub{font-size:13px;color:#aaa;margin-bottom:24px}
-.login-input{width:100%;padding:12px 14px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:15px;outline:none;text-align:center;letter-spacing:.1em;background:#fafafa;color:#1a1a1a}
+.login-input{width:100%;padding:12px 14px;border:1.5px solid #e8e8e8;border-radius:10px;font-size:15px;outline:none;text-align:center;letter-spacing:.1em;background:#fafafa;color:#1a1a1a;transition:border-color .15s}
 .login-input:focus{border-color:#2D6B5E;background:#fff;box-shadow:0 0 0 4px rgba(45,107,94,.1)}
 .login-input.error{border-color:#E24B4A;background:#FEF2F2}
 .login-err{font-size:12px;color:#E24B4A;margin-top:8px;min-height:18px}
@@ -37,7 +26,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .login-change{font-size:12px;color:#2D6B5E;cursor:pointer;text-decoration:underline;margin-top:10px;display:block}
 .sidebar{width:230px;min-width:230px;background:#2D6B5E;padding:16px 0;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:10;overflow-y:auto}
 .logo{padding:12px 16px 14px;border-bottom:1px solid rgba(201,168,76,.25);margin-bottom:8px;text-align:center}
-.logo-name{font-size:18px;font-weight:700;color:#C9A84C;letter-spacing:.04em}
+.logo-name{font-size:20px;font-weight:700;color:#C9A84C;letter-spacing:.04em}
 .logo-sub{font-size:10px;color:rgba(201,168,76,.6);margin-top:4px}
 .nav-section{padding:10px 14px 3px;font-size:10px;letter-spacing:.08em;color:rgba(201,168,76,.45);text-transform:uppercase;font-weight:600}
 .nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;border-radius:7px;margin:1px 8px;font-size:13px;color:rgba(255,255,255,.75);transition:background .12s}
@@ -71,11 +60,11 @@ td{padding:11px 14px;border-bottom:1px solid #f5f5f5;font-size:13px;vertical-ali
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:#fafafa}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
-.b-pending{background:#FEF3E2;color:#B45309}
-.b-prog{background:#EFF6FF;color:#1D4ED8}
-.b-active{background:#F0FDF4;color:#166534}
-.b-done{background:#F5F3FF;color:#6D28D9}
-.b-cancelled{background:#FEF2F2;color:#991B1B}
+.b-Pending{background:#FEF3E2;color:#B45309}
+.b-InProgress{background:#EFF6FF;color:#1D4ED8}
+.b-Ready{background:#F0FDF4;color:#166534}
+.b-Delivered{background:#F5F3FF;color:#6D28D9}
+.b-Cancelled{background:#FEF2F2;color:#991B1B}
 .avatar{width:34px;height:34px;border-radius:50%;background:#e6f0ee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#2D6B5E;flex-shrink:0}
 .search-wrap{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:8px 12px;margin-bottom:14px}
 .search-wrap input{border:none;outline:none;font-size:13px;flex:1;color:#1a1a1a;background:transparent}
@@ -91,44 +80,42 @@ textarea.form-input{resize:vertical}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0}
 .pill{background:#e6f0ee;color:#2D6B5E;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;display:inline-block;margin:2px}
-.pill-removable{display:inline-flex;align-items:center;gap:4px;background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;margin:3px}
-.pill-removable button{background:none;border:none;cursor:pointer;color:#2D6B5E;font-size:15px;line-height:1;padding:0;margin-left:2px}
-.pill-removable button:hover{color:#E24B4A}
+.pill-rem{display:inline-flex;align-items:center;gap:4px;background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;margin:3px}
+.pill-rem button{background:none;border:none;cursor:pointer;color:#2D6B5E;font-size:15px;line-height:1;padding:0;margin-left:2px}
+.pill-rem button:hover{color:#E24B4A}
 .back-btn{background:none;border:none;cursor:pointer;font-size:13px;color:#2D6B5E;padding:0;margin-bottom:16px;display:inline-flex;align-items:center;gap:5px;font-weight:500}
-.meas-item-row{background:#f9f9f9;border-radius:8px;padding:9px 13px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f0f0f0}
+.meas-row{background:#f9f9f9;border-radius:8px;padding:9px 13px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f0f0f0}
 .meas-val{font-weight:600;color:#2D6B5E}
 .clothes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
 .cloth-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:16px;cursor:pointer;transition:all .12s}
-.cloth-card:hover{border-color:#2D6B5E;box-shadow:0 2px 12px rgba(45,107,94,.12)}
+.cloth-card:hover{border-color:#2D6B5E}
 .section-title{font-size:14px;font-weight:600;margin-bottom:12px}
 .empty{text-align:center;padding:40px 20px;color:#aaa;font-size:13px;line-height:1.8}
-.add-meas-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-.selected-meas-box{min-height:48px;border:1px solid #e8e8e8;border-radius:8px;padding:8px;background:#fafafa;display:flex;flex-wrap:wrap;gap:2px;align-items:flex-start}
+.add-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.sel-box{min-height:48px;border:1px solid #e8e8e8;border-radius:8px;padding:8px;background:#fafafa;display:flex;flex-wrap:wrap;gap:2px;align-items:flex-start}
 .cloth-tab{padding:7px 14px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #e8e8e8;background:#fff;color:#555;font-weight:500;transition:all .12s}
 .cloth-tab:hover{background:#f5f5f5}
 .cloth-tab.active{background:#2D6B5E;color:#C9A84C;border-color:#2D6B5E}
 .meas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .info-box{background:#e6f0ee;border:1px solid #b8d5ce;border-radius:8px;padding:12px 14px;font-size:13px;color:#2D6B5E;margin-bottom:16px}
 .warn-box{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;font-size:13px;color:#92400E}
-.danger-box{background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:18px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.sync-dot{width:6px;height:6px;border-radius:50%;background:#C9A84C;display:inline-block;margin-right:5px}
 @media(max-width:700px){.two-col{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.meas-grid{grid-template-columns:1fr}.sidebar{transform:translateX(-100%)}.main{margin-left:0}.stats-row{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 
 <div class="login-wrap" id="login-wrap">
-  <div class="login-logo-text">RYREE</div>
+  <div class="login-brand">RYREE</div>
   <div class="login-by">by Shreya Deshmukh</div>
   <div class="login-box">
     <div class="login-title">Welcome back</div>
     <div class="login-sub">Enter your password to continue</div>
-    <input class="login-input" id="login-pw" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()">
+    <input class="login-input" id="login-pw" type="password" placeholder="Enter password">
     <div class="login-err" id="login-err"></div>
-    <button class="login-btn" onclick="doLogin()">Sign in</button>
-    <div class="login-footer">Ryree Boutique · Private access only</div>
-    <span class="login-change" onclick="showChangePw()">Change password</span>
+    <button class="login-btn" id="login-btn">Sign in</button>
+    <div class="login-footer">Ryree Boutique &middot; Private access only</div>
+    <span class="login-change" id="chpw-link">Change password</span>
   </div>
 </div>
 
@@ -139,35 +126,36 @@ textarea.form-input{resize:vertical}
       <div class="logo-sub">Boutique Management Software</div>
     </div>
     <div class="nav-section">Master</div>
-    <div class="nav-item active" onclick="nav('measitems')" id="nav-measitems">
+    <div class="nav-item active" id="nav-measitems" data-page="measitems">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h4" stroke-linecap="round"/></svg>Measurement Items
     </div>
-    <div class="nav-item" onclick="nav('clothing')" id="nav-clothing">
+    <div class="nav-item" id="nav-clothing" data-page="clothing">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
     </div>
-    <div class="nav-item" onclick="nav('clients')" id="nav-clients">
+    <div class="nav-item" id="nav-clients" data-page="clients">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
     </div>
     <div class="nav-section">Entry</div>
-    <div class="nav-item" onclick="nav('orders')" id="nav-orders">
+    <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
-    <div class="nav-item" onclick="nav('appointments')" id="nav-appointments">
+    <div class="nav-item" id="nav-appointments" data-page="appointments">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
     </div>
     <div class="nav-section">View</div>
-    <div class="nav-item" onclick="nav('dashboard')" id="nav-dashboard">
+    <div class="nav-item" id="nav-dashboard" data-page="dashboard">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
     </div>
     <div style="flex:1"></div>
     <div style="padding:12px 16px;border-top:1px solid rgba(201,168,76,.2)">
       <div style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px">
-        <span class="sync-dot" id="sync-dot"></span><span id="sync-text">Connecting...</span>
+        <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;margin-right:5px;vertical-align:middle"></span>
+        <span id="sync-text">Connecting...</span>
       </div>
-      <button onclick="showChangePw()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+      <button id="chpw-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>Change password
       </button>
-      <button onclick="doLogout()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
+      <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
     </div>
@@ -177,29 +165,37 @@ textarea.form-input{resize:vertical}
 <div id="modal-root"></div>
 
 <script>
-// AUTH
-const DEFAULT_PW='ryree2024';
+firebase.initializeApp({
+  apiKey:"AIzaSyBLQXASONjNoAxek0OYBWm8AD_1i9oQgsI",
+  authDomain:"ryreeboutique.firebaseapp.com",
+  projectId:"ryreeboutique",
+  storageBucket:"ryreeboutique.firebasestorage.app",
+  messagingSenderId:"214509276840",
+  appId:"1:214509276840:web:28d36a70a3a7d6698dbc9d"
+});
+var db=firebase.firestore();
+
+var DEFAULT_PW='ryree2024';
 function getPw(){return localStorage.getItem('ryree_pw')||DEFAULT_PW;}
 function isLoggedIn(){return sessionStorage.getItem('ryree_auth')==='1';}
-function initAuth(){if(isLoggedIn())showApp();else showLogin();}
-function showLogin(){
-  document.getElementById('login-wrap').style.display='flex';
-  document.getElementById('app-wrap').style.display='none';
-  setTimeout(()=>document.getElementById('login-pw').focus(),100);
-}
-function showApp(){
-  document.getElementById('login-wrap').style.display='none';
-  document.getElementById('app-wrap').style.display='flex';
-  initDB();
-}
+
+document.getElementById('login-btn').onclick=doLogin;
+document.getElementById('login-pw').onkeydown=function(e){if(e.key==='Enter')doLogin();};
+document.getElementById('logout-btn').onclick=doLogout;
+document.getElementById('chpw-btn').onclick=showChangePw;
+document.getElementById('chpw-link').onclick=showChangePw;
+document.querySelectorAll('.nav-item').forEach(function(el){
+  el.onclick=function(){nav(this.getAttribute('data-page'));};
+});
+
 function doLogin(){
-  const pw=document.getElementById('login-pw').value;
+  var pw=document.getElementById('login-pw').value;
   if(pw===getPw()){
     sessionStorage.setItem('ryree_auth','1');
-    document.getElementById('login-err').textContent='';
     document.getElementById('login-pw').classList.remove('error');
+    document.getElementById('login-err').textContent='';
     showApp();
-  } else {
+  }else{
     document.getElementById('login-pw').classList.add('error');
     document.getElementById('login-err').textContent='Incorrect password.';
     document.getElementById('login-pw').value='';
@@ -208,592 +204,738 @@ function doLogin(){
 function doLogout(){
   if(!confirm('Sign out?'))return;
   sessionStorage.removeItem('ryree_auth');
-  showLogin();
+  document.getElementById('login-wrap').style.display='flex';
+  document.getElementById('app-wrap').style.display='none';
+  document.getElementById('login-pw').value='';
 }
 function showChangePw(){
-  showModal('<div class="modal-title">Change password</div>'+
-    '<div class="modal-sub">Set a new password for the app.</div>'+
-    '<div class="form-group"><label class="form-label">Current password</label><input class="form-input" id="pw-cur" type="password"></div>'+
-    '<div class="form-group"><label class="form-label">New password</label><input class="form-input" id="pw-new" type="password"></div>'+
-    '<div class="form-group"><label class="form-label">Confirm new password</label><input class="form-input" id="pw-cf" type="password"></div>'+
-    '<div id="pw-err" style="font-size:12px;color:#E24B4A;min-height:18px"></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveNewPw()">Change</button></div>');
+  var wrap=mk('div');
+  setTxt(mk('div','modal-title','Change password'),wrap);
+  setTxt(mk('div','modal-sub','Set a new password for everyone.'),wrap);
+  var cur=mkInput('pw-cur','password','Current password');
+  var nw=mkInput('pw-new','password','New password');
+  var cf=mkInput('pw-cf','password','Confirm new password');
+  var err=mk('div');err.id='pw-err';err.style.cssText='font-size:12px;color:#E24B4A;min-height:18px';
+  app(wrap,[
+    mkFg('Current password',cur),
+    mkFg('New password',nw),
+    mkFg('Confirm new password',cf),
+    err,
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Change',saveNewPw,'btn btn-primary')])
+  ]);
+  showM(wrap);
 }
 function saveNewPw(){
-  const cur=document.getElementById('pw-cur').value;
-  const nw=document.getElementById('pw-new').value.trim();
-  const cf=document.getElementById('pw-cf').value.trim();
-  const err=document.getElementById('pw-err');
+  var cur=document.getElementById('pw-cur').value;
+  var nw=document.getElementById('pw-new').value.trim();
+  var cf=document.getElementById('pw-cf').value.trim();
+  var err=document.getElementById('pw-err');
   if(cur!==getPw()){err.textContent='Current password incorrect.';return;}
-  if(!nw||nw.length<4){err.textContent='Password must be at least 4 characters.';return;}
+  if(!nw||nw.length<4){err.textContent='Must be at least 4 characters.';return;}
   if(nw!==cf){err.textContent='Passwords do not match.';return;}
   localStorage.setItem('ryree_pw',nw);
   closeModal();alert('Password changed!');
 }
-
-// FIREBASE DB
-let DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[]};
-let unsubs=[];
-
-function setSync(status,msg){
-  const dot=document.getElementById('sync-dot');
-  const txt=document.getElementById('sync-text');
-  if(!dot)return;
-  dot.style.background=status==='ok'?'#C9A84C':status==='err'?'#E24B4A':'#F59E0B';
-  txt.textContent=msg||'';
+function showApp(){
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('app-wrap').style.display='flex';
+  initDB();
 }
 
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[]};
+var unsubs=[];
+function setSync(s,msg){
+  var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
+  if(!d)return;
+  d.style.background={ok:'#C9A84C',err:'#E24B4A',loading:'#F59E0B'}[s]||'#F59E0B';
+  if(t)t.textContent=msg||'';
+}
 function initDB(){
   setSync('loading','Connecting...');
-  const cols=['measitems','clothing','clients','orders','appointments'];
-  let loaded=0;
-  unsubs.forEach(u=>u());unsubs=[];
+  var cols=['measitems','clothing','clients','orders','appointments'];
+  var loaded=0;
+  unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
-    const unsub=db.collection(col).onSnapshot(function(snap){
-      DB[col]=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
-      loaded++;
-      if(loaded>=cols.length){setSync('ok','Synced ✓');}
+    var u=db.collection(col).onSnapshot(function(snap){
+      DB[col]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});
+      if(++loaded>=cols.length)setSync('ok','Synced');
       render();
     },function(e){setSync('err','Offline');console.error(e);});
-    unsubs.push(unsub);
+    unsubs.push(u);
   });
 }
-
 function dbSave(col,item){
   setSync('loading','Saving...');
   db.collection(col).doc(item.id).set(item)
-    .then(function(){setSync('ok','Saved ✓');})
+    .then(function(){setSync('ok','Saved');})
     .catch(function(e){setSync('err','Error');console.error(e);});
 }
-
 function dbDel(col,id){
   setSync('loading','Deleting...');
   db.collection(col).doc(id).delete()
-    .then(function(){setSync('ok','Synced ✓');})
+    .then(function(){setSync('ok','Synced');})
     .catch(function(e){setSync('err','Error');console.error(e);});
 }
-
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function initials(n){return (n||'?').split(' ').map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();}
-function fmtMoney(v){return '₹'+Number(v||0).toLocaleString('en-IN');}
-function statusBadge(s){
-  var m={Pending:'b-pending','In Progress':'b-prog',Ready:'b-active',Delivered:'b-done',Cancelled:'b-cancelled'};
-  return '<span class="badge '+(m[s]||'b-pending')+'">'+esc(s)+'</span>';
+function rupee(v){return '\u20b9'+Number(v||0).toLocaleString('en-IN');}
+
+// DOM helpers
+function mk(tag,cls,txt){
+  var e=document.createElement(tag);
+  if(cls)e.className=cls;
+  if(txt!==undefined)e.textContent=txt;
+  return e;
+}
+function app(parent,children){
+  [].concat(children).forEach(function(c){if(c)parent.appendChild(c);});
+  return parent;
+}
+function setTxt(el,parent){parent.appendChild(el);return el;}
+function mkBtn(text,onClick,cls){
+  var b=mk('button',cls||'btn',text);
+  b.onclick=onClick;return b;
+}
+function mkInput(id,type,placeholder,value){
+  var i=mk('input','form-input');
+  i.id=id;i.type=type||'text';
+  if(placeholder)i.placeholder=placeholder;
+  if(value!==undefined)i.value=value;
+  return i;
+}
+function mkSelect(id,options,selectedVal){
+  var s=mk('select','form-input');s.id=id;
+  options.forEach(function(o){
+    var opt=mk('option');opt.value=o.value;opt.textContent=o.label;
+    if(o.value===selectedVal)opt.selected=true;
+    s.appendChild(opt);
+  });
+  return s;
+}
+function mkFg(label,input){
+  var fg=mk('div','form-group');
+  var l=mk('label','form-label',label);
+  app(fg,[l,input]);return fg;
+}
+function mkActions(btns){
+  var d=mk('div','modal-actions');
+  btns.forEach(function(b){d.appendChild(b);});
+  return d;
+}
+function mkAvatar(name,size){
+  var a=mk('div','avatar');
+  a.textContent=initials(name);
+  if(size)a.style.cssText='width:'+size+'px;height:'+size+'px;font-size:'+(size*0.35)+'px';
+  return a;
+}
+function mkBadge(status){
+  var cls={Pending:'b-Pending','In Progress':'b-InProgress',Ready:'b-Ready',Delivered:'b-Delivered',Cancelled:'b-Cancelled'};
+  return mk('span','badge '+(cls[status]||'b-Pending'),status);
+}
+function mkPill(text){return mk('span','pill',text);}
+function mkRow(style){var d=mk('div');d.style.cssText=style||'display:flex;align-items:center;gap:8px';return d;}
+function mkTable(headers){
+  var t=mk('table');
+  var thead=mk('thead');var tr=mk('tr');
+  headers.forEach(function(h){tr.appendChild(mk('th',null,h));});
+  thead.appendChild(tr);t.appendChild(thead);
+  var tbody=mk('tbody');t.appendChild(tbody);
+  t._body=tbody;return t;
+}
+function mkTr(cells){
+  var tr=mk('tr');
+  cells.forEach(function(c){
+    var td=mk('td');
+    if(c&&c.nodeType)td.appendChild(c);
+    else if(c!==null&&c!==undefined)td.textContent=String(c);
+    tr.appendChild(td);
+  });
+  return tr;
 }
 
-// NAV
 var page='measitems',selClient=null,selCloth=null;
 function nav(p){
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
-  var el=document.getElementById('nav-'+p);
-  if(el)el.classList.add('active');
+  var el=document.getElementById('nav-'+p);if(el)el.classList.add('active');
   render();
 }
 function render(){
-  var mc=document.getElementById('main-content');
-  if(!mc)return;
-  var map={measitems:renderMeasItems,clothing:renderClothing,clients:renderClients,
-    orders:renderOrders,appointments:renderAppointments,dashboard:renderDashboard};
-  mc.innerHTML=(map[page]||renderDashboard)();
+  var mc=document.getElementById('main-content');if(!mc)return;
+  mc.innerHTML='';
+  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,orders:pgOrders,appointments:pgAppointments,dashboard:pgDashboard};
+  var fn=fns[page]||pgDashboard;
+  mc.appendChild(fn());
 }
 
-// MEASUREMENT ITEMS
-function renderMeasItems(){
-  var rows='';
-  DB.measitems.forEach(function(m,i){
-    var used=DB.clothing.filter(function(c){return (c.measitemIds||[]).indexOf(m.id)>=0;}).map(function(c){return c.name;});
-    rows+='<tr><td><span class="pill">'+(i+1)+'</span></td>'+
-      '<td><strong>'+esc(m.name)+'</strong></td>'+
-      '<td style="color:#888">'+(esc(m.unit)||'—')+'</td>'+
-      '<td>'+(used.length?used.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''):'<span style="color:#ccc;font-size:12px">Not linked</span>')+'</td>'+
-      '<td><div style="display:flex;gap:6px">'+
-        '<button class="btn btn-xs" onclick="editMeasItem('\''+m.id+'\'')">Edit</button>'+
-        '<button class="btn-danger" onclick="delMeasItem('\''+m.id+'\'')">Delete</button>'+
-      '</div></td></tr>';
-  });
-  return '<div class="page-header">'+
-    '<div><div class="page-title">Measurement Items</div><div class="page-sub">Global list — link to clothing types</div></div>'+
-    '<button class="btn btn-primary" onclick="addMeasItem()">+ Add Item</button></div>'+
-    '<div class="card-p0">'+
-    (DB.measitems.length===0?'<div class="empty">No items yet.<br>Add fields like "Bust", "Waist", "Sleeve Length" etc.</div>':
-    '<table><thead><tr><th>#</th><th>Name</th><th>Unit</th><th>Used in</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>')+
-    '</div>';
+function mkPageHeader(title,sub,actionEl){
+  var d=mk('div','page-header');
+  var left=mk('div');
+  app(left,[mk('div','page-title',title),mk('div','page-sub',sub)]);
+  d.appendChild(left);
+  if(actionEl)d.appendChild(actionEl);
+  return d;
 }
-function addMeasItem(){
-  showModal('<div class="modal-title">Add measurement item</div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" placeholder="e.g. Bust, Sleeve Length"></div>'+
-    '<div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" placeholder="e.g. inches, cm"></div>'+
-    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem()">Add</button></div>');
-  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
+
+// ── MEASUREMENT ITEMS ─────────────────────────────────────────────────────
+function pgMeasItems(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Measurement Items','Global list - link to clothing types',
+    mkBtn('+ Add Item',function(){openMeasItemModal();},'btn btn-primary')));
+  var card=mk('div','card-p0');
+  if(!DB.measitems.length){card.appendChild(mk('div','empty','No items yet. Add fields like Bust, Waist, Sleeve Length etc.'));}
+  else{
+    var t=mkTable(['#','Name','Unit','Used in','Actions']);
+    DB.measitems.forEach(function(m,i){
+      var used=DB.clothing.filter(function(c){return (c.measitemIds||[]).indexOf(m.id)>=0;});
+      var usedEl=mk('div');
+      if(used.length)used.forEach(function(c){usedEl.appendChild(mkPill(c.name));});
+      else{var s=mk('span');s.style.cssText='color:#ccc;font-size:12px';s.textContent='Not linked';usedEl.appendChild(s);}
+      var acts=mkRow('display:flex;gap:6px');
+      var eb=mkBtn('Edit',function(){openMeasItemModal(m.id);},'btn btn-xs');
+      var db2=mkBtn('Delete',function(){delMeasItem(m.id);},'btn-danger');
+      app(acts,[eb,db2]);
+      t._body.appendChild(mkTr([mkPill(String(i+1)),mk('strong',null,m.name),m.unit||'—',usedEl,acts]));
+    });
+    card.appendChild(t);
+  }
+  wrap.appendChild(card);return wrap;
 }
-function editMeasItem(id){
-  var m=DB.measitems.find(function(x){return x.id===id;});
-  showModal('<div class="modal-title">Edit measurement item</div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Name *</label><input class="form-input" id="m-name" value="'+esc(m.name)+'"></div>'+
-    '<div class="form-group"><label class="form-label">Unit</label><input class="form-input" id="m-unit" value="'+esc(m.unit||'')+'"></div>'+
-    '</div><div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMeasItem('\''+id+'\'')">Save</button></div>');
-}
-function saveMeasItem(id){
-  var name=document.getElementById('m-name').value.trim();if(!name)return;
-  var unit=document.getElementById('m-unit').value.trim();
-  dbSave('measitems',{id:id||uid(),name:name,unit:unit});
-  closeModal();
+function openMeasItemModal(id){
+  var m=id?DB.measitems.find(function(x){return x.id===id;}):null;
+  var nameInp=mkInput('m-name','text','e.g. Bust, Sleeve Length',m?m.name:'');
+  var unitInp=mkInput('m-unit','text','e.g. inches, cm',m?(m.unit||''):'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' measurement item'),
+    mk('div','modal-sub','Will appear in the global list.'),
+    app(mk('div','form-row'),[mkFg('Name *',nameInp),mkFg('Unit (optional)',unitInp)]),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('m-name').value.trim();if(!name)return;
+      dbSave('measitems',{id:id||uid(),name:name,unit:document.getElementById('m-unit').value.trim()});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('m-name');if(e)e.focus();},50);
 }
 function delMeasItem(id){
   var used=DB.clothing.some(function(c){return (c.measitemIds||[]).indexOf(id)>=0;});
-  if(used&&!confirm('This is linked to some clothing items. Delete anyway?'))return;
+  if(used&&!confirm('Linked to clothing items. Delete anyway?'))return;
   dbDel('measitems',id);
   DB.clothing.forEach(function(c){
     if((c.measitemIds||[]).indexOf(id)>=0){
-      var updated=Object.assign({},c,{measitemIds:c.measitemIds.filter(function(x){return x!==id;})});
-      dbSave('clothing',updated);
+      var u=JSON.parse(JSON.stringify(c));
+      u.measitemIds=u.measitemIds.filter(function(x){return x!==id;});
+      dbSave('clothing',u);
     }
   });
 }
 
-// CLOTHING ITEMS
-function renderClothing(){
+// ── CLOTHING ──────────────────────────────────────────────────────────────
+function pgClothing(){
   if(selCloth){
-    var c=DB.clothing.find(function(x){return x.id===selCloth;});if(!c)return'';
+    var c=DB.clothing.find(function(x){return x.id===selCloth;});if(!c)return mk('div');
     var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
-    var rows=linked.map(function(m,i){
-      return '<tr><td><span class="pill">'+(i+1)+'</span></td><td><strong>'+esc(m.name)+'</strong></td><td style="color:#888">'+(esc(m.unit)||'—')+'</td></tr>';
-    }).join('');
-    return '<button class="back-btn" onclick="selCloth=null;render()">← Back</button>'+
-      '<div class="page-header"><div><div class="page-title">'+esc(c.name)+'</div><div class="page-sub">'+linked.length+' measurement item'+(linked.length!==1?'s':'')+' linked</div></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClothing('\''+c.id+'\'')">Edit name</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="linkMeasItems('\''+c.id+'\'')">Manage measurements</button></div></div>'+
-      '<div class="card-p0">'+
-      (linked.length===0?'<div class="empty">No measurement items linked yet.</div>':
-      '<table><thead><tr><th>#</th><th>Measurement name</th><th>Unit</th></tr></thead><tbody>'+rows+'</tbody></table>')+
-      '</div>';
+    var wrap=mk('div');
+    var back=mkBtn('← Back',function(){selCloth=null;render();},'back-btn');
+    var acts=mkRow('display:flex;gap:8px');
+    app(acts,[
+      mkBtn('Edit name',function(){openClothModal(c.id);},'btn btn-sm'),
+      mkBtn('Manage measurements',function(){openLinkModal(c.id);},'btn btn-primary btn-sm')
+    ]);
+    wrap.appendChild(back);
+    wrap.appendChild(mkPageHeader(c.name,linked.length+' measurement item'+(linked.length!==1?'s':'')+' linked',acts));
+    var card=mk('div','card-p0');
+    if(!linked.length){card.appendChild(mk('div','empty','No measurement items linked yet.'));}
+    else{
+      var t=mkTable(['#','Measurement name','Unit']);
+      linked.forEach(function(m,i){t._body.appendChild(mkTr([mkPill(String(i+1)),mk('strong',null,m.name),m.unit||'—']));});
+      card.appendChild(t);
+    }
+    wrap.appendChild(card);return wrap;
   }
-  var cards=DB.clothing.map(function(c){
-    var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
-    var pills=linked.slice(0,4).map(function(m){return '<span class="pill">'+esc(m.name)+'</span>';}).join('');
-    if(linked.length>4)pills+='<span class="pill">+'+(linked.length-4)+'</span>';
-    return '<div class="cloth-card" onclick="selCloth='\''+c.id+'\'';render()">'+
-      '<div style="font-weight:600;font-size:14px;margin-bottom:4px">'+esc(c.name)+'</div>'+
-      '<div style="font-size:12px;color:#888;margin-bottom:8px">'+linked.length+' measurement'+(linked.length!==1?'s':'')+'</div>'+
-      '<div style="margin-bottom:10px">'+pills+'</div>'+
-      '<div style="display:flex;justify-content:flex-end;gap:6px" onclick="event.stopPropagation()">'+
-        '<button class="btn btn-xs" onclick="linkMeasItems('\''+c.id+'\'')">Edit fields</button>'+
-        '<button class="btn-danger" onclick="delClothing('\''+c.id+'\'')">Delete</button>'+
-      '</div></div>';
-  }).join('');
-  return '<div class="page-header"><div><div class="page-title">Clothing Items</div><div class="page-sub">Link measurement items to each clothing type</div></div>'+
-    '<button class="btn btn-primary" onclick="addClothing()">+ Add Item</button></div>'+
-    (DB.clothing.length===0?'<div class="card"><div class="empty">No items yet. Add "Blouse", "Lehenga", "Sharara" etc.</div></div>':
-    '<div class="clothes-grid">'+cards+'</div>');
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Clothing Items','Link measurement items to each clothing type',
+    mkBtn('+ Add Item',function(){openClothModal();},'btn btn-primary')));
+  if(!DB.clothing.length){
+    var c2=mk('div','card');c2.appendChild(mk('div','empty','No items yet. Add Blouse, Lehenga, Sharara etc.'));wrap.appendChild(c2);
+  }else{
+    var grid=mk('div','clothes-grid');
+    DB.clothing.forEach(function(c){
+      var linked=(c.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+      var card=mk('div','cloth-card');
+      card.onclick=function(){selCloth=c.id;render();};
+      var nm=mk('div');nm.style.cssText='font-weight:600;font-size:14px;margin-bottom:4px';nm.textContent=c.name;
+      var cnt=mk('div');cnt.style.cssText='font-size:12px;color:#888;margin-bottom:8px';cnt.textContent=linked.length+' measurement'+(linked.length!==1?'s':'');
+      var pills=mk('div');pills.style.marginBottom='10px';
+      linked.slice(0,4).forEach(function(m){pills.appendChild(mkPill(m.name));});
+      if(linked.length>4)pills.appendChild(mkPill('+'+(linked.length-4)));
+      var btns=mkRow('display:flex;justify-content:flex-end;gap:6px');
+      var ef=mkBtn('Edit fields',function(e){e.stopPropagation();openLinkModal(c.id);},'btn btn-xs');
+      var del=mkBtn('Delete',function(e){e.stopPropagation();if(confirm('Delete?'))dbDel('clothing',c.id);},'btn-danger');
+      app(btns,[ef,del]);app(card,[nm,cnt,pills,btns]);grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+  }
+  return wrap;
 }
-function addClothing(){
-  showModal('<div class="modal-title">Add clothing item</div>'+
-    '<div class="modal-sub">e.g. Blouse, Lehenga, Sharara</div>'+
-    '<div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name"></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing()">Add</button></div>');
-  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
+function openClothModal(id){
+  var c=id?DB.clothing.find(function(x){return x.id===id;}):null;
+  var inp=mkInput('m-name','text','e.g. Blouse, Lehenga',c?c.name:'');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' clothing item'),
+    mkFg('Item name *',inp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('m-name').value.trim();if(!name)return;
+      var ex=id?DB.clothing.find(function(x){return x.id===id;}):null;
+      dbSave('clothing',{id:id||uid(),name:name,measitemIds:ex?(ex.measitemIds||[]):[]});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('m-name');if(e)e.focus();},50);
 }
-function editClothing(id){
-  var c=DB.clothing.find(function(x){return x.id===id;});
-  showModal('<div class="modal-title">Edit clothing item</div>'+
-    '<div class="form-group"><label class="form-label">Item name *</label><input class="form-input" id="m-name" value="'+esc(c.name)+'"></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClothing('\''+id+'\'')">Save</button></div>');
-}
-function saveClothing(id){
-  var name=document.getElementById('m-name').value.trim();if(!name)return;
-  var existing=id?DB.clothing.find(function(x){return x.id===id;}):null;
-  dbSave('clothing',{id:id||uid(),name:name,measitemIds:existing?existing.measitemIds||[]:[]});
-  closeModal();
-}
-function delClothing(id){if(!confirm('Delete?'))return;dbDel('clothing',id);selCloth=null;}
-
-var _linkCid=null,_linkSelected=[];
-function linkMeasItems(cid){
+var _lCid=null,_lSel=[];
+function openLinkModal(cid){
   if(!DB.measitems.length){alert('Add measurement items first.');return;}
-  _linkCid=cid;
+  _lCid=cid;
   var c=DB.clothing.find(function(x){return x.id===cid;});
-  _linkSelected=(c.measitemIds||[]).slice();
+  _lSel=(c.measitemIds||[]).slice();
   renderLinkModal();
 }
 function renderLinkModal(){
-  var c=DB.clothing.find(function(x){return x.id===_linkCid;});
-  var available=DB.measitems.filter(function(m){return _linkSelected.indexOf(m.id)<0;});
-  var selectedItems=_linkSelected.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
-  var opts=available.length?available.map(function(m){return '<option value="'+m.id+'">'+esc(m.name)+(m.unit?' ('+esc(m.unit)+')')+'</option>';}).join(''):'<option value="" disabled>All items added</option>';
-  var pills=selectedItems.length?selectedItems.map(function(m){
-    return '<span class="pill-removable">'+esc(m.name)+
-      '<button data-id="'+m.id+'" onclick="removeLinkItem(this.dataset.id)">×</button></span>';
-  }).join(''):'<span style="font-size:12px;color:#bbb;padding:4px">None added yet</span>';
-  showModal('<div class="modal-title">Measurements for '+esc(c.name)+'</div>'+
-    '<div class="modal-sub">Add measurement fields from the dropdown.</div>'+
-    '<div class="form-group"><label class="form-label">Add field</label>'+
-    '<div class="add-meas-row">'+
-    '<select class="form-input" id="link-select"><option value="">— Select —</option>'+opts+'</select>'+
-    '<button class="btn btn-primary btn-sm" onclick="addLinkItem()">Add</button></div></div>'+
-    '<div class="form-group"><label class="form-label">Added ('+selectedItems.length+')</label>'+
-    '<div class="selected-meas-box">'+pills+'</div></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveLinkMeasItems()">Save</button></div>');
-}
-function addLinkItem(){var id=document.getElementById('link-select').value;if(!id)return;if(_linkSelected.indexOf(id)<0)_linkSelected.push(id);renderLinkModal();}
-function removeLinkItem(id){_linkSelected=_linkSelected.filter(function(x){return x!==id;});renderLinkModal();}
-function saveLinkMeasItems(){
-  var c=DB.clothing.find(function(x){return x.id===_linkCid;});
-  dbSave('clothing',Object.assign({},c,{measitemIds:_linkSelected.slice()}));
-  closeModal();
+  var c=DB.clothing.find(function(x){return x.id===_lCid;});
+  var avail=DB.measitems.filter(function(m){return _lSel.indexOf(m.id)<0;});
+  var selItems=_lSel.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+  var opts=[{value:'',label:'— Select —'}].concat(avail.map(function(m){return {value:m.id,label:m.name+(m.unit?' ('+m.unit+')':'')};}));
+  var sel=mkSelect('lnk-sel',opts,'');
+  var addB=mkBtn('Add',function(){
+    var v=document.getElementById('lnk-sel').value;
+    if(!v)return;if(_lSel.indexOf(v)<0)_lSel.push(v);
+    renderLinkModal();
+  },'btn btn-primary btn-sm');
+  var addRow=mkRow('display:flex;gap:8px;align-items:center;margin-bottom:10px');
+  app(addRow,[sel,addB]);
+  var selBox=mk('div','sel-box');
+  if(!selItems.length){var ns=mk('span');ns.style.cssText='font-size:12px;color:#bbb;padding:4px';ns.textContent='None added yet';selBox.appendChild(ns);}
+  else{
+    selItems.forEach(function(m){
+      var pill=mk('div','pill-rem');
+      pill.appendChild(mk('span',null,m.name));
+      var rb=mk('button',null,'×');
+      rb.setAttribute('data-mid',m.id);
+      rb.onclick=function(){var mid=this.getAttribute('data-mid');_lSel=_lSel.filter(function(x){return x!==mid;});renderLinkModal();};
+      pill.appendChild(rb);selBox.appendChild(pill);
+    });
+  }
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Measurements for '+c.name),
+    mk('div','modal-sub','Select measurement items from the dropdown.'),
+    mkFg('Add field',addRow),
+    mkFg('Added ('+selItems.length+')',selBox),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
+      var c2=DB.clothing.find(function(x){return x.id===_lCid;});
+      dbSave('clothing',Object.assign({},c2,{measitemIds:_lSel.slice()}));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
 }
 
-// CLIENTS
-function renderClients(){
+// ── CLIENTS ───────────────────────────────────────────────────────────────
+function pgClients(){
   if(selClient){
-    var cl=DB.clients.find(function(x){return x.id===selClient;});if(!cl)return'';
+    var cl=DB.clients.find(function(x){return x.id===selClient;});if(!cl)return mk('div');
     var orders=DB.orders.filter(function(o){return o.clientId===cl.id;});
     var measKeys=Object.keys(cl.measurements||{});
-    var measHtml='';
-    measKeys.forEach(function(cid){
-      var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return;
-      var vals=cl.measurements[cid]||{};
-      var vRows=Object.keys(vals).map(function(k){
-        return '<div class="meas-item-row"><span style="color:#888;font-size:12px">'+esc(k)+'</span><span class="meas-val">'+esc(vals[k])+'</span></div>';
-      }).join('');
-      measHtml+='<div class="card" style="margin-bottom:12px">'+
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'+
-        '<span style="font-weight:600">'+esc(cloth.name)+'</span>'+
-        '<button class="btn btn-xs" onclick="openTakeMeas('\''+cl.id+'\'','\''+cid+'\'')">Edit</button></div>'+
-        '<div style="display:grid;gap:7px">'+vRows+'</div></div>';
-    });
-    var orderHtml=orders.length===0?'<div class="card"><div class="empty" style="padding:24px">No orders yet.</div></div>':
-      '<div class="card-p0">'+orders.map(function(o){
-        return '<div style="padding:12px 16px;border-bottom:1px solid #f5f5f5">'+
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'+
-          '<span style="font-size:13px;font-weight:600">'+esc(o.item)+'</span>'+statusBadge(o.status)+'</div>'+
-          '<div style="font-size:11px;color:#888">Delivery: '+esc(o.delivery||'—')+' · '+fmtMoney(o.amount)+'</div></div>';
-      }).join('')+'</div>';
-    return '<button class="back-btn" onclick="selClient=null;render()">← Back to clients</button>'+
-      '<div class="page-header">'+
-      '<div style="display:flex;align-items:center;gap:14px">'+
-      '<div class="avatar" style="width:48px;height:48px;font-size:17px">'+initials(cl.name)+'</div>'+
-      '<div><div class="page-title">'+esc(cl.name)+'</div><div class="page-sub">'+(esc(cl.phone||'—'))+(cl.email?' · '+esc(cl.email):'')+'</div></div></div>'+
-      '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="editClient('\''+cl.id+'\'')">Edit</button>'+
-      '<button class="btn btn-primary btn-sm" onclick="printMeasCard('\''+cl.id+'\'')">🖨 Print card</button></div></div>'+
-      (cl.notes?'<div class="info-box" style="margin-bottom:16px">📝 '+esc(cl.notes)+'</div>':'')+
-      '<div class="two-col">'+
-      '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'+
-      '<div class="section-title" style="margin:0">Measurements</div>'+
-      '<button class="btn-meas" onclick="openTakeMeas('\''+cl.id+'\'')">+ Take Measurements</button></div>'+
-      (measKeys.length===0?'<div class="card"><div class="empty" style="padding:24px">No measurements yet.</div></div>':measHtml)+
-      '</div><div><div class="section-title">Orders ('+orders.length+')</div>'+orderHtml+'</div></div>';
+    var wrap=mk('div');
+    var back=mkBtn('← Back to clients',function(){selClient=null;render();},'back-btn');
+    var titleRow=mkRow('display:flex;align-items:center;gap:14px');
+    var av=mkAvatar(cl.name,48);
+    var td=mk('div');
+    var ttl=mk('div','page-title',cl.name);
+    var sub=mk('div','page-sub',(cl.phone||'—')+(cl.email?' · '+cl.email:''));
+    app(td,[ttl,sub]);app(titleRow,[av,td]);
+    var acts=mkRow('display:flex;gap:8px');
+    app(acts,[mkBtn('Edit',function(){openClientModal(cl.id);},'btn btn-sm'),mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);
+    var hdr=mk('div','page-header');app(hdr,[titleRow,acts]);
+    wrap.appendChild(back);wrap.appendChild(hdr);
+    if(cl.notes){var nb=mk('div','info-box');nb.style.marginBottom='16px';nb.textContent='📝 '+cl.notes;wrap.appendChild(nb);}
+    var two=mk('div','two-col');
+    var mc=mk('div');
+    var mh=mk('div');mh.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+    var mt=mk('div','section-title','Measurements');mt.style.margin='0';
+    var tmb=mkBtn('+ Take Measurements',function(){openTakeMeas(cl.id);},'btn-meas');
+    app(mh,[mt,tmb]);mc.appendChild(mh);
+    if(!measKeys.length){var nm=mk('div','card');nm.appendChild(mk('div','empty','No measurements yet.'));mc.appendChild(nm);}
+    else{
+      measKeys.forEach(function(cid){
+        var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return;
+        var vals=cl.measurements[cid]||{};
+        var card=mk('div','card');card.style.marginBottom='12px';
+        var ch=mk('div');ch.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+        var cn=mk('span');cn.style.fontWeight='600';cn.textContent=cloth.name;
+        var eb=mkBtn('Edit',function(){openTakeMeas(cl.id,cid);},'btn btn-xs');
+        app(ch,[cn,eb]);card.appendChild(ch);
+        var vd=mk('div');vd.style.cssText='display:grid;gap:7px';
+        Object.keys(vals).forEach(function(k){
+          var row=mk('div','meas-row');
+          var ks=mk('span');ks.style.cssText='color:#888;font-size:12px';ks.textContent=k;
+          var vs=mk('span','meas-val',vals[k]);
+          app(row,[ks,vs]);vd.appendChild(row);
+        });
+        card.appendChild(vd);mc.appendChild(card);
+      });
+    }
+    var oc=mk('div');
+    oc.appendChild(mk('div','section-title','Orders ('+orders.length+')'));
+    if(!orders.length){var no=mk('div','card');no.appendChild(mk('div','empty','No orders yet.'));oc.appendChild(no);}
+    else{
+      var ow=mk('div','card-p0');
+      orders.forEach(function(o){
+        var row=mk('div');row.style.cssText='padding:12px 16px;border-bottom:1px solid #f5f5f5';
+        var top=mk('div');top.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px';
+        var it=mk('span');it.style.cssText='font-size:13px;font-weight:600';it.textContent=o.item;
+        app(top,[it,mkBadge(o.status)]);
+        var sub=mk('div');sub.style.cssText='font-size:11px;color:#888';sub.textContent='Delivery: '+(o.delivery||'—')+' · '+rupee(o.amount);
+        app(row,[top,sub]);ow.appendChild(row);
+      });
+      oc.appendChild(ow);
+    }
+    app(two,[mc,oc]);wrap.appendChild(two);return wrap;
   }
-  var q=(document.getElementById('cl-search')?document.getElementById('cl-search').value:'').toLowerCase();
+  var searchVal=document.getElementById('cl-search')?document.getElementById('cl-search').value:'';
+  var q=searchVal.toLowerCase();
   var list=DB.clients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q)>=0||(c.phone||'').indexOf(q)>=0;});
-  var rows=list.map(function(c){
-    var mc=Object.keys(c.measurements||{}).length;
-    var names=Object.keys(c.measurements||{}).map(function(cid){var cl=DB.clothing.find(function(x){return x.id===cid;});return cl?cl.name:null;}).filter(Boolean);
-    return '<tr>'+
-      '<td onclick="selClient='\''+c.id+'\'';render()" style="cursor:pointer">'+
-      '<div style="display:flex;align-items:center;gap:10px">'+
-      '<div class="avatar">'+initials(c.name)+'</div>'+
-      '<div><div style="font-weight:600">'+esc(c.name)+'</div>'+
-      (c.notes?'<div style="font-size:11px;color:#aaa">'+esc(c.notes.slice(0,45))+(c.notes.length>45?'…':'')+'</div>':'')+
-      '</div></div></td>'+
-      '<td style="color:#666">'+(esc(c.phone)||'—')+'</td>'+
-      '<td>'+(mc===0?'<span style="font-size:12px;color:#ccc">None yet</span>':names.map(function(n){return '<span class="pill">'+esc(n)+'</span>';}).join(''))+'</td>'+
-      '<td><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="btn-meas" onclick="openTakeMeas('\''+c.id+'\'')">📏 Measurements</button>'+
-      '<button class="btn btn-xs" onclick="selClient='\''+c.id+'\'';render()">View</button>'+
-      '<button class="btn-danger" onclick="delClient('\''+c.id+'\'')">Delete</button>'+
-      '</div></td></tr>';
-  }).join('');
-  return '<div class="page-header"><div><div class="page-title">Clients</div><div class="page-sub">'+DB.clients.length+' registered</div></div>'+
-    '<button class="btn btn-primary" onclick="addClient()">+ Add Client</button></div>'+
-    '<div class="search-wrap"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M11 11l3 3"/></svg>'+
-    '<input placeholder="Search by name or phone..." id="cl-search" oninput="render()" value="'+(document.getElementById('cl-search')?esc(document.getElementById('cl-search').value):'')+'"></div>'+
-    '<div class="card-p0">'+
-    (list.length===0?'<div class="empty">No clients found.</div>':
-    '<table><thead><tr><th>Client</th><th>Phone</th><th>Measurements</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>')+
-    '</div>';
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Clients',DB.clients.length+' registered',
+    mkBtn('+ Add Client',function(){openClientModal();},'btn btn-primary')));
+  var sw=mk('div','search-wrap');
+  sw.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M11 11l3 3"/></svg>';
+  var si=mk('input');si.id='cl-search';si.placeholder='Search by name or phone...';si.value=searchVal;si.oninput=render;
+  sw.appendChild(si);wrap.appendChild(sw);
+  var tw=mk('div','card-p0');
+  if(!list.length){tw.appendChild(mk('div','empty','No clients found.'));}
+  else{
+    var t=mkTable(['Client','Phone','Measurements','Actions']);
+    list.forEach(function(c){
+      var mc2=Object.keys(c.measurements||{}).length;
+      var names=Object.keys(c.measurements||{}).map(function(cid){var cl2=DB.clothing.find(function(x){return x.id===cid;});return cl2?cl2.name:null;}).filter(Boolean);
+      var nameCell=mk('div');nameCell.style.cssText='display:flex;align-items:center;gap:10px';
+      var av=mkAvatar(c.name);
+      var nd=mk('div');
+      var ns=mk('div');ns.style.fontWeight='600';ns.textContent=c.name;nd.appendChild(ns);
+      if(c.notes){var no=mk('div');no.style.cssText='font-size:11px;color:#aaa';no.textContent=c.notes.slice(0,45)+(c.notes.length>45?'…':'');nd.appendChild(no);}
+      app(nameCell,[av,nd]);
+      var measEl=mk('div');
+      if(!mc2){var ns2=mk('span');ns2.style.cssText='font-size:12px;color:#ccc';ns2.textContent='None yet';measEl.appendChild(ns2);}
+      else names.forEach(function(n){measEl.appendChild(mkPill(n));});
+      var acts=mkRow('display:flex;gap:6px;flex-wrap:wrap');
+      var mb=mkBtn('📏 Measurements',function(){openTakeMeas(c.id);},'btn-meas');
+      var vb=mkBtn('View',function(){selClient=c.id;render();},'btn btn-xs');
+      var db2=mkBtn('Delete',function(){if(confirm('Delete?'))dbDel('clients',c.id);},'btn-danger');
+      app(acts,[mb,vb,db2]);
+      var nameTd=mk('td');nameTd.style.cursor='pointer';nameTd.onclick=function(){selClient=c.id;render();};nameTd.appendChild(nameCell);
+      var phoneTd=mk('td');phoneTd.style.color='#666';phoneTd.textContent=c.phone||'—';
+      var measTd=mk('td');measTd.appendChild(measEl);
+      var actTd=mk('td');actTd.appendChild(acts);
+      var tr=mk('tr');app(tr,[nameTd,phoneTd,measTd,actTd]);
+      t._body.appendChild(tr);
+    });
+    tw.appendChild(t);
+  }
+  wrap.appendChild(tw);return wrap;
 }
-function addClient(){
-  showModal('<div class="modal-title">Add client</div>'+
-    '<div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" placeholder="Client name"></div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone"></div>'+
-    '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email"></div>'+
-    '</div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2"></textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient()">Add</button></div>');
-  setTimeout(function(){var el=document.getElementById('m-name');if(el)el.focus();},50);
+function openClientModal(id){
+  var c=id?DB.clients.find(function(x){return x.id===id;}):null;
+  var nm=mkInput('m-name','text','Client name',c?c.name:'');
+  var ph=mkInput('m-phone','text','Phone',c?(c.phone||''):'');
+  var em=mkInput('m-email','text','Email',c?(c.email||''):'');
+  var no=mk('textarea','form-input');no.id='m-notes';no.rows=2;no.placeholder='Fitting notes...';if(c)no.value=c.notes||'';
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' client'),
+    mkFg('Full name *',nm),
+    app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Email',em)]),
+    mkFg('Notes',no),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('m-name').value.trim();if(!name)return;
+      var ex=id?DB.clients.find(function(x){return x.id===id;}):null;
+      dbSave('clients',{id:id||uid(),name:name,
+        phone:document.getElementById('m-phone').value.trim(),
+        email:document.getElementById('m-email').value.trim(),
+        notes:document.getElementById('m-notes').value.trim(),
+        measurements:ex?(ex.measurements||{}):{}});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('m-name');if(e)e.focus();},50);
 }
-function editClient(id){
-  var c=DB.clients.find(function(x){return x.id===id;});
-  showModal('<div class="modal-title">Edit client</div>'+
-    '<div class="form-group"><label class="form-label">Full name *</label><input class="form-input" id="m-name" value="'+esc(c.name)+'"></div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" id="m-phone" value="'+esc(c.phone||'')+'"></div>'+
-    '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="m-email" value="'+esc(c.email||'')+'"></div>'+
-    '</div><div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(c.notes||'')+'</textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient('\''+id+'\'')">Save</button></div>');
-}
-function saveClient(id){
-  var name=document.getElementById('m-name').value.trim();if(!name)return;
-  var existing=id?DB.clients.find(function(x){return x.id===id;}):null;
-  var item={id:id||uid(),name:name,
-    phone:document.getElementById('m-phone').value.trim(),
-    email:document.getElementById('m-email').value.trim(),
-    notes:document.getElementById('m-notes').value.trim(),
-    measurements:existing?existing.measurements||{}:{}
-  };
-  dbSave('clients',item);closeModal();
-}
-function delClient(id){if(!confirm('Delete this client?'))return;dbDel('clients',id);selClient=null;}
 
-// TAKE MEASUREMENTS
-var _measClientId=null,_measActiveCloth=null;
+var _mCli=null,_mCloth=null;
 function openTakeMeas(clientId,prefillCid){
   if(!DB.clothing.length){alert('Add clothing items first.');return;}
-  var hasLinked=DB.clothing.some(function(c){return (c.measitemIds||[]).length>0;});
-  if(!hasLinked){alert('Link measurement items to clothing items first.');return;}
-  _measClientId=clientId;
-  _measActiveCloth=prefillCid||DB.clothing.filter(function(c){return (c.measitemIds||[]).length>0;})[0].id;
-  renderTakeMeasModal();
+  if(!DB.clothing.some(function(c){return (c.measitemIds||[]).length>0;})){alert('Link measurement items to clothing items first.');return;}
+  _mCli=clientId;
+  _mCloth=prefillCid||(DB.clothing.filter(function(c){return (c.measitemIds||[]).length>0;})[0]||DB.clothing[0]).id;
+  renderTakeModal();
 }
-function renderTakeMeasModal(){
-  var cl=DB.clients.find(function(x){return x.id===_measClientId;});
-  var tabs=DB.clothing.map(function(c){
-    var has=(c.measitemIds||[]).length>0;
+function renderTakeModal(){
+  var cl=DB.clients.find(function(x){return x.id===_mCli;});
+  var ac=DB.clothing.find(function(x){return x.id===_mCloth;});
+  var linked=(ac.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+  var existing=(cl.measurements&&cl.measurements[_mCloth])||{};
+  var wrap=mk('div');
+  app(wrap,[mk('div','modal-title','Take Measurements - '+cl.name),
+    mk('div','modal-sub','Select clothing tab, fill values. Checkmark = already recorded.')]);
+  var tabs=mk('div');tabs.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px';
+  DB.clothing.forEach(function(c){
     var done=cl.measurements&&cl.measurements[c.id]&&Object.keys(cl.measurements[c.id]).length>0;
-    return '<button class="cloth-tab'+(c.id===_measActiveCloth?' active':'')+'" onclick="_measActiveCloth='\''+c.id+'\'';renderTakeMeasModal()">'+
-      esc(c.name)+(done&&c.id!==_measActiveCloth?' ✓':'')+(has?'':' *')+'</button>';
-  }).join('');
-  var activeCloth=DB.clothing.find(function(x){return x.id===_measActiveCloth;});
-  var linked=(activeCloth.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
-  var existing=cl.measurements&&cl.measurements[_measActiveCloth]?cl.measurements[_measActiveCloth]:{};
-  var fields=linked.length===0?
-    '<div class="warn-box">No fields linked to "'+esc(activeCloth.name)+'". Go to Clothing Items → Manage measurements.</div>':
-    '<div class="meas-grid">'+linked.map(function(m){
-      return '<div class="form-group" style="margin-bottom:0"><label class="form-label">'+esc(m.name)+(m.unit?' ('+esc(m.unit)+')':'')+'</label>'+
-        '<input class="form-input mf" data-name="'+esc(m.name)+'" value="'+esc(existing[m.name]||'')+'" placeholder="—"></div>';
-    }).join('')+'</div>';
-  showModal('<div class="modal-title">Take Measurements — '+esc(cl.name)+'</div>'+
-    '<div class="modal-sub">Select a clothing tab, fill values, save. ✓ = already recorded.</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">'+tabs+'</div>'+
-    '<div id="meas-fields-body">'+fields+'</div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button>'+
-    '<button class="btn btn-primary" onclick="saveTakeMeas()">Save & next →</button></div>');
-}
-function saveTakeMeas(){
-  var cl=DB.clients.find(function(x){return x.id===_measClientId;});
-  var vals={};
-  document.querySelectorAll('.mf').forEach(function(el){if(el.value.trim())vals[el.dataset.name]=el.value.trim();});
-  var meas=Object.assign({},cl.measurements||{});
-  meas[_measActiveCloth]=vals;
-  var updated=Object.assign({},cl,{measurements:meas});
-  dbSave('clients',updated);
-  var clothIds=DB.clothing.map(function(c){return c.id;});
-  var next=clothIds[clothIds.indexOf(_measActiveCloth)+1];
-  if(next){_measActiveCloth=next;renderTakeMeasModal();}
-  else closeModal();
+    var tb=mk('button','cloth-tab'+(c.id===_mCloth?' active':''));
+    tb.textContent=c.name+(done&&c.id!==_mCloth?' ✓':'')+(c.measitemIds&&c.measitemIds.length?'':' *');
+    tb.setAttribute('data-cid',c.id);
+    tb.onclick=function(){_mCloth=this.getAttribute('data-cid');renderTakeModal();};
+    tabs.appendChild(tb);
+  });
+  wrap.appendChild(tabs);
+  var fields=mk('div');
+  if(!linked.length){fields.appendChild(mk('div','warn-box','No fields linked to '+ac.name+'. Go to Clothing Items > Manage measurements.'));}
+  else{
+    var grid=mk('div','meas-grid');
+    linked.forEach(function(m){
+      var inp=mkInput('mf-'+m.id,'text','—',existing[m.name]||'');
+      inp.className='form-input mf';inp.setAttribute('data-name',m.name);
+      grid.appendChild(mkFg(m.name+(m.unit?' ('+m.unit+')':''),inp));
+    });
+    fields.appendChild(grid);
+  }
+  wrap.appendChild(fields);
+  wrap.appendChild(mkActions([
+    mkBtn('Close',closeModal),
+    mkBtn('Save & next',function(){
+      var cl2=DB.clients.find(function(x){return x.id===_mCli;});
+      var vals={};
+      document.querySelectorAll('.mf').forEach(function(inp){if(inp.value.trim())vals[inp.getAttribute('data-name')]=inp.value.trim();});
+      var meas=JSON.parse(JSON.stringify(cl2.measurements||{}));
+      meas[_mCloth]=vals;
+      dbSave('clients',Object.assign({},cl2,{measurements:meas}));
+      var ids=DB.clothing.map(function(c){return c.id;});
+      var next=ids[ids.indexOf(_mCloth)+1];
+      if(next){_mCloth=next;renderTakeModal();}else closeModal();
+    },'btn btn-primary')
+  ]));
+  showM(wrap);
 }
 
-// PRINT
-function printMeasCard(clientId){
+function printCard(clientId){
   var cl=DB.clients.find(function(x){return x.id===clientId;});
-  var measKeys=Object.keys(cl.measurements||{});
+  var mKeys=Object.keys(cl.measurements||{});
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  var sections=measKeys.map(function(cid){
+  var secs=mKeys.map(function(cid){
     var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return'';
     var vals=cl.measurements[cid]||{};
-    var rows=Object.keys(vals).map(function(k){
-      return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px;color:#444">'+k+'</td>'+
-        '<td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;color:#222;text-align:center;width:35%">'+vals[k]+'</td></tr>';
-    }).join('');
-    return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div>'+
-      '<table style="width:100%;border-collapse:collapse"><thead><tr>'+
-      '<td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td>'+
-      '<td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td>'+
-      '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+    var rows=Object.keys(vals).map(function(k){return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+'</td></tr>';}).join('');
+    return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }).join('');
-  var orderInfo=DB.orders.filter(function(o){return o.clientId===clientId&&['Delivered','Cancelled'].indexOf(o.status)<0;});
-  var orderSection=orderInfo.length?'<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">'+
-    '<div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px">ACTIVE ORDERS</div>'+
-    orderInfo.map(function(o){return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>'+o.item+'</span><span style="color:#B45309;font-weight:600">'+o.status+(o.delivery?' · By '+o.delivery:'')+'</span></div>';}).join('')+
-    '</div>':'';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Measurement Card — '+cl.name+'</title>'+
-    '<style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px;background:#fff}@media print{body{padding:12px}}</style></head><body>'+
-    '<div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto">'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0">'+
-    '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
-    '<div style="font-size:22px;font-weight:800;color:#1a1a1a">'+cl.name+'</div>'+
-    '<div style="font-size:13px;color:#666;margin-top:5px">'+(cl.phone||'')+(cl.email?' · '+cl.email:'')+'</div></div>'+
-    '<div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px">'+
-    '<div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div>'+
-    '<div style="font-size:13px;font-weight:700;color:#2D6B5E">'+today+'</div></div></div>'+
-    (measKeys.length===0?'<p style="color:#aaa">No measurements recorded.</p>':sections)+
-    (cl.notes?'<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px;color:#555;border-radius:0 6px 6px 0"><strong>Notes:</strong> '+cl.notes+'</div>':'')+
-    orderSection+
-    '<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · '+today+'</div></div></body></html>';
+  var ords=DB.orders.filter(function(o){return o.clientId===clientId&&['Delivered','Cancelled'].indexOf(o.status)<0;});
+  var ordSec=ords.length?'<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0"><div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px">ACTIVE ORDERS</div>'+ords.map(function(o){return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>'+o.item+'</span><span style="color:#B45309;font-weight:600">'+o.status+(o.delivery?' · By '+o.delivery:'')+'</span></div>';}).join('')+'</div>':'';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Measurement Card</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px}@media print{body{padding:12px}}</style></head><body><div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:22px;font-weight:800">'+cl.name+'</div><div style="font-size:13px;color:#666;margin-top:5px">'+(cl.phone||'')+(cl.email?' · '+cl.email:'')+'</div></div><div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px"><div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div><div style="font-size:13px;font-weight:700;color:#2D6B5E">'+today+'</div></div></div>'+(mKeys.length?secs:'<p style="color:#aaa">No measurements recorded.</p>')+(cl.notes?'<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px"><strong>Notes:</strong> '+cl.notes+'</div>':'')+ordSec+'<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · '+today+'</div></div></body></html>';
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Please allow popups to print.');
 }
 
-// ORDERS
-function renderOrders(){
-  var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
-  var rows=DB.orders.slice().reverse().map(function(o){
-    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
-    var opts=statuses.map(function(s){return '<option'+(o.status===s?' selected':'')+'>'+s+'</option>';}).join('');
-    return '<tr>'+
-      '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">'+initials(cl?cl.name:'?')+'</div><span style="font-weight:500">'+esc(cl?cl.name:'?')+'</span></div></td>'+
-      '<td>'+esc(o.item)+'</td>'+
-      '<td style="font-weight:600">'+fmtMoney(o.amount)+'</td>'+
-      '<td style="color:#888">'+(o.advance?fmtMoney(o.advance):'—')+'</td>'+
-      '<td style="color:#888">'+esc(o.delivery||'—')+'</td>'+
-      '<td><select style="border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555" onchange="updateOrderStatus('\''+o.id+'\'',this.value)">'+opts+'</select></td>'+
-      '<td><div style="display:flex;gap:5px"><button class="btn btn-xs" onclick="editOrder('\''+o.id+'\'')">Edit</button><button class="btn-danger" onclick="delOrder('\''+o.id+'\'')">Del</button></div></td>'+
-      '</tr>';
-  }).join('');
-  return '<div class="page-header"><div><div class="page-title">Orders</div><div class="page-sub">'+DB.orders.length+' total</div></div>'+
-    '<button class="btn btn-primary" onclick="addOrder()">+ New Order</button></div>'+
-    '<div class="card-p0">'+
-    (DB.orders.length===0?'<div class="empty">No orders yet.</div>':
-    '<table><thead><tr><th>Client</th><th>Item</th><th>Amount</th><th>Advance</th><th>Delivery</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>')+
-    '</div>';
+// ── ORDERS ────────────────────────────────────────────────────────────────
+function pgOrders(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Orders',DB.orders.length+' total',mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
+  var tw=mk('div','card-p0');
+  if(!DB.orders.length){tw.appendChild(mk('div','empty','No orders yet.'));}
+  else{
+    var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
+    var t=mkTable(['Client','Item','Amount','Advance','Delivery','Status','']);
+    DB.orders.slice().reverse().forEach(function(o){
+      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+      var clCell=mkRow();
+      var av=mkAvatar(cl?cl.name:'?',28);
+      var ns=mk('span');ns.style.fontWeight='500';ns.textContent=cl?cl.name:'?';
+      app(clCell,[av,ns]);
+      var sel=mk('select');sel.style.cssText='border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;outline:none;color:#555';
+      statuses.forEach(function(s){var op=mk('option',null,s);op.value=s;if(o.status===s)op.selected=true;sel.appendChild(op);});
+      sel.setAttribute('data-oid',o.id);
+      sel.onchange=function(){var ord=DB.orders.find(function(x){return x.id===this.getAttribute('data-oid');}.bind(this));if(ord)dbSave('orders',Object.assign({},ord,{status:this.value}));};
+      var acts=mkRow('display:flex;gap:5px');
+      app(acts,[mkBtn('Edit',function(){openOrderModal(o.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('orders',o.id);},'btn-danger')]);
+      var clTd=mk('td');clTd.appendChild(clCell);
+      var amtTd=mk('td');amtTd.style.fontWeight='600';amtTd.textContent=rupee(o.amount);
+      var advTd=mk('td');advTd.style.color='#888';advTd.textContent=o.advance?rupee(o.advance):'—';
+      var delTd=mk('td');delTd.style.color='#888';delTd.textContent=o.delivery||'—';
+      var selTd=mk('td');selTd.appendChild(sel);
+      var actTd=mk('td');actTd.appendChild(acts);
+      var tr=mk('tr');
+      [clTd,mk('td',null,o.item),amtTd,advTd,delTd,selTd,actTd].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    });
+    tw.appendChild(t);
+  }
+  wrap.appendChild(tw);return wrap;
 }
-function addOrder(){
-  var co=DB.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
-  var io=DB.clothing.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
-  showModal('<div class="modal-title">New order</div>'+
-    '<div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>'+co+'</select></div>'+
-    '<div class="form-group"><label class="form-label">Clothing item *</label><select class="form-input" id="m-item"><option value="">Select...</option>'+io+'</select></div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Total amount (₹)</label><input class="form-input" id="m-amount" type="number" placeholder="0"></div>'+
-    '<div class="form-group"><label class="form-label">Advance paid (₹)</label><input class="form-input" id="m-advance" type="number" placeholder="0"></div>'+
-    '</div><div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date"></div>'+
-    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2"></textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder()">Add</button></div>');
+function openOrderModal(id){
+  var o=id?DB.orders.find(function(x){return x.id===id;}):null;
+  var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
+  var itOpts=[{value:'',label:'Select item...'}].concat(DB.clothing.map(function(c){return {value:c.name,label:c.name};}));
+  var clSel=mkSelect('m-client',clOpts,o?o.clientId:'');
+  var itSel=mkSelect('m-item',itOpts,o?o.item:'');
+  var amt=mkInput('m-amount','number','0',o?(o.amount||''):'');
+  var adv=mkInput('m-advance','number','0',o?(o.advance||''):'');
+  var del=mkInput('m-delivery','date','',o?(o.delivery||''):'');
+  var not=mk('textarea','form-input');not.id='m-notes';not.rows=2;if(o)not.value=o.notes||'';
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'New')+' order'),
+    mkFg('Client *',clSel),mkFg('Clothing item *',itSel),
+    app(mk('div','form-row'),[mkFg('Total amount (\u20b9)',amt),mkFg('Advance paid (\u20b9)',adv)]),
+    mkFg('Delivery date',del),mkFg('Notes',not),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var cid=document.getElementById('m-client').value;
+      var item=document.getElementById('m-item').value;
+      if(!cid||!item)return;
+      var ex=id?DB.orders.find(function(x){return x.id===id;}):null;
+      dbSave('orders',{id:id||uid(),clientId:cid,item:item,
+        amount:document.getElementById('m-amount').value,
+        advance:document.getElementById('m-advance').value,
+        delivery:document.getElementById('m-delivery').value,
+        notes:document.getElementById('m-notes').value,
+        status:ex?ex.status:'Pending',created:ex?ex.created:Date.now()});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
 }
-function editOrder(id){
-  var o=DB.orders.find(function(x){return x.id===id;});
-  var co=DB.clients.map(function(c){return '<option value="'+c.id+'"'+(c.id===o.clientId?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
-  var io=DB.clothing.map(function(c){return '<option value="'+esc(c.name)+'"'+(c.name===o.item?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
-  showModal('<div class="modal-title">Edit order</div>'+
-    '<div class="form-group"><label class="form-label">Client</label><select class="form-input" id="m-client">'+co+'</select></div>'+
-    '<div class="form-group"><label class="form-label">Item</label><select class="form-input" id="m-item">'+io+'</select></div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Total (₹)</label><input class="form-input" id="m-amount" type="number" value="'+(o.amount||0)+'"></div>'+
-    '<div class="form-group"><label class="form-label">Advance (₹)</label><input class="form-input" id="m-advance" type="number" value="'+(o.advance||0)+'"></div>'+
-    '</div><div class="form-group"><label class="form-label">Delivery date</label><input class="form-input" id="m-delivery" type="date" value="'+esc(o.delivery||'')+'"></div>'+
-    '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-input" id="m-notes" rows="2">'+esc(o.notes||'')+'</textarea></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveOrder('\''+id+'\'')">Save</button></div>');
-}
-function saveOrder(id){
-  var clientId=document.getElementById('m-client').value;
-  var item=document.getElementById('m-item').value;
-  if(!clientId||!item)return;
-  var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
-  dbSave('orders',{id:id||uid(),clientId:clientId,item:item,
-    amount:document.getElementById('m-amount').value,
-    advance:document.getElementById('m-advance').value,
-    delivery:document.getElementById('m-delivery').value,
-    notes:document.getElementById('m-notes').value,
-    status:existing?existing.status:'Pending',
-    created:existing?existing.created:Date.now()
-  });
-  closeModal();
-}
-function updateOrderStatus(id,s){
-  var o=DB.orders.find(function(x){return x.id===id;});
-  if(o)dbSave('orders',Object.assign({},o,{status:s}));
-}
-function delOrder(id){if(!confirm('Delete this order?'))return;dbDel('orders',id);}
 
-// APPOINTMENTS
-function renderAppointments(){
+// ── APPOINTMENTS ──────────────────────────────────────────────────────────
+function pgAppointments(){
   var today=new Date().toISOString().split('T')[0];
   var up=DB.appointments.filter(function(a){return a.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);});
   var past=DB.appointments.filter(function(a){return a.date<today;}).sort(function(a,b){return b.date.localeCompare(a.date);});
-  function tbl(list,dim){
-    var rows=list.map(function(a){
+  function makeTbl(list,dim){
+    var t=mkTable(['Client','Date','Time','Purpose','']);
+    list.forEach(function(a){
       var cl=DB.clients.find(function(x){return x.id===a.clientId;});
-      return '<tr style="'+(dim?'opacity:.55;':'')+'">'+
-        '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="width:28px;height:28px;font-size:10px">'+initials(cl?cl.name:'?')+'</div>'+esc(cl?cl.name:'?')+'</div></td>'+
-        '<td style="font-weight:500">'+esc(a.date)+'</td><td style="color:#888">'+esc(a.time||'—')+'</td><td>'+esc(a.purpose||'—')+'</td>'+
-        '<td><button class="btn-danger" onclick="delAppt('\''+a.id+'\'')">Delete</button></td></tr>';
-    }).join('');
-    return '<table><thead><tr><th>Client</th><th>Date</th><th>Time</th><th>Purpose</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+      var cc=mkRow();var av=mkAvatar(cl?cl.name:'?',28);var cn=document.createTextNode(cl?cl.name:'?');app(cc,[av,cn]);
+      var ccTd=mk('td');ccTd.appendChild(cc);
+      var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
+      var tmTd=mk('td');tmTd.style.color='#888';tmTd.textContent=a.time||'—';
+      var puTd=mk('td');puTd.textContent=a.purpose||'—';
+      var acTd=mk('td');acTd.appendChild(mkBtn('Delete',function(){dbDel('appointments',a.id);},'btn-danger'));
+      var tr=mk('tr');if(dim)tr.style.opacity='0.55';
+      app(tr,[ccTd,dtTd,tmTd,puTd,acTd]);t._body.appendChild(tr);
+    });
+    return t;
   }
-  return '<div class="page-header"><div><div class="page-title">Appointments</div><div class="page-sub">'+up.length+' upcoming</div></div>'+
-    '<button class="btn btn-primary" onclick="addAppt()">+ Schedule</button></div>'+
-    '<div class="section-title">Upcoming</div>'+
-    '<div class="card-p0" style="margin-bottom:20px">'+(up.length===0?'<div class="empty">No upcoming appointments.</div>':tbl(up,false))+'</div>'+
-    '<div class="section-title" style="color:#aaa">Past</div>'+
-    '<div class="card-p0">'+(past.length===0?'<div class="empty">No past appointments.</div>':tbl(past.slice(0,20),true))+'</div>';
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Appointments',up.length+' upcoming',mkBtn('+ Schedule',function(){openApptModal();},'btn btn-primary')));
+  var utt=mk('div','section-title','Upcoming');
+  var uw=mk('div','card-p0');uw.style.marginBottom='20px';
+  if(!up.length)uw.appendChild(mk('div','empty','No upcoming appointments.'));else uw.appendChild(makeTbl(up,false));
+  var ptt=mk('div','section-title','Past');ptt.style.color='#aaa';
+  var pw=mk('div','card-p0');
+  if(!past.length)pw.appendChild(mk('div','empty','No past appointments.'));else pw.appendChild(makeTbl(past.slice(0,20),true));
+  app(wrap,[utt,uw,ptt,pw]);return wrap;
 }
-function addAppt(){
-  var co=DB.clients.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
-  showModal('<div class="modal-title">Schedule appointment</div>'+
-    '<div class="form-group"><label class="form-label">Client *</label><select class="form-input" id="m-client"><option value="">Select...</option>'+co+'</select></div>'+
-    '<div class="form-row">'+
-    '<div class="form-group"><label class="form-label">Date *</label><input class="form-input" id="m-date" type="date" value="'+new Date().toISOString().split('T')[0]+'"></div>'+
-    '<div class="form-group"><label class="form-label">Time</label><input class="form-input" id="m-time" type="time"></div>'+
-    '</div><div class="form-group"><label class="form-label">Purpose</label><input class="form-input" id="m-purpose" placeholder="e.g. First fitting, Trial, Delivery"></div>'+
-    '<div class="modal-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAppt()">Schedule</button></div>');
+function openApptModal(){
+  var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
+  var clSel=mkSelect('m-client',clOpts,'');
+  var dateInp=mkInput('m-date','date','',new Date().toISOString().split('T')[0]);
+  var timeInp=mkInput('m-time','time');
+  var purpInp=mkInput('m-purpose','text','e.g. First fitting, Trial, Delivery');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Schedule appointment'),
+    mkFg('Client *',clSel),
+    app(mk('div','form-row'),[mkFg('Date *',dateInp),mkFg('Time',timeInp)]),
+    mkFg('Purpose',purpInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Schedule',function(){
+      var cid=document.getElementById('m-client').value;
+      var date=document.getElementById('m-date').value;
+      if(!cid||!date)return;
+      dbSave('appointments',{id:uid(),clientId:cid,date:date,
+        time:document.getElementById('m-time').value,
+        purpose:document.getElementById('m-purpose').value});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
 }
-function saveAppt(){
-  var cid=document.getElementById('m-client').value;
-  var date=document.getElementById('m-date').value;
-  if(!cid||!date)return;
-  dbSave('appointments',{id:uid(),clientId:cid,date:date,
-    time:document.getElementById('m-time').value,
-    purpose:document.getElementById('m-purpose').value
-  });
-  closeModal();
-}
-function delAppt(id){dbDel('appointments',id);}
 
-// DASHBOARD
-function renderDashboard(){
+// ── DASHBOARD ─────────────────────────────────────────────────────────────
+function pgDashboard(){
   var today=new Date().toISOString().split('T')[0];
   var active=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
   var rev=DB.orders.filter(function(o){return o.status==='Delivered';}).reduce(function(a,o){return a+Number(o.amount||0);},0);
   var todayA=DB.appointments.filter(function(a){return a.date===today;}).length;
   var recentO=DB.orders.slice().reverse().slice(0,6);
   var upA=DB.appointments.filter(function(a){return a.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);}).slice(0,6);
-  var oRows=recentO.map(function(o){
+  function sc(label,value,color){
+    var c=mk('div','stat-card');
+    var l=mk('div','stat-label',label);
+    var v=mk('div','stat-val',String(value));
+    if(color)v.style.color=color;
+    app(c,[l,v]);return c;
+  }
+  var stats=mk('div','stats-row');
+  app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Today\'s appointments',todayA,'#2D6B5E'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
+  var oc=mk('div','card-p0');
+  if(!recentO.length)oc.appendChild(mk('div','empty','No orders yet.'));
+  else recentO.forEach(function(o){
     var cl=DB.clients.find(function(x){return x.id===o.clientId;});
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">'+
-      '<div><div style="font-size:13px;font-weight:600">'+esc(cl?cl.name:'?')+'</div><div style="font-size:11px;color:#aaa">'+esc(o.item)+' · '+fmtMoney(o.amount)+'</div></div>'+
-      statusBadge(o.status)+'</div>';
-  }).join('');
-  var aRows=upA.map(function(a){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5';
+    var left=mk('div');
+    var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'?';
+    var sb=mk('div');sb.style.cssText='font-size:11px;color:#aaa';sb.textContent=o.item+' · '+rupee(o.amount);
+    app(left,[nm,sb]);app(row,[left,mkBadge(o.status)]);oc.appendChild(row);
+  });
+  var ac=mk('div','card-p0');
+  if(!upA.length)ac.appendChild(mk('div','empty','No upcoming appointments.'));
+  else upA.forEach(function(a){
     var cl=DB.clients.find(function(x){return x.id===a.clientId;});
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5">'+
-      '<div><div style="font-size:13px;font-weight:600">'+esc(cl?cl.name:'?')+'</div><div style="font-size:11px;color:#aaa">'+esc(a.purpose||'Appointment')+'</div></div>'+
-      '<div style="text-align:right"><div style="font-size:13px;font-weight:600;color:#2D6B5E">'+esc(a.date)+'</div><div style="font-size:11px;color:#aaa">'+esc(a.time||'')+'</div></div></div>';
-  }).join('');
-  return '<div class="page-header"><div class="page-title">Dashboard</div></div>'+
-    '<div class="stats-row">'+
-    '<div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-val">'+DB.clients.length+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Active orders</div><div class="stat-val" style="color:#2D6B5E">'+active+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Today's appointments</div><div class="stat-val" style="color:#2D6B5E">'+todayA+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Revenue collected</div><div class="stat-val" style="color:#C9A84C">'+fmtMoney(rev)+'</div></div>'+
-    '</div>'+
-    '<div class="two-col">'+
-    '<div><div class="section-title">Recent orders</div><div class="card-p0">'+(recentO.length===0?'<div class="empty" style="padding:24px">No orders yet.</div>':oRows)+'</div></div>'+
-    '<div><div class="section-title">Upcoming appointments</div><div class="card-p0">'+(upA.length===0?'<div class="empty" style="padding:24px">No upcoming appointments.</div>':aRows)+'</div></div>'+
-    '</div>';
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5';
+    var left=mk('div');
+    var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'?';
+    var sb=mk('div');sb.style.cssText='font-size:11px;color:#aaa';sb.textContent=a.purpose||'Appointment';
+    app(left,[nm,sb]);
+    var right=mk('div');right.style.textAlign='right';
+    var dt=mk('div');dt.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';dt.textContent=a.date;
+    var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';tm.textContent=a.time||'';
+    app(right,[dt,tm]);app(row,[left,right]);ac.appendChild(row);
+  });
+  var col1=mk('div');app(col1,[mk('div','section-title','Recent orders'),oc]);
+  var col2=mk('div');app(col2,[mk('div','section-title','Upcoming appointments'),ac]);
+  var two=mk('div','two-col');app(two,[col1,col2]);
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Dashboard',''));
+  wrap.appendChild(stats);wrap.appendChild(two);return wrap;
 }
 
-// MODAL
-function showModal(html){
-  document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">'+html+'</div></div>';
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function showM(contentEl){
+  var ov=mk('div','modal-overlay');
+  var modal=mk('div','modal');
+  modal.appendChild(contentEl);ov.appendChild(modal);
+  ov.onclick=function(e){if(e.target===ov)closeModal();};
+  var root=document.getElementById('modal-root');
+  root.innerHTML='';root.appendChild(ov);
 }
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 
-initAuth();
+// ── INIT ──────────────────────────────────────────────────────────────────
+if(isLoggedIn()){showApp();}
+else{document.getElementById('login-wrap').style.display='flex';}
 </script>
 </body>
 </html>
