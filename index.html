@@ -939,33 +939,47 @@ function openOrderModal(id){
   var itemsWrap=mk('div');itemsWrap.id='order-items-wrap';
   var existingItems=o&&o.items?o.items:(o&&o.item?[{name:o.item,qty:1}]:[{name:'',qty:1}]);
 
-  function addItemRow(name,qty){
-    var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr 60px auto;gap:8px;margin-bottom:6px;align-items:center';
-    row.className='order-item-row';
+  function addItemRow(name,qty,delivery){
+    var row=mk('div');row.className='order-item-row';
+    row.style.cssText='background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:10px 12px;margin-bottom:8px';
 
-    // Item name with datalist
+    // Row 1: name + qty + delete
+    var topRow=mk('div');topRow.style.cssText='display:grid;grid-template-columns:1fr 70px auto;gap:8px;align-items:center;margin-bottom:8px';
     var nameInp=mk('input','form-input');
     nameInp.placeholder='Select or type item...';
     nameInp.value=name||'';
     nameInp.className='order-item-name form-input';
     nameInp.setAttribute('list','order-item-list');
+    nameInp.style.background='#fff';
 
     var qtyInp=mk('input','form-input');
     qtyInp.type='number';qtyInp.min='1';qtyInp.value=qty||1;
     qtyInp.className='order-item-qty';
-    qtyInp.style.width='100%';
-    qtyInp.title='Quantity';
+    qtyInp.style.cssText='width:100%;background:#fff';
+    qtyInp.placeholder='Qty';
 
     var delBtn=mk('button','btn-danger');delBtn.textContent='×';delBtn.style.cssText='padding:4px 8px;font-size:14px';
     delBtn.onclick=function(){
       if(itemsWrap.querySelectorAll('.order-item-row').length>1)row.parentNode.removeChild(row);
-      else{nameInp.value='';qtyInp.value=1;}
+      else{nameInp.value='';qtyInp.value=1;deliveryInp.value='';}
     };
-    app(row,[nameInp,qtyInp,delBtn]);
+    app(topRow,[nameInp,qtyInp,delBtn]);
+
+    // Row 2: delivery date
+    var bottomRow=mk('div');bottomRow.style.cssText='display:flex;align-items:center;gap:8px';
+    var delLabel=mk('label');delLabel.style.cssText='font-size:11px;font-weight:600;color:#888;white-space:nowrap';delLabel.textContent='Delivery date:';
+    var deliveryInp=mk('input','form-input');
+    deliveryInp.type='date';
+    deliveryInp.value=delivery||'';
+    deliveryInp.className='order-item-delivery';
+    deliveryInp.style.cssText='flex:1;background:#fff;max-width:180px';
+    app(bottomRow,[delLabel,deliveryInp]);
+
+    app(row,[topRow,bottomRow]);
     itemsWrap.appendChild(row);
   }
 
-  existingItems.forEach(function(it){addItemRow(it.name,it.qty);});
+  existingItems.forEach(function(it){addItemRow(it.name,it.qty,it.delivery);});
 
   // Datalist combining clothing + services
   var datalist=mk('datalist');datalist.id='order-item-list';
@@ -976,13 +990,14 @@ function openOrderModal(id){
   addItemBtn.style.marginTop='4px';
 
   // Column labels
-  var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr 60px auto;gap:8px;margin-bottom:4px';
-  ['Item','Qty',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:11px;font-weight:600;color:#888';l.textContent=h;colHdr.appendChild(l);});
+  var colHdr=mk('div');colHdr.style.cssText='display:flex;justify-content:space-between;margin-bottom:4px';
+  var chLeft=mk('div');chLeft.style.cssText='font-size:11px;font-weight:600;color:#888';chLeft.textContent='Items (name · qty · delivery date per item)';
+  colHdr.appendChild(chLeft);
 
   var clSel=mkSelect('m-client',clOpts,o?o.clientId:'');
   var amtInp=mkInput('m-amount','number','Total amount (₹)',o?(o.amount||''):'');
   var advInp=mkInput('m-advance','number','Advance paid (₹)',o?(o.advance||''):'');
-  var delInp=mkInput('m-delivery','date','',o?(o.delivery||''):'');
+  // delivery now per-item
   var notesTA=mk('textarea','form-input');notesTA.id='m-notes';notesTA.rows=2;notesTA.placeholder='Notes...';if(o)notesTA.value=o.notes||'';
 
   var wrap2=mk('div');
@@ -996,19 +1011,20 @@ function openOrderModal(id){
       return fg;
     })(),
     app(mk('div','form-row'),[mkFg('Total amount (₹)',amtInp),mkFg('Advance paid (₹)',advInp)]),
-    mkFg('Delivery date',delInp),
+    // Delivery date is now per item (see items section above)
     mkFg('Notes',notesTA),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var clientId=document.getElementById('m-client').value;
       if(!clientId){alert('Select a client.');return;}
 
-      // Collect items
+      // Collect items with individual delivery dates
       var itemRows=document.querySelectorAll('.order-item-row');
       var items=[];
       itemRows.forEach(function(row){
         var name=row.querySelector('.order-item-name').value.trim();
         var qty=Number(row.querySelector('.order-item-qty').value||1);
-        if(name)items.push({name:name,qty:qty});
+        var delivery=row.querySelector('.order-item-delivery').value;
+        if(name)items.push({name:name,qty:qty,delivery:delivery});
       });
       if(!items.length){alert('Add at least one item.');return;}
 
@@ -1022,7 +1038,7 @@ function openOrderModal(id){
         item:itemLabel,
         amount:document.getElementById('m-amount').value,
         advance:document.getElementById('m-advance').value,
-        delivery:document.getElementById('m-delivery').value,
+        delivery:items.map(function(i){return i.delivery;}).filter(Boolean).sort()[0]||'',
         notes:document.getElementById('m-notes').value,
         payments:existing?existing.payments||[]:existing&&Number(existing.advance||0)>0?[{id:uid(),amount:Number(existing.advance),mode:'Cash',date:new Date().toISOString().split('T')[0],note:'Advance'}]:[],
         status:existing?existing.status:'Pending',
