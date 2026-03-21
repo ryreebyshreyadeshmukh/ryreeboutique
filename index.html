@@ -2174,23 +2174,6 @@ function openQuotationModal(id){
   var suggestionList=DB.services.length?DB.services:DEFAULT_SERVICES;
   suggestionList.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
 
-  // Quick pick buttons from DB services
-  var quickPick=mk('div');quickPick.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px';
-  var suggList=DB.services.length?DB.services:DEFAULT_SERVICES;
-  suggList.forEach(function(s){
-    var btn2=mk('button','pill');btn2.style.cssText='cursor:pointer;background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;border:1px solid #b8d5ce';
-    btn2.textContent=s.name+' ('+rupee(s.price||0)+')';
-    btn2.onclick=function(){
-      // Add as new row
-      var newRow=mk('div');newRow.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';newRow.className='quot-svc-row';
-      var ni=mk('input','form-input');ni.className='quot-svc-name form-input';ni.value=s.name;ni.setAttribute('list','svc-suggestions');
-      var pi=mk('input','form-input');pi.type='number';pi.className='quot-svc-price';pi.value=s.price||0;pi.style.width='100px';pi.oninput=updateQuotTotal;
-      var db3=mk('button','btn-danger');db3.textContent='×';db3.style.cssText='padding:4px 8px;font-size:14px';db3.onclick=function(){newRow.parentNode.removeChild(newRow);updateQuotTotal();};
-      app(newRow,[ni,pi,db3]);servicesWrap.appendChild(newRow);updateQuotTotal();
-    };
-    quickPick.appendChild(btn2);
-  });
-
   var addSvcBtn=mkBtn('+ Add service / package',function(){
     var newRow=mk('div');newRow.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';
     newRow.className='quot-svc-row';
@@ -2242,7 +2225,7 @@ function openQuotationModal(id){
     app(mk('div','form-row'),[mkFg('Client',clientSel),mkFg('Client name (if new)',clientNameInp)]),
     app(mk('div','form-row'),[mkFg('Quotation date',dateInp),mkFg('Valid till',validInp)]),
     mkFg('Service / event date & time',serviceInp),
-    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');var ql=mk('div');ql.style.cssText='font-size:11px;color:#888;margin-bottom:4px';ql.textContent='Quick pick:';app(fg,[l,ql,quickPick,datalist,servicesWrap,addSvcBtn]);return fg;})(),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');app(fg,[l,datalist,servicesWrap,addSvcBtn]);return fg;})(),
     app(mk('div','form-row'),[mkFg('Travel / extra charges (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisplay);return fg;})()]),
     mkFg('Notes / special requirements',notesInp),
     mkFg('Terms & conditions',termsArea),
