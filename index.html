@@ -1658,14 +1658,16 @@ function openExpenseModal(){
   // Show/hide vendor based on entry type
   var vendorFg=mkFg('Vendor / Supplier',vendorSel);vendorFg.id='e-vendor-fg';
   function updateExpFields(){
-    var isCashIn=document.getElementById('e-type').value==='cash-in';
-    var isRawMat=document.getElementById('e-cat').value==='Raw material purchase';
-    document.getElementById('e-vendor-fg').style.display=isCashIn?'none':'block';
-    document.getElementById('e-inv-fg').style.display=(!isCashIn&&isRawMat)?'block':'none';
+    var isCashIn=typeSel.value==='cash-in';
+    var isRawMat=catSel.value==='Raw material purchase';
+    vendorFg.style.display=isCashIn?'none':'block';
+    invFg.style.display=(!isCashIn&&isRawMat)?'block':'none';
     if(isCashIn){vendorSel.value='';invSel.value='';}
   }
   typeSel.onchange=updateExpFields;
   catSel.onchange=updateExpFields;
+  // Run immediately to set initial state
+  updateExpFields();
   // When vendor is selected, auto-fill description if empty
   vendorSel.onchange=function(){
     var vid=this.value;
