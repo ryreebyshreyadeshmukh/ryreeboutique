@@ -3095,8 +3095,8 @@ function renderEstimatorBody(){
       };})(comp,colDef.id);
       cell.appendChild(inp); row.appendChild(cell);
     });
-    var rowTotal = mk('div'); rowTotal.id='est-rowtotal-'+comp.replace(/\s/g,'-');
-    rowTotal.style.cssText='padding:8px 8px;font-size:13px;font-weight:600;color:#2D6B5E;text-align:right';
+    var rowTotal = mk('div'); rowTotal.id='est-rowtotal-'+comp.split(' ').join('-');
+    rowTotal.stylText='padding:8px 8px;font-size:13px;font-weight:600;color:#2D6B5E;text-align:right';
     rowTotal.textContent=rupee(cols.reduce(function(a,c){return a+Number(_estData[comp][c.id]||0);},0));
     row.appendChild(rowTotal);
     tableWrap.appendChild(row);
@@ -3131,7 +3131,7 @@ function renderEstimatorBody(){
   app(actions,[
     mkBtn('Reset to defaults',function(){_estData={};renderEstimatorBody();},'btn btn-sm'),
     mkBtn('Clear all',function(){
-      Object.keys(_estData).forEach(function(c){COST_COLS.forEach(function(col){_estData[c][col]=0;});});
+      Object.keys(_estData).forEach(function(c){cols.forEach(function(colDef){_estData[c][colDef.id]=0;});});
       renderEstimatorBody();
     },'btn btn-sm'),
     mkBtn('Save as quotation',function(){saveEstimatorAsQuotation();},'btn btn-primary btn-sm'),
@@ -3141,7 +3141,7 @@ function renderEstimatorBody(){
 }
 
 function updateEstRowTotal(comp){
-  var el=document.getElementById('est-rowtotal-'+comp.replace(/[^a-zA-Z0-9]/g,'-'));
+  var el=document.getElementById('est-rowtotal-'+comp.split(' ').join('-'));
   if(!el)return;
   var cols=getEstCols();
   var sum=cols.reduce(function(a,c){return a+Number(_estData[comp][c.id]||0);},0);
@@ -3149,29 +3149,26 @@ function updateEstRowTotal(comp){
 }
 
 function updateEstTotals(){
-  var garment=ESTIMATOR_GARMENTS[_estGarment];
-  if(!garment)return;
-  var components=garment.components;
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj)return;
+  var components=garmentObj.components;
+  var cols=getEstCols();
   var discount=Number(document.getElementById('est-discount')?document.getElementById('est-discount').value:_estDiscount)||0;
   _estDiscount=discount;
-
   // Update col totals
-  COST_COLS.forEach(function(col){
-    var el=document.getElementById('est-coltot-'+col);
-    if(el){var sum=components.reduce(function(a,c){return a+Number(_estData[c][col]||0);},0);el.textContent=rupee(sum);}
+  cols.forEach(function(colDef){
+    var el=document.getElementById('est-coltot-'+colDef.id);
+    if(el){var sum=components.reduce(function(a,c){return a+Number((_estData[c]||{})[colDef.id]||0);},0);el.textContent=rupee(sum);}
   });
-
   // Grand total
-  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number(_estData[c][colDef.id]||0);},0);},0);
+  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number((_estData[c]||{})[colDef.id]||0);},0);},0);
   var el2=document.getElementById('est-grandtot');if(el2)el2.textContent=rupee(grand);
-
   var mrp=grand*2;
   var disc=mrp*(discount/100);
   var selling=mrp-disc;
-
   var rc=document.getElementById('est-result');if(!rc)return;
   rc.innerHTML='';
-
   function resCard(label,val,color,bg){
     var card=mk('div','stat-card');card.style.background=bg||'#fff';
     var lbl=mk('div','stat-label',label);
@@ -3179,258 +3176,10 @@ function updateEstTotals(){
     app(card,[lbl,v]);return card;
   }
   app(rc,[
-    resCard('Total cost (sum)',grand,'#555','#fafafa'),
-    resCard('MRP (cost \u00d7 2)',mrp,'#2D6B5E','#e6f0ee'),
-    resCard('Selling price (MRP \u2212 '+discount+'%)',selling,'#166534','#F0FDF4')
+    resCard('Total cost',grand,'#555','#fafafa'),
+    resCard('MRP (cost × 2)',mrp,'#2D6B5E','#e6f0ee'),
+    resCard('Selling price (MRP − '+discount+'%)',selling,'#166534','#F0FDF4')
   ]);
 }
 
-function saveEstimatorAsQuotation(){
-  var garment=ESTIMATOR_GARMENTS[_estGarment];
-  if(!garment)return;
-  var grand=garment.components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
-  var discount=_estDiscount;
-  var mrp=grand*2;
-  var selling=Math.round(mrp-(mrp*discount/100));
-  // Open quotation modal pre-filled
-  nav('quotations');
-  setTimeout(function(){
-    openQuotationModal();
-    setTimeout(function(){
-      // Pre-fill service with garment name and selling price
-      var rows=document.querySelectorAll('.quot-svc-row');
-      if(rows.length>0){
-        rows[0].querySelector('.quot-svc-name').value=_estGarment+' (custom)';
-        rows[0].querySelector('.quot-svc-price').value=selling;
-        updateQuotTotal();
-      }
-    },100);
-  },200);
-}
 
-function printEstimate(){
-  var garment=ESTIMATOR_GARMENTS[_estGarment];
-  if(!garment)return;
-  var components=garment.components;
-  var discount=_estDiscount;
-  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number(_estData[c][colDef.id]||0);},0);},0);
-  var mrp=grand*2;
-  var selling=Math.round(mrp-(mrp*discount/100));
-  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-
-  var cols=getEstCols();
-  var garments2=getEstGarments();
-  var garmentObj2=garments2.find(function(g){return g.id===_estGarment;});
-  var garmentName=garmentObj2?garmentObj2.name:_estGarment;
-  var rows=components.map(function(comp){
-    var rowTotal=cols.reduce(function(a,c){return a+Number((_estData[comp]||{})[c.id]||0);},0);
-    if(rowTotal===0)return '';
-    var cells=cols.map(function(colDef){return '<td style="padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f5f5f5">'+(Number((_estData[comp]||{})[colDef.id]||0)>0?rupee(Number(_estData[comp][colDef.id])):'—')+'</td>';}).join('');
-    return '<tr><td style="padding:6px 10px;font-size:12px;font-weight:500;border-bottom:1px solid #f5f5f5">'+comp+'</td>'+cells+'<td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:700;color:#2D6B5E;border-bottom:1px solid #f5f5f5">'+rupee(rowTotal)+'</td></tr>';
-  }).filter(Boolean).join('');
-
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Estimate</title>'+
-  '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th{background:#fafafa;padding:8px 10px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em}@media print{body{padding:12px}}</style></head><body>'+
-  '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #2D6B5E">'+
-  '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
-  '<div style="font-size:20px;font-weight:800;color:#2D6B5E">'+garmentName+' — Price Estimate</div></div>'+
-  '<div style="font-size:11px;color:#aaa">'+today+'</div></div>'+
-  '<table style="margin-bottom:20px"><thead><tr><th style="text-align:left">Component</th>'+
-  cols.map(function(c){return '<th style="text-align:right">'+c.label+'</th>';}).join('')+
-  '<th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-  '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">'+
-  '<div style="padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0"><div style="font-size:11px;color:#888;margin-bottom:4px">TOTAL COST</div><div style="font-size:18px;font-weight:700">'+rupee(grand)+'</div></div>'+
-  '<div style="padding:14px;background:#e6f0ee;border-radius:8px;border:1px solid #b8d5ce"><div style="font-size:11px;color:#2D6B5E;margin-bottom:4px">MRP (cost \u00d7 2)</div><div style="font-size:18px;font-weight:700;color:#2D6B5E">'+rupee(mrp)+'</div></div>'+
-  '<div style="padding:14px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC"><div style="font-size:11px;color:#166534;margin-bottom:4px">SELLING PRICE (\u2212'+discount+'%)</div><div style="font-size:22px;font-weight:800;color:#166534">'+rupee(selling)+'</div></div>'+
-  '</div><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh \u00b7 '+today+'</div></body></html>';
-
-  var win=window.open('','_blank');
-  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
-  else alert('Allow popups to print.');
-}
-
-
-// ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
-function toggleSidebar(){
-  var sb=document.querySelector('.sidebar');
-  var ov=document.getElementById('sb-overlay');
-  if(sb){sb.classList.toggle('open');}
-  if(ov){ov.classList.toggle('show');}
-}
-// Close sidebar on nav click on mobile
-document.querySelectorAll('.nav-item').forEach(function(el){
-  el.addEventListener('click',function(){
-    if(window.innerWidth<=700){
-      var sb=document.querySelector('.sidebar');
-      var ov=document.getElementById('sb-overlay');
-      if(sb)sb.classList.remove('open');
-      if(ov)ov.classList.remove('show');
-    }
-  });
-});
-
-// ── DATA EXPORT ───────────────────────────────────────────────────────────
-// export button wired in showApp
-
-function exportAllData(){
-  showM(buildExportModal());
-}
-
-function buildExportModal(){
-  var wrap=mk('div');
-  var lastBackup=getLastBackupTime();
-  var subText='Download your data as CSV or JSON. Last auto-save: '+(lastBackup||'not yet');
-  app(wrap,[
-    mk('div','modal-title','Export & Backup'),
-    mk('div','modal-sub',subText),
-  ]);
-  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px';
-
-  function exportCard(title,desc,fn){
-    var card=mk('div');card.style.cssText='border:1px solid #e8e8e8;border-radius:10px;padding:14px;text-align:center';
-    var t=mk('div');t.style.cssText='font-weight:600;font-size:13px;margin-bottom:4px';t.textContent=title;
-    var d=mk('div');d.style.cssText='font-size:11px;color:#aaa;margin-bottom:10px';d.textContent=desc;
-    var btn2=mkBtn('Download CSV',fn,'btn btn-primary btn-sm');btn2.style.width='100%';
-    app(card,[t,d,btn2]);return card;
-  }
-
-  app(grid,[
-    exportCard('Clients',DB.clients.length+' records',function(){exportCSV('clients',['Name','Phone','Email','Birthday','Notes'],DB.clients.map(function(c){return [c.name,c.phone||'',c.email||'',c.birthday||'',c.notes||''];}));closeModal();}),
-    exportCard('Orders',DB.orders.length+' records',function(){exportCSV('orders',['Client','Item','Total','Paid','Balance','Delivery','Status','Created'],DB.orders.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);return [cl?cl.name:'?',o.item,o.amount||0,paid,Number(o.amount||0)-paid,o.delivery||'',o.status||'',o.created?new Date(o.created).toLocaleDateString('en-IN'):''];}));closeModal();}),
-    exportCard('Cash Book',DB.expenses.length+' records',function(){exportCSV('cashbook',['Date','Type','Category','Amount','Mode','Vendor','Description'],DB.expenses.map(function(e){return [e.date||'',e.entryType==='cash-in'?'Cash In':'Expense',e.category||'',e.amount||0,e.mode||'',e.vendorName||'',e.description||''];}));closeModal();}),
-    exportCard('Inventory',DB.inventory.length+' records',function(){exportCSV('inventory',['Name','Category','Qty','Unit','Min Qty','Cost/Unit'],DB.inventory.map(function(i){return [i.name,i.category||'',i.qty||0,i.unit||'',i.minQty||0,i.price||0];}));closeModal();}),
-    exportCard('Measurements','All client measurements',function(){
-      var rows=[];
-      DB.clients.forEach(function(c){
-        var measKeys=Object.keys(c.measurements||{});
-        if(!measKeys.length){rows.push([c.name,'—','—','—']);return;}
-        measKeys.forEach(function(cid){
-          var cloth=DB.clothing.find(function(x){return x.id===cid;});
-          var vals=c.measurements[cid]||{};
-          Object.keys(vals).forEach(function(k){rows.push([c.name,cloth?cloth.name:'?',k,vals[k]]);});
-        });
-      });
-      exportCSV('measurements',['Client','Clothing Item','Measurement','Value'],rows);closeModal();
-    }),
-    exportCard('Full backup','All data as JSON',function(){
-      var data={exportDate:new Date().toISOString(),clients:DB.clients,orders:DB.orders,expenses:DB.expenses,inventory:DB.inventory,staff:DB.staff,vendors:DB.vendors,clothing:DB.clothing,measitems:DB.measitems,appointments:DB.appointments};
-      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-      var url=URL.createObjectURL(blob);var a=document.createElement('a');
-      a.href=url;a.download='ryree-backup-'+new Date().toISOString().split('T')[0]+'.json';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-      closeModal();
-    })
-  ]);
-  wrap.appendChild(grid);
-  var restoreBtn=mkBtn('Restore from local backup',restoreFromLocalBackup,'btn btn-sm');
-  restoreBtn.style.color='#B45309';restoreBtn.style.borderColor='#FDE68A';
-  var actRow=mk('div');actRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0';
-  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on sign out';
-  actRow.appendChild(hint);
-  var btns=mk('div');btns.style.cssText='display:flex;gap:8px';
-  app(btns,[restoreBtn,mkBtn('Close',closeModal)]);
-  actRow.appendChild(btns);
-  wrap.appendChild(actRow);
-  return wrap;
-}
-
-function exportCSV(filename,headers,rows){
-  var lines=[headers.join(',')];
-  rows.forEach(function(row){
-    lines.push(row.map(function(cell){
-      var s=String(cell||'').replace(/"/g,'""');
-      var needsQuote=s.indexOf(',')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0;
-      return needsQuote?'"'+s+'"':s;
-    }).join(','));
-  });
-  var bom='\uFEFF';
-  var blob=new Blob([bom+lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');
-  a.href=url;a.download='ryree-'+filename+'-'+new Date().toISOString().split('T')[0]+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-
-// ── FIREBASE RATE LIMIT GUARD ─────────────────────────────────────────────
-// Track read count — warn if approaching limit
-var _readCount=0;
-var _origInitDB=initDB;
-initDB=function(){
-  _readCount=0;
-  _origInitDB();
-};
-
-// ── PASSWORD RECOVERY ─────────────────────────────────────────────────────
-// If password is lost, user can reset to default via console:
-// localStorage.removeItem('ryree_pw')  then refresh
-// This is documented in the hint on the login screen
-
-// ── AUTO BACKUP ON CLOSE ─────────────────────────────────────────────────
-var _lastBackupHash = '';
-
-function getDataHash(){
-  // Simple hash - count of records in each collection
-  return JSON.stringify({
-    cl:DB.clients.length,
-    or:DB.orders.length,
-    ex:DB.expenses.length,
-    inv:DB.inventory.length
-  });
-}
-
-function autoSaveToLocalStorage(){
-  // Always save latest data snapshot to localStorage as emergency backup
-  try{
-    var snapshot={
-      savedAt:new Date().toISOString(),
-      clients:DB.clients,
-      orders:DB.orders,
-      expenses:DB.expenses,
-      inventory:DB.inventory,
-      vendors:DB.vendors,
-      staff:DB.staff,
-      clothing:DB.clothing,
-      measitems:DB.measitems,
-      appointments:DB.appointments
-    };
-    localStorage.setItem('ryree_backup',JSON.stringify(snapshot));
-    localStorage.setItem('ryree_backup_time',new Date().toISOString());
-  }catch(e){console.warn('Auto-backup failed:',e);}
-}
-
-function getLastBackupTime(){
-  var t=localStorage.getItem('ryree_backup_time');
-  if(!t)return null;
-  return new Date(t).toLocaleString('en-IN');
-}
-
-// Save to localStorage every 2 minutes while app is open
-setInterval(function(){
-  if(isLoggedIn())autoSaveToLocalStorage();
-},120000);
-
-// Auto-save happens on sign out (more reliable than beforeunload)
-
-// Restore from localStorage backup if Firebase is offline
-function restoreFromLocalBackup(){
-  try{
-    var raw=localStorage.getItem('ryree_backup');
-    if(!raw){alert('No local backup found.');return;}
-    var data=JSON.parse(raw);
-    var time=getLastBackupTime();
-    if(!confirm('Restore backup from '+time+'? This will overwrite current Firebase data.'))return;
-    var cols=['clients','orders','expenses','inventory','vendors','staff','clothing','measitems','appointments'];
-    cols.forEach(function(col){
-      if(data[col]){
-        data[col].forEach(function(item){dbSave(col,item);});
-      }
-    });
-    alert('Restore complete! '+cols.map(function(c){return (data[c]||[]).length+' '+c;}).join(', '));
-  }catch(e){alert('Restore failed: '+e.message);}
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────
-if(isLoggedIn()){showApp();}
-else{document.getElementById('login-wrap').style.display='flex';}
-</script>
-</body>
-</html>
