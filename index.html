@@ -1348,7 +1348,9 @@ function pgStaff(){
       var dl=mk('div');dl.style.color='#aaa';dl.textContent='By '+(o.delivery||'—');app(l,[it,dl]);app(row,[l,mkBadge(o.status)]);card.appendChild(row);
     });
     var acts=mkRow('display:flex;gap:6px;margin-top:12px');
-    app(acts,[mkBtn('Edit',function(){openStaffModal(s.id);},'btn btn-xs'),mkBtn('Assign',function(){openAssignModal(s.id);},'btn btn-xs btn-primary'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('staff',s.id);},'btn-danger')]);
+    var sTaskBtn=mkBtn('+ Task',function(){openTaskModal(null,'todo',null,s.id);},'btn btn-xs');
+    sTaskBtn.style.color='#B45309';sTaskBtn.style.borderColor='#FDE68A';
+    app(acts,[mkBtn('Edit',function(){openStaffModal(s.id);},'btn btn-xs'),sTaskBtn,mkBtn('Del',function(){if(confirm('Delete?'))dbDel('staff',s.id);},'btn-danger')]);
     card.appendChild(acts);grid.appendChild(card);
   });
   wrap.appendChild(grid);return wrap;
@@ -1359,28 +1361,23 @@ function openStaffModal(id){
   var nm=mkInput('s-name','text','Full name',s?s.name:'');
   var ph=mkInput('s-phone','text','Phone',s?(s.phone||''):'');
   var roleSel=mkSelect('s-role',roles,s?(s.role||'Tailor'):'Tailor');
-  var sal=mkInput('s-salary','number','Monthly salary',s?(s.salary||''):'');
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' staff'),mkFg('Full name *',nm),app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Role',roleSel)]),mkFg('Monthly salary (₹)',sal),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
-    var name=document.getElementById('s-name').value.trim();if(!name)return;
-    dbSave('staff',{id:id||uid(),name:name,phone:document.getElementById('s-phone').value.trim(),role:document.getElementById('s-role').value,salary:document.getElementById('s-salary').value});closeModal();
-  },'btn btn-primary')])]);
-  showM(wrap);setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();},50);
-}
-function openAssignModal(staffId){
-  var s=DB.staff.find(function(x){return x.id===staffId;});
-  var unassigned=DB.orders.filter(function(o){return ['Pending','In Progress'].indexOf(o.status)>=0;});
-  if(!unassigned.length){alert('No active orders to assign.');return;}
-  var opts=[{value:'',label:'Select order...'}].concat(unassigned.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});return {value:o.id,label:(cl?cl.name+' — ':'')+o.item};}));
-  var sel=mkSelect('assign-order',opts,'');
-  var wrap=mk('div');
-  app(wrap,[mk('div','modal-title','Assign order to '+s.name),mkFg('Select order',sel),mkActions([mkBtn('Cancel',closeModal),mkBtn('Assign',function(){
-    var oid=document.getElementById('assign-order').value;if(!oid)return;
-    var o=DB.orders.find(function(x){return x.id===oid;});
-    if(o)dbSave('orders',Object.assign({},o,{assignedTo:staffId,status:'In Progress'}));closeModal();
-  },'btn btn-primary')])]);
+  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' staff member'),
+    mkFg('Full name *',nm),
+    app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Role',roleSel)]),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('s-name').value.trim();if(!name)return;
+      dbSave('staff',{id:id||uid(),name:name,
+        phone:document.getElementById('s-phone').value.trim(),
+        role:document.getElementById('s-role').value});
+      closeModal();
+    },'btn btn-primary')])
+  ]);
   showM(wrap);
+  setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();},50);
 }
+
+
 
 // ── INVENTORY ─────────────────────────────────────────────────────────────
 function pgInventory(){
