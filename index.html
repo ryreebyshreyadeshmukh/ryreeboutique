@@ -155,6 +155,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
+    <div class="nav-item" id="nav-tasks" data-page="tasks">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
+    </div>
     <div class="nav-item" id="nav-expenses" data-page="expenses">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
     </div>
@@ -285,7 +288,7 @@ function showApp(){
   initDB();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -295,7 +298,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -470,6 +473,10 @@ function nav(p){
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
   // Smart refresh - update only table, not entire page
+  if(page==='tasks'&&document.getElementById('task-board')){
+    renderTaskBoard();
+    return;
+  }
   if(page==='expenses'&&document.getElementById('exp-table')){
     renderExpTable(_expDateFilter);
     updateExpStats(_expDateFilter);
@@ -479,7 +486,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -935,6 +942,7 @@ function pgOrders(){
     // Actions
     var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
     var collectBtn=mkBtn('+ Collect',function(){openCollectPayment(o.id);},'btn btn-xs btn-primary');
+    var taskBtn=mkBtn('+ Task',function(){openTaskModal(null,'todo',o.id);},'btn btn-xs');taskBtn.style.color='#B45309';taskBtn.style.borderColor='#FDE68A';
     if(balance<=0)collectBtn.style.opacity='0.4';
     var editBtn=mkBtn('Edit',function(){openOrderModal(o.id);},'btn btn-xs');
     var delBtn=mk('button','btn-danger','Del');
@@ -942,7 +950,7 @@ function pgOrders(){
     delBtn.onclick=function(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
-    app(acts,[collectBtn,editBtn,delBtn]);
+    app(acts,[collectBtn,taskBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -2325,6 +2333,276 @@ function openServiceModal(id){
   ]);
   showM(wrap);
   setTimeout(function(){var e=document.getElementById('svc-name');if(e)e.focus();},50);
+}
+
+
+// ── TASKS ─────────────────────────────────────────────────────────────────
+var _taskFilter = 'all';
+
+function pgTasks(){
+  var wrap = mk('div');
+  var today = new Date().toISOString().split('T')[0];
+
+  // Stats
+  var all = DB.tasks;
+  var todo = all.filter(function(t){return t.status==='todo';});
+  var inprog = all.filter(function(t){return t.status==='inprogress';});
+  var done = all.filter(function(t){return t.status==='done';});
+  var overdue = all.filter(function(t){return t.dueDate&&t.dueDate<today&&t.status!=='done';});
+
+  var stats = mk('div','stats-row');
+  stats.style.cssText = 'grid-template-columns:repeat(4,1fr);margin-bottom:20px';
+  function sc(l,v,c,bg){
+    var card=mk('div','stat-card');card.style.background=bg||'#fff';
+    var lbl=mk('div','stat-label',l);
+    var val=mk('div','stat-val',String(v));if(c)val.style.color=c;
+    app(card,[lbl,val]);return card;
+  }
+  app(stats,[
+    sc('To do', todo.length, '#B45309','#FFFBEB'),
+    sc('In progress', inprog.length, '#1D4ED8','#EFF6FF'),
+    sc('Done today', done.filter(function(t){return t.completedAt&&t.completedAt.startsWith(today);}).length, '#166534','#F0FDF4'),
+    sc('Overdue', overdue.length, overdue.length>0?'#991B1B':'#888', overdue.length>0?'#FEF2F2':'#fff')
+  ]);
+
+  wrap.appendChild(mkPageHeader('Tasks', 'Manage and assign work', mkBtn('+ New Task', function(){openTaskModal();}, 'btn btn-primary')));
+  wrap.appendChild(stats);
+
+  // Filter tabs
+  var tabsDiv = mk('div'); tabsDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
+  var filters = [
+    {key:'all', label:'All ('+all.length+')'},
+    {key:'todo', label:'To do ('+todo.length+')'},
+    {key:'inprogress', label:'In progress ('+inprog.length+')'},
+    {key:'done', label:'Done ('+done.length+')'},
+    {key:'overdue', label:'Overdue ('+overdue.length+')'},
+    {key:'mine', label:'Unassigned'}
+  ];
+  filters.forEach(function(f){
+    var btn2 = mkBtn(f.label, function(){_taskFilter=f.key;renderTaskBoard();}, _taskFilter===f.key?'btn btn-primary btn-sm':'btn btn-sm');
+    btn2.setAttribute('data-filter', f.key);
+    tabsDiv.appendChild(btn2);
+  });
+  wrap.appendChild(tabsDiv);
+
+  // Kanban board
+  var board = mk('div'); board.id='task-board';
+  board.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:16px';
+  wrap.appendChild(board);
+  renderTaskBoard();
+  return wrap;
+}
+
+function renderTaskBoard(){
+  var board = document.getElementById('task-board'); if(!board) return;
+  board.innerHTML = '';
+  var today = new Date().toISOString().split('T')[0];
+
+  var filtered = DB.tasks.filter(function(t){
+    if(_taskFilter==='todo') return t.status==='todo';
+    if(_taskFilter==='inprogress') return t.status==='inprogress';
+    if(_taskFilter==='done') return t.status==='done';
+    if(_taskFilter==='overdue') return t.dueDate&&t.dueDate<today&&t.status!=='done';
+    if(_taskFilter==='mine') return !t.assignedTo;
+    return true;
+  });
+
+  var cols = [
+    {key:'todo', label:'To do', color:'#B45309', bg:'#FFFBEB', border:'#FDE68A'},
+    {key:'inprogress', label:'In progress', color:'#1D4ED8', bg:'#EFF6FF', border:'#BFDBFE'},
+    {key:'done', label:'Done', color:'#166534', bg:'#F0FDF4', border:'#86EFAC'}
+  ];
+
+  cols.forEach(function(col){
+    var colTasks = _taskFilter==='all'||_taskFilter==='mine'||_taskFilter==='overdue'
+      ? filtered.filter(function(t){return t.status===col.key;})
+      : col.key===_taskFilter ? filtered : [];
+
+    var colWrap = mk('div');
+    colWrap.style.cssText = 'background:#f9f9f9;border-radius:12px;padding:12px;min-height:200px';
+
+    // Column header
+    var colHdr = mk('div');
+    colHdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+    var colTitle = mk('div');
+    colTitle.style.cssText = 'font-size:13px;font-weight:600;color:'+col.color+';background:'+col.bg+';border:1px solid '+col.border+';padding:3px 10px;border-radius:20px';
+    colTitle.textContent = col.label + ' · ' + colTasks.length;
+    var addBtn = mk('button'); addBtn.textContent='+';
+    addBtn.style.cssText='background:none;border:none;cursor:pointer;font-size:18px;color:#aaa;line-height:1;padding:0 4px';
+    addBtn.title='Add task';
+    addBtn.onclick=function(){openTaskModal(null,col.key);};
+    app(colHdr,[colTitle,addBtn]);
+    colWrap.appendChild(colHdr);
+
+    // Sort: priority high first, then by due date
+    colTasks.sort(function(a,b){
+      var pOrder={high:0,medium:1,low:2};
+      var pd=(pOrder[a.priority]||1)-(pOrder[b.priority]||1);
+      if(pd!==0)return pd;
+      return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
+    });
+
+    colTasks.forEach(function(t){
+      colWrap.appendChild(buildTaskCard(t, today));
+    });
+
+    board.appendChild(colWrap);
+  });
+}
+
+function buildTaskCard(t, today){
+  var isOverdue = t.dueDate && t.dueDate < today && t.status !== 'done';
+  var card = mk('div');
+  card.style.cssText = 'background:#fff;border:1px solid '+(isOverdue?'#FCA5A5':'#e8e8e8')+';border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:box-shadow .12s';
+  card.onmouseenter=function(){this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)';};
+  card.onmouseleave=function(){this.style.boxShadow='none';};
+  card.onclick=function(){openTaskModal(t.id);};
+
+  // Priority badge
+  var priorityColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
+  var priorityBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+  var topRow = mk('div'); topRow.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px';
+  var priBadge = mk('span','badge');
+  priBadge.style.cssText='font-size:10px;background:'+(priorityBgs[t.priority]||'#f5f5f5')+';color:'+(priorityColors[t.priority]||'#888');
+  priBadge.textContent=(t.priority||'medium').toUpperCase();
+
+  // Quick complete toggle
+  var doneBtn = mk('button');
+  doneBtn.style.cssText='background:none;border:1px solid '+(t.status==='done'?'#166534':'#e8e8e8')+';border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1;color:'+(t.status==='done'?'#166534':'#aaa');
+  doneBtn.textContent=t.status==='done'?'✓':'○';
+  doneBtn.title=t.status==='done'?'Mark undone':'Mark done';
+  doneBtn.onclick=function(e){
+    e.stopPropagation();
+    var newStatus=t.status==='done'?'todo':'done';
+    dbSave('tasks',Object.assign({},t,{status:newStatus,completedAt:newStatus==='done'?new Date().toISOString().split('T')[0]:null}));
+  };
+  app(topRow,[priBadge,doneBtn]);
+  card.appendChild(topRow);
+
+  // Title
+  var title = mk('div');
+  title.style.cssText='font-size:13px;font-weight:600;margin-bottom:4px;color:'+(t.status==='done'?'#aaa':'#1a1a1a')+(t.status==='done'?';text-decoration:line-through':'');
+  title.textContent=t.title||'Untitled';
+  card.appendChild(title);
+
+  // Context pills (order / client / appointment)
+  var ctx = mk('div'); ctx.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px';
+  if(t.orderId){
+    var o=DB.orders.find(function(x){return x.id===t.orderId;});
+    if(o){var p=mk('span','pill');p.style.cssText='background:#e6f0ee;color:#2D6B5E;font-size:10px';p.textContent='Order: '+o.item;ctx.appendChild(p);}
+  }
+  if(t.clientId){
+    var cl=DB.clients.find(function(x){return x.id===t.clientId;});
+    if(cl){var p2=mk('span','pill');p2.style.cssText='background:#EFF6FF;color:#1D4ED8;font-size:10px';p2.textContent=cl.name;ctx.appendChild(p2);}
+  }
+  if(t.appointmentId){
+    var ap=DB.appointments.find(function(x){return x.id===t.appointmentId;});
+    if(ap){var p3=mk('span','pill');p3.style.cssText='background:#F5F3FF;color:#6D28D9;font-size:10px';p3.textContent='Appt: '+ap.date;ctx.appendChild(p3);}
+  }
+  if(ctx.children.length)card.appendChild(ctx);
+
+  // Footer: due date + assignee
+  var footer = mk('div'); footer.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:6px';
+  var dueDiv = mk('div');
+  if(t.dueDate){
+    dueDiv.style.cssText='font-size:11px;color:'+(isOverdue?'#991B1B':'#888');
+    dueDiv.textContent=(isOverdue?'⚠ ':'')+'Due '+t.dueDate;
+  }
+  var staffDiv = mk('div');
+  if(t.assignedTo){
+    var st=DB.staff.find(function(x){return x.id===t.assignedTo;});
+    if(st){
+      var av=mkAvatar(st.name,22);av.style.cssText='width:22px;height:22px;font-size:9px;display:inline-flex';
+      var sn=mk('span');sn.style.cssText='font-size:11px;color:#888;margin-left:4px';sn.textContent=st.name;
+      app(staffDiv,[av,sn]);
+    }
+  }
+  app(footer,[dueDiv,staffDiv]);
+  card.appendChild(footer);
+  return card;
+}
+
+function openTaskModal(id, defaultStatus, prefillOrderId){
+  var t = id ? DB.tasks.find(function(x){return x.id===id;}) : null;
+  var today = new Date().toISOString().split('T')[0];
+
+  var titleInp = mkInput('tk-title','text','e.g. Stitch blouse for Priya', t?t.title:'');
+  var statusOpts=[{value:'todo',label:'To do'},{value:'inprogress',label:'In progress'},{value:'done',label:'Done'}];
+  var priorityOpts=[{value:'high',label:'High'},{value:'medium',label:'Medium'},{value:'low',label:'Low'}];
+  var typeOpts=[
+    {value:'general',label:'General shop task'},
+    {value:'order',label:'Linked to an order'},
+    {value:'client',label:'Linked to a client'},
+    {value:'appointment',label:'Linked to an appointment'}
+  ];
+  var staffOpts=[{value:'',label:'— Unassigned (Shreya) —'}].concat(DB.staff.map(function(s){return {value:s.id,label:s.name+(s.role?' ('+s.role+')':'')}}));
+  var orderOpts=[{value:'',label:'— None —'}].concat(DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});return {value:o.id,label:(cl?cl.name+' — ':'')+o.item};}));
+  var apptOpts=[{value:'',label:'— None —'}].concat(DB.appointments.filter(function(a){return a.date>=today;}).map(function(a){var cl=DB.clients.find(function(x){return x.id===a.clientId;});return {value:a.id,label:(cl?cl.name+' — ':'')+a.date+(a.purpose?' ('+a.purpose+')':'')};}));
+
+  var prefillOrder=prefillOrderId||'';
+  var statusSel=mkSelect('tk-status',statusOpts,t?(t.status||'todo'):(defaultStatus||'todo'));
+  var prioritySel=mkSelect('tk-priority',priorityOpts,t?(t.priority||'medium'):'medium');
+  var typeSel=mkSelect('tk-type',typeOpts,t?(t.type||'general'):prefillOrderId?'order':'general');
+  var staffSel=mkSelect('tk-staff',staffOpts,t?(t.assignedTo||''):'');
+  var orderSel=mkSelect('tk-order',orderOpts,t?(t.orderId||''):prefillOrder);
+  var apptSel=mkSelect('tk-appt',apptOpts,t?(t.appointmentId||''):'');
+  var clientSel=mkClientSelect('tk-client',t?(t.clientId||''):'');
+  var dueInp=mkInput('tk-due','date','',t?(t.dueDate||''):'');
+  var notesTA=mk('textarea','form-input');notesTA.id='tk-notes';notesTA.rows=2;notesTA.placeholder='Notes or instructions...';if(t)notesTA.value=t.notes||'';
+
+  // Show/hide context fields based on type
+  var orderFg=mkFg('Linked order',orderSel);orderFg.id='tk-order-fg';
+  var clientFg=mkFg('Linked client',clientSel);clientFg.id='tk-client-fg';
+  var apptFg=mkFg('Linked appointment',apptSel);apptFg.id='tk-appt-fg';
+
+  function updateTypeFields(){
+    var type=document.getElementById('tk-type').value;
+    document.getElementById('tk-order-fg').style.display=type==='order'?'block':'none';
+    document.getElementById('tk-client-fg').style.display=type==='client'?'block':'none';
+    document.getElementById('tk-appt-fg').style.display=type==='appointment'?'block':'none';
+  }
+  typeSel.onchange=updateTypeFields;
+
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'New')+' task'),
+    mkFg('Task title *',titleInp),
+    app(mk('div','form-row'),[mkFg('Status',statusSel),mkFg('Priority',prioritySel)]),
+    app(mk('div','form-row'),[mkFg('Task type',typeSel),mkFg('Due date',dueInp)]),
+    mkFg('Assign to',staffSel),
+    orderFg,clientFg,apptFg,
+    mkFg('Notes',notesTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      id?mkBtn('Delete',function(){if(confirm('Delete task?')){dbDel('tasks',id);closeModal();}},'btn-danger'):null,
+      mkBtn(id?'Save':'Create task',function(){
+        var title=document.getElementById('tk-title').value.trim();
+        if(!title){alert('Enter a task title.');return;}
+        var type=document.getElementById('tk-type').value;
+        dbSave('tasks',{
+          id:id||uid(),
+          title:title,
+          status:document.getElementById('tk-status').value,
+          priority:document.getElementById('tk-priority').value,
+          type:type,
+          dueDate:document.getElementById('tk-due').value,
+          assignedTo:document.getElementById('tk-staff').value,
+          orderId:type==='order'?document.getElementById('tk-order').value:'',
+          clientId:type==='client'?document.getElementById('tk-client').value:'',
+          appointmentId:type==='appointment'?document.getElementById('tk-appt').value:'',
+          notes:document.getElementById('tk-notes').value,
+          completedAt:t?t.completedAt:null,
+          created:t?t.created:Date.now()
+        });
+        closeModal();
+      },'btn btn-primary')
+    ].filter(Boolean))
+  ]);
+  showM(wrap);
+  setTimeout(function(){
+    updateTypeFields();
+    var e=document.getElementById('tk-title');if(e)e.focus();
+  },50);
 }
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
