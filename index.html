@@ -183,9 +183,6 @@ textarea.form-input{resize:vertical}
       <button id="export-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke-linecap="round"/></svg>Export data
       </button>
-      <button id="export-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke-linecap="round"/></svg>Export data
-      </button>
       <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
@@ -1734,9 +1731,11 @@ function exportAllData(){
 
 function buildExportModal(){
   var wrap=mk('div');
+  var lastBackup=getLastBackupTime();
+  var subText='Download your data as CSV or JSON. Last auto-save: '+(lastBackup||'not yet');
   app(wrap,[
-    mk('div','modal-title','Export Data'),
-    mk('div','modal-sub','Download your data as CSV files for backup or use in Excel.'),
+    mk('div','modal-title','Export & Backup'),
+    mk('div','modal-sub',subText),
   ]);
   var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px';
 
@@ -1776,7 +1775,15 @@ function buildExportModal(){
     })
   ]);
   wrap.appendChild(grid);
-  wrap.appendChild(mkActions([mkBtn('Close',closeModal)]));
+  var restoreBtn=mkBtn('Restore from local backup',restoreFromLocalBackup,'btn btn-sm');
+  restoreBtn.style.color='#B45309';restoreBtn.style.borderColor='#FDE68A';
+  var actRow=mk('div');actRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0';
+  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on browser close';
+  actRow.appendChild(hint);
+  var btns=mk('div');btns.style.cssText='display:flex;gap:8px';
+  app(btns,[restoreBtn,mkBtn('Close',closeModal)]);
+  actRow.appendChild(btns);
+  wrap.appendChild(actRow);
   return wrap;
 }
 
@@ -1809,6 +1816,75 @@ initDB=function(){
 // If password is lost, user can reset to default via console:
 // localStorage.removeItem('ryree_pw')  then refresh
 // This is documented in the hint on the login screen
+
+// ── AUTO BACKUP ON CLOSE ─────────────────────────────────────────────────
+var _lastBackupHash = '';
+
+function getDataHash(){
+  // Simple hash - count of records in each collection
+  return JSON.stringify({
+    cl:DB.clients.length,
+    or:DB.orders.length,
+    ex:DB.expenses.length,
+    inv:DB.inventory.length
+  });
+}
+
+function autoSaveToLocalStorage(){
+  // Always save latest data snapshot to localStorage as emergency backup
+  try{
+    var snapshot={
+      savedAt:new Date().toISOString(),
+      clients:DB.clients,
+      orders:DB.orders,
+      expenses:DB.expenses,
+      inventory:DB.inventory,
+      vendors:DB.vendors,
+      staff:DB.staff,
+      clothing:DB.clothing,
+      measitems:DB.measitems,
+      appointments:DB.appointments
+    };
+    localStorage.setItem('ryree_backup',JSON.stringify(snapshot));
+    localStorage.setItem('ryree_backup_time',new Date().toISOString());
+  }catch(e){console.warn('Auto-backup failed:',e);}
+}
+
+function getLastBackupTime(){
+  var t=localStorage.getItem('ryree_backup_time');
+  if(!t)return null;
+  return new Date(t).toLocaleString('en-IN');
+}
+
+// Save to localStorage every 2 minutes while app is open
+setInterval(function(){
+  if(isLoggedIn())autoSaveToLocalStorage();
+},120000);
+
+// Save on page close/refresh
+window.addEventListener('beforeunload',function(){
+  if(isLoggedIn()){
+    autoSaveToLocalStorage();
+  }
+});
+
+// Restore from localStorage backup if Firebase is offline
+function restoreFromLocalBackup(){
+  try{
+    var raw=localStorage.getItem('ryree_backup');
+    if(!raw){alert('No local backup found.');return;}
+    var data=JSON.parse(raw);
+    var time=getLastBackupTime();
+    if(!confirm('Restore backup from '+time+'? This will overwrite current Firebase data.'))return;
+    var cols=['clients','orders','expenses','inventory','vendors','staff','clothing','measitems','appointments'];
+    cols.forEach(function(col){
+      if(data[col]){
+        data[col].forEach(function(item){dbSave(col,item);});
+      }
+    });
+    alert('Restore complete! '+cols.map(function(c){return (data[c]||[]).length+' '+c;}).join(', '));
+  }catch(e){alert('Restore failed: '+e.message);}
+}
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 if(isLoggedIn()){showApp();}
