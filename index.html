@@ -133,7 +133,7 @@ textarea.form-input{resize:vertical}
       <div class="logo-sub">Boutique Management Software</div>
     </div>
     <div class="nav-section">Master</div>
-    <div class="nav-item active" id="nav-measitems" data-page="measitems">
+    <div class="nav-item" id="nav-measitems" data-page="measitems">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h4" stroke-linecap="round"/></svg>Measurement Items
     </div>
     <div class="nav-item" id="nav-clothing" data-page="clothing">
@@ -171,7 +171,7 @@ textarea.form-input{resize:vertical}
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
     </div>
     <div class="nav-section">View</div>
-    <div class="nav-item" id="nav-dashboard" data-page="dashboard">
+    <div class="nav-item active" id="nav-dashboard" data-page="dashboard">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
     </div>
     <div class="nav-item" id="nav-pl" data-page="pl">
@@ -463,7 +463,7 @@ function mkTr(cells){
   return tr;
 }
 
-var page='measitems',selClient=null,selCloth=null;
+var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
