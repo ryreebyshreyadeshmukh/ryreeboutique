@@ -139,6 +139,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-clothing" data-page="clothing">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
     </div>
+    <div class="nav-item" id="nav-services" data-page="services">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>Services
+    </div>
     <div class="nav-item" id="nav-clients" data-page="clients">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
     </div>
@@ -282,7 +285,7 @@ function showApp(){
   initDB();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -292,7 +295,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -349,6 +352,7 @@ function mkSelect(id,options,selectedVal){
   options.forEach(function(o){
     var opt=mk('option');opt.value=o.value;opt.textContent=o.label;
     if(o.value===selectedVal)opt.selected=true;
+    if(o.disabled){opt.disabled=true;opt.style.cssText='color:#aaa;font-style:italic;font-size:11px';}
     s.appendChild(opt);
   });
   return s;
@@ -413,7 +417,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -921,7 +925,16 @@ function pgOrders(){
 function openOrderModal(id){
   var o=id?DB.orders.find(function(x){return x.id===id;}):null;
   var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
-  var itOpts=[{value:'',label:'Select item...'}].concat(DB.clothing.map(function(c){return {value:c.name,label:c.name};}));
+  // Combine clothing items and services in dropdown
+  var itOpts=[{value:'',label:'Select item...'}];
+  if(DB.clothing.length){
+    itOpts.push({value:'',label:'── Clothing ──',disabled:true});
+    DB.clothing.forEach(function(c){itOpts.push({value:c.name,label:c.name});});
+  }
+  if(DB.services.length){
+    itOpts.push({value:'',label:'── Services ──',disabled:true});
+    DB.services.forEach(function(s){itOpts.push({value:s.name,label:s.name+(s.price?' — '+rupee(s.price):'')});});
+  }
   var clSel=mkSelect('m-client',clOpts,o?o.clientId:'');
   var itSel=mkSelect('m-item',itOpts,o?o.item:'');
   var amt=mkInput('m-amount','number','0',o?(o.amount||''):'');
@@ -1832,7 +1845,8 @@ function openQuotationModal(id){
       var priceInp=mk('input','form-input');priceInp.type='number';priceInp.placeholder='₹';priceInp.value=svc.price||'';priceInp.style.width='100px';priceInp.className='quot-svc-price';
       // Auto-fill price from defaults
       nameInp.oninput=function(){
-        var match=DEFAULT_SERVICES.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));
+        var list=DB.services.length?DB.services:DEFAULT_SERVICES;
+        var match=list.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));
         if(match&&!priceInp.value)priceInp.value=match.price;
         updateQuotTotal();
       };
@@ -1846,16 +1860,34 @@ function openQuotationModal(id){
     });
   }
 
-  // Datalist for service suggestions
+  // Datalist for service suggestions - use DB.services if available, else defaults
   var datalist=mk('datalist');datalist.id='svc-suggestions';
-  DEFAULT_SERVICES.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
+  var suggestionList=DB.services.length?DB.services:DEFAULT_SERVICES;
+  suggestionList.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
+
+  // Quick pick buttons from DB services
+  var quickPick=mk('div');quickPick.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px';
+  var suggList=DB.services.length?DB.services:DEFAULT_SERVICES;
+  suggList.forEach(function(s){
+    var btn2=mk('button','pill');btn2.style.cssText='cursor:pointer;background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;border:1px solid #b8d5ce';
+    btn2.textContent=s.name+' ('+rupee(s.price||0)+')';
+    btn2.onclick=function(){
+      // Add as new row
+      var newRow=mk('div');newRow.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';newRow.className='quot-svc-row';
+      var ni=mk('input','form-input');ni.className='quot-svc-name form-input';ni.value=s.name;ni.setAttribute('list','svc-suggestions');
+      var pi=mk('input','form-input');pi.type='number';pi.className='quot-svc-price';pi.value=s.price||0;pi.style.width='100px';pi.oninput=updateQuotTotal;
+      var db3=mk('button','btn-danger');db3.textContent='×';db3.style.cssText='padding:4px 8px;font-size:14px';db3.onclick=function(){newRow.parentNode.removeChild(newRow);updateQuotTotal();};
+      app(newRow,[ni,pi,db3]);servicesWrap.appendChild(newRow);updateQuotTotal();
+    };
+    quickPick.appendChild(btn2);
+  });
 
   var addSvcBtn=mkBtn('+ Add service / package',function(){
     var newRow=mk('div');newRow.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';
     newRow.className='quot-svc-row';
     var nameInp2=mk('input','form-input');nameInp2.placeholder='e.g. Hairstyling';nameInp2.className='quot-svc-name form-input';nameInp2.setAttribute('list','svc-suggestions');
     var priceInp2=mk('input','form-input');priceInp2.type='number';priceInp2.placeholder='₹';priceInp2.style.width='100px';priceInp2.className='quot-svc-price';
-    nameInp2.oninput=function(){var match=DEFAULT_SERVICES.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));if(match&&!priceInp2.value){priceInp2.value=match.price;updateQuotTotal();}};
+    nameInp2.oninput=function(){var list=DB.services.length?DB.services:DEFAULT_SERVICES;var match=list.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));if(match&&!priceInp2.value){priceInp2.value=match.price;updateQuotTotal();}};
     priceInp2.oninput=updateQuotTotal;
     var delBtn2=mk('button','btn-danger');delBtn2.textContent='×';delBtn2.style.cssText='padding:4px 8px;font-size:14px';
     delBtn2.onclick=function(){newRow.parentNode.removeChild(newRow);updateQuotTotal();};
@@ -1901,7 +1933,7 @@ function openQuotationModal(id){
     app(mk('div','form-row'),[mkFg('Client',clientSel),mkFg('Client name (if new)',clientNameInp)]),
     app(mk('div','form-row'),[mkFg('Quotation date',dateInp),mkFg('Valid till',validInp)]),
     mkFg('Service / event date & time',serviceInp),
-    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');app(fg,[l,datalist,servicesWrap,addSvcBtn]);return fg;})(),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');var ql=mk('div');ql.style.cssText='font-size:11px;color:#888;margin-bottom:4px';ql.textContent='Quick pick:';app(fg,[l,ql,quickPick,datalist,servicesWrap,addSvcBtn]);return fg;})(),
     app(mk('div','form-row'),[mkFg('Travel / extra charges (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisplay);return fg;})()]),
     mkFg('Notes / special requirements',notesInp),
     mkFg('Terms & conditions',termsArea),
@@ -2051,6 +2083,104 @@ function printQuotation(id){
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
+}
+
+// ── SERVICES ─────────────────────────────────────────────────────────────
+function pgServices(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Services','Beauty & styling services Shreya offers',
+    mkBtn('+ Add Service',function(){openServiceModal();},'btn btn-primary')));
+
+  // Seed default services if none exist
+  if(!DB.services.length){
+    var seedDiv=mk('div');seedDiv.style.cssText='background:#e6f0ee;border:1px solid #b8d5ce;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center';
+    var seedTxt=mk('span');seedTxt.style.cssText='font-size:13px;color:#2D6B5E';seedTxt.textContent='No services yet. Want to start with default services?';
+    var seedBtn=mkBtn('Add defaults',function(){seedDefaultServices();},'btn btn-primary btn-sm');
+    app(seedDiv,[seedTxt,seedBtn]);wrap.appendChild(seedDiv);
+  }
+
+  if(!DB.services.length){
+    var c=mk('div','card-p0');c.appendChild(mk('div','empty','Add services like Bridal Makeup, Hairstyling, Saree Draping etc.'));wrap.appendChild(c);return wrap;
+  }
+
+  // Group by category
+  var categories={};
+  DB.services.forEach(function(s){
+    var cat=s.category||'General';
+    if(!categories[cat])categories[cat]=[];
+    categories[cat].push(s);
+  });
+
+  Object.keys(categories).forEach(function(cat){
+    var catTitle=mk('div','section-title',cat);catTitle.style.marginTop='16px';
+    wrap.appendChild(catTitle);
+    var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:8px';
+    categories[cat].forEach(function(s){
+      var card=mk('div','card');
+      var top=mk('div');top.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px';
+      var nm=mk('div');nm.style.cssText='font-weight:600;font-size:14px';nm.textContent=s.name;
+      var price=mk('div');price.style.cssText='font-weight:700;font-size:15px;color:#2D6B5E';price.textContent=rupee(s.price||0);
+      app(top,[nm,price]);
+      var desc=mk('div');desc.style.cssText='font-size:12px;color:#888;margin-bottom:10px';desc.textContent=s.description||'—';
+      var acts=mkRow('display:flex;gap:6px');
+      app(acts,[
+        mkBtn('Edit',function(){openServiceModal(s.id);},'btn btn-xs'),
+        mkBtn('Del',function(){if(confirm('Delete '+s.name+'?'))dbDel('services',s.id);},'btn-danger')
+      ]);
+      app(card,[top,desc,acts]);grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+  });
+  return wrap;
+}
+
+function seedDefaultServices(){
+  var defaults=[
+    {name:'Bridal Makeup',category:'Makeup',price:15000,description:'Full bridal makeup with premium products'},
+    {name:'Party Makeup',category:'Makeup',price:5000,description:'Evening / party makeup'},
+    {name:'Engagement Makeup',category:'Makeup',price:8000,description:'Engagement ceremony makeup'},
+    {name:'Pre-wedding Shoot Makeup',category:'Makeup',price:7000,description:'Makeup for pre-wedding photoshoot'},
+    {name:'Bridal Hairstyle',category:'Hair',price:5000,description:'Complete bridal hair styling'},
+    {name:'Hairstyling',category:'Hair',price:3000,description:'Party or event hairstyling'},
+    {name:'Saree Draping',category:'Styling',price:1500,description:'Professional saree draping'},
+    {name:'Bridal Styling (Full Package)',category:'Packages',price:25000,description:'Makeup + Hair + Saree draping'},
+    {name:'Engagement Package',category:'Packages',price:12000,description:'Makeup + Hair for engagement'}
+  ];
+  defaults.forEach(function(s){dbSave('services',Object.assign({id:uid()},s));});
+}
+
+function openServiceModal(id){
+  var s=id?DB.services.find(function(x){return x.id===id;}):null;
+  var catOpts=[
+    {value:'Makeup',label:'Makeup'},
+    {value:'Hair',label:'Hair'},
+    {value:'Styling',label:'Styling'},
+    {value:'Packages',label:'Packages (combo deals)'},
+    {value:'Other',label:'Other'}
+  ];
+  var nm=mkInput('svc-name','text','e.g. Bridal Makeup',s?s.name:'');
+  var price=mkInput('svc-price','number','Price (₹)',s?(s.price||''):'');
+  var catSel=mkSelect('svc-cat',catOpts,s?(s.category||'Makeup'):'Makeup');
+  var desc=mk('textarea','form-input');desc.id='svc-desc';desc.rows=2;desc.placeholder='Brief description (optional)';if(s)desc.value=s.description||'';
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' service'),
+    mk('div','modal-sub','This will appear in orders and quotations.'),
+    mkFg('Service name *',nm),
+    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Price (₹)',price)]),
+    mkFg('Description',desc),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('svc-name').value.trim();if(!name)return;
+      dbSave('services',{
+        id:id||uid(),name:name,
+        category:document.getElementById('svc-cat').value,
+        price:document.getElementById('svc-price').value,
+        description:document.getElementById('svc-desc').value
+      });closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('svc-name');if(e)e.focus();},50);
 }
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
