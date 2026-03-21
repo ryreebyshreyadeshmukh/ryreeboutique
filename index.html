@@ -233,10 +233,16 @@ function doLogin(){
 }
 function doLogout(){
   if(!confirm('Sign out?'))return;
+  // Auto-save backup before signing out
+  autoSaveToLocalStorage();
+  var t=getLastBackupTime();
   sessionStorage.removeItem('ryree_auth');
   document.getElementById('login-wrap').style.display='flex';
   document.getElementById('app-wrap').style.display='none';
   document.getElementById('login-pw').value='';
+  // Brief confirmation so Shreya knows it saved
+  var syncTxt=document.getElementById('sync-text');
+  if(syncTxt)syncTxt.textContent='Backed up at sign out ✓';
 }
 function showChangePw(){
   var wrap=mk('div');
@@ -1778,7 +1784,7 @@ function buildExportModal(){
   var restoreBtn=mkBtn('Restore from local backup',restoreFromLocalBackup,'btn btn-sm');
   restoreBtn.style.color='#B45309';restoreBtn.style.borderColor='#FDE68A';
   var actRow=mk('div');actRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0';
-  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on browser close';
+  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on sign out';
   actRow.appendChild(hint);
   var btns=mk('div');btns.style.cssText='display:flex;gap:8px';
   app(btns,[restoreBtn,mkBtn('Close',closeModal)]);
@@ -1861,12 +1867,7 @@ setInterval(function(){
   if(isLoggedIn())autoSaveToLocalStorage();
 },120000);
 
-// Save on page close/refresh
-window.addEventListener('beforeunload',function(){
-  if(isLoggedIn()){
-    autoSaveToLocalStorage();
-  }
-});
+// Auto-save happens on sign out (more reliable than beforeunload)
 
 // Restore from localStorage backup if Firebase is offline
 function restoreFromLocalBackup(){
