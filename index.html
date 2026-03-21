@@ -139,6 +139,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-clothing" data-page="clothing">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
     </div>
+    <div class="nav-item" id="nav-estsettings" data-page="estsettings">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
+    </div>
     <div class="nav-item" id="nav-services" data-page="services">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>Services
     </div>
@@ -289,9 +292,10 @@ function showApp(){
   document.getElementById('app-wrap').style.display='flex';
   document.getElementById('export-btn').addEventListener('click',exportAllData);
   initDB();
+  loadEstConfig();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -301,7 +305,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -489,7 +493,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -2748,79 +2752,271 @@ function openTaskModal(id, defaultStatus, prefillOrderId, prefillStaffId){
   },50);
 }
 
-// ── PRICE ESTIMATOR ───────────────────────────────────────────────────────
-var ESTIMATOR_GARMENTS = {
-  'Lehenga': {
-    components: ['Skirt','Blouse','Dupatta 1','Dupatta 2','Tassels','Belt','Potli','Other'],
-    defaults: {
-      'Skirt':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Blouse':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Dupatta 1':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Dupatta 2':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Tassels':  {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Belt':     {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Potli':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Other':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
-    }
-  },
-  'Saree': {
-    components: ['Saree','Blouse','Accessories'],
-    defaults: {
-      'Saree':      {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Blouse':     {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Accessories':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
-    }
-  },
-  'Blouse': {
-    components: ['Blouse'],
-    defaults: {
-      'Blouse': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
-    }
-  },
-  'Co-ord Set': {
-    components: ['Top','Bottom','Dupatta','Other'],
-    defaults: {
-      'Top':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Bottom': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Dupatta':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Other':  {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
-    }
-  },
-  'Dress': {
-    components: ['Dress','Dupatta','Other'],
-    defaults: {
-      'Dress':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Dupatta': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
-      'Other':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
-    }
+// ── ESTIMATOR SETTINGS ────────────────────────────────────────────────────
+var DEFAULT_EST_COLS = [
+  {id:'fabric',     label:'Fabric'},
+  {id:'embroidery', label:'Embroidery'},
+  {id:'laces',      label:'Laces'},
+  {id:'stitching',  label:'Stitching'},
+  {id:'dying',      label:'Dying'},
+  {id:'rawMaterials',label:'Raw Materials'},
+  {id:'misc',       label:'Misc'}
+];
+
+var DEFAULT_EST_GARMENTS = [
+  {id:'lehenga', name:'Lehenga', components:['Skirt','Blouse','Dupatta 1','Dupatta 2','Tassels','Belt','Potli','Other']},
+  {id:'saree',   name:'Saree',   components:['Saree','Blouse','Accessories']},
+  {id:'blouse',  name:'Blouse',  components:['Blouse']},
+  {id:'coordset',name:'Co-ord Set', components:['Top','Bottom','Dupatta','Other']},
+  {id:'dress',   name:'Dress',   components:['Dress','Dupatta','Other']}
+];
+
+function getEstCols(){
+  return DB.estcols.length ? DB.estcols : DEFAULT_EST_COLS;
+}
+function getEstGarments(){
+  return DB.estgarments.length ? DB.estgarments : DEFAULT_EST_GARMENTS;
+}
+
+function pgEstSettings(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Estimator Settings','Configure garment types, components and cost columns'));
+
+  // ── COST COLUMNS ──────────────────────────────────────────────────────
+  var colSec=mk('div');colSec.style.marginBottom='28px';
+  var colHdr=mk('div');colHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  var colTitle=mk('div','section-title','Cost columns');colTitle.style.margin='0';
+  var addColBtn=mkBtn('+ Add column',function(){openEstColModal();},'btn btn-primary btn-sm');
+  app(colHdr,[colTitle,addColBtn]);colSec.appendChild(colHdr);
+
+  var cols=getEstCols();
+  var colGrid=mk('div');colGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px';
+  cols.forEach(function(col,idx){
+    var card=mk('div','card');card.style.cssText='padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px';
+    var info=mk('div');
+    var nm=mk('div');nm.style.cssText='font-weight:600;font-size:13px';nm.textContent=col.label;
+    var id2=mk('div');id2.style.cssText='font-size:11px;color:#aaa;margin-top:2px';id2.textContent='id: '+col.id;
+    app(info,[nm,id2]);
+    var acts=mk('div');acts.style.cssText='display:flex;gap:5px;flex-shrink:0';
+    var editB=mkBtn('Edit',function(){openEstColModal(col.id);},'btn btn-xs');
+    var delB=mk('button','btn-danger');delB.textContent='Del';delB.style.padding='3px 8px';
+    delB.setAttribute('data-cid',col.id);
+    delB.onclick=function(){
+      var cid=this.getAttribute('data-cid');
+      if(!confirm('Delete column "'+col.label+'"? This removes it from all estimates.'))return;
+      var updated=getEstCols().filter(function(c){return c.id!==cid;});
+      saveEstCols(updated);
+    };
+    app(acts,[editB,delB]);app(card,[info,acts]);colGrid.appendChild(card);
+  });
+  colSec.appendChild(colGrid);
+
+  if(!DB.estcols.length){
+    var hint=mk('div');hint.style.cssText='margin-top:8px;font-size:12px;color:#aaa;padding:6px 0';
+    hint.textContent='Using default columns. Add or edit to save your own.';colSec.appendChild(hint);
   }
-};
+  wrap.appendChild(colSec);
 
-var COST_COLS = ['fabric','embroidery','laces','stitching','dying','rawMaterials','misc'];
-var COST_LABELS = {fabric:'Fabric',embroidery:'Embroidery',laces:'Laces',stitching:'Stitching',dying:'Dying',rawMaterials:'Raw Materials',misc:'Misc'};
+  // ── GARMENT TYPES ──────────────────────────────────────────────────────
+  var grmtSec=mk('div');
+  var grmtHdr=mk('div');grmtHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  var grmtTitle=mk('div','section-title','Garment types & components');grmtTitle.style.margin='0';
+  var addGrmtBtn=mkBtn('+ Add garment type',function(){openEstGarmentModal();},'btn btn-primary btn-sm');
+  app(grmtHdr,[grmtTitle,addGrmtBtn]);grmtSec.appendChild(grmtHdr);
 
-var _estGarment = 'Lehenga';
+  var garments=getEstGarments();
+  garments.forEach(function(g){
+    var card=mk('div','card');card.style.marginBottom='10px';
+
+    // Header row
+    var hdr2=mk('div');hdr2.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px';
+    var gnm=mk('div');gnm.style.cssText='font-weight:600;font-size:15px';gnm.textContent=g.name;
+    var acts2=mk('div');acts2.style.cssText='display:flex;gap:6px';
+    var editG=mkBtn('Edit',function(){openEstGarmentModal(g.id);},'btn btn-xs');
+    var delG=mk('button','btn-danger');delG.textContent='Del';delG.style.padding='3px 8px';
+    delG.setAttribute('data-gid',g.id);
+    delG.onclick=function(){
+      var gid=this.getAttribute('data-gid');
+      if(!confirm('Delete "'+g.name+'"?'))return;
+      var updated=getEstGarments().filter(function(x){return x.id!==gid;});
+      saveEstGarments(updated);
+    };
+    app(acts2,[editG,delG]);app(hdr2,[gnm,acts2]);card.appendChild(hdr2);
+
+    // Components
+    var compLabel=mk('div');compLabel.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px';
+    compLabel.textContent='Components ('+g.components.length+')';card.appendChild(compLabel);
+    var pills=mk('div');pills.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+    g.components.forEach(function(c){
+      var p=mk('span');p.style.cssText='background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500';
+      p.textContent=c;pills.appendChild(p);
+    });
+    card.appendChild(pills);
+    grmtSec.appendChild(card);
+  });
+
+  if(!DB.estgarments.length){
+    var hint2=mk('div');hint2.style.cssText='margin-top:8px;font-size:12px;color:#aaa;padding:6px 0';
+    hint2.textContent='Using default garment types. Add or edit to save your own.';grmtSec.appendChild(hint2);
+  }
+  wrap.appendChild(grmtSec);
+
+  // Seed defaults button
+  var seedRow=mk('div');seedRow.style.cssText='margin-top:20px;padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center';
+  var seedTxt=mk('div');seedTxt.style.cssText='font-size:13px;color:#888';seedTxt.textContent='Start from the default configuration (Lehenga, Saree, Blouse, Co-ord Set, Dress + 7 cost columns)';
+  var seedBtn=mkBtn('Load defaults',function(){
+    if(!confirm('This will replace your current settings with defaults. Continue?'))return;
+    saveEstCols(DEFAULT_EST_COLS);
+    saveEstGarments(DEFAULT_EST_GARMENTS);
+  },'btn btn-sm');
+  app(seedRow,[seedTxt,seedBtn]);wrap.appendChild(seedRow);
+
+  return wrap;
+}
+
+function saveEstCols(cols){
+  // Save as a single doc with id='estcols'
+  db.collection('estcols').doc('config').set({cols:cols}).then(function(){
+    DB.estcols=cols;render();
+  });
+}
+function saveEstGarments(garments){
+  db.collection('estgarments').doc('config').set({garments:garments}).then(function(){
+    DB.estgarments=garments;render();
+  });
+}
+
+// Override initDB to handle estcols/estgarments as single-doc collections
+function loadEstConfig(){
+  db.collection('estcols').doc('config').get().then(function(doc){
+    if(doc.exists&&doc.data().cols) DB.estcols=doc.data().cols;
+  });
+  db.collection('estgarments').doc('config').get().then(function(doc){
+    if(doc.exists&&doc.data().garments) DB.estgarments=doc.data().garments;
+  });
+}
+
+function openEstColModal(id){
+  var col=id?getEstCols().find(function(c){return c.id===id;}):null;
+  var labelInp=mkInput('ecol-label','text','e.g. Embroidery',col?col.label:'');
+  var idInp=mkInput('ecol-id','text','e.g. embroidery (no spaces)',col?col.id:'');
+  // Auto-generate id from label
+  labelInp.oninput=function(){
+    if(!col){
+      document.getElementById('ecol-id').value=this.value.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'');
+    }
+  };
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' cost column'),
+    mkFg('Column name *',labelInp),
+    mkFg('Column ID (auto-generated, unique)',idInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var label=document.getElementById('ecol-label').value.trim();
+      var cid=document.getElementById('ecol-id').value.trim();
+      if(!label||!cid){alert('Enter both name and ID.');return;}
+      var current=getEstCols();
+      if(!id&&current.find(function(c){return c.id===cid;})){alert('A column with this ID already exists.');return;}
+      var updated=id
+        ?current.map(function(c){return c.id===id?{id:cid,label:label}:c;})
+        :current.concat([{id:cid,label:label}]);
+      saveEstCols(updated);closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('ecol-label');if(e)e.focus();},50);
+}
+
+function openEstGarmentModal(id){
+  var g=id?getEstGarments().find(function(x){return x.id===id;}):null;
+  var nameInp=mkInput('egrm-name','text','e.g. Sharara',g?g.name:'');
+  var idInp=mkInput('egrm-id','text','e.g. sharara',g?g.id:'');
+  nameInp.oninput=function(){
+    if(!g) document.getElementById('egrm-id').value=this.value.toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9]/g,'');
+  };
+
+  // Components editor
+  var compList=mk('div');compList.id='egrm-comps';
+  var existingComps=g?g.components:[];
+
+  function renderComps(){
+    compList.innerHTML='';
+    var comps=compList._data||existingComps;
+    comps.forEach(function(c,i){
+      var row=mk('div');row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+      var inp=mk('input','form-input');inp.value=c;inp.style.flex='1';
+      inp.oninput=function(){compList._data[i]=this.value;};
+      var delB=mk('button','btn-danger');delB.textContent='×';delB.style.padding='4px 8px';
+      delB.onclick=function(){compList._data.splice(i,1);renderComps();};
+      app(row,[inp,delB]);compList.appendChild(row);
+    });
+    if(!compList._data) compList._data=[].concat(existingComps);
+  }
+  renderComps();compList._data=[].concat(existingComps);
+
+  var addCompBtn=mkBtn('+ Add component',function(){
+    compList._data.push('');renderComps();
+    var inputs=compList.querySelectorAll('input');if(inputs.length)inputs[inputs.length-1].focus();
+  },'btn btn-xs');addCompBtn.style.marginTop='6px';
+
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' garment type'),
+    app(mk('div','form-row'),[mkFg('Garment name *',nameInp),mkFg('ID',idInp)]),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Components *');app(fg,[l,compList,addCompBtn]);return fg;})(),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+      var name=document.getElementById('egrm-name').value.trim();
+      var gid=document.getElementById('egrm-id').value.trim();
+      if(!name||!gid){alert('Enter name and ID.');return;}
+      var comps=compList._data.filter(function(c){return c.trim();});
+      if(!comps.length){alert('Add at least one component.');return;}
+      var current=getEstGarments();
+      if(!id&&current.find(function(x){return x.id===gid;})){alert('A garment with this ID already exists.');return;}
+      var updated=id
+        ?current.map(function(x){return x.id===id?{id:gid,name:name,components:comps}:x;})
+        :current.concat([{id:gid,name:name,components:comps}]);
+      saveEstGarments(updated);closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('egrm-name');if(e)e.focus();},50);
+}
+
+
+// ── PRICE ESTIMATOR ───────────────────────────────────────────────────────
+var _estGarment = null;
 var _estDiscount = 20;
 var _estData = {};
 
 function pgEstimator(){
   var wrap = mk('div');
+  var garments=getEstGarments();
+  if(!garments.length){
+    var empty=mk('div','card');
+    var msg=mk('div');msg.style.cssText='text-align:center;padding:20px';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No garment types configured yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888;margin-bottom:14px';s.textContent='Go to Estimator Settings under Master to set up garment types and cost columns.';
+    var btn3=mkBtn('Go to Estimator Settings',function(){nav('estsettings');},'btn btn-primary');
+    app(msg,[t,s,btn3]);app(empty,[msg]);wrap.appendChild(empty);
+    return wrap;
+  }
   wrap.appendChild(mkPageHeader('Price Estimator','Calculate garment cost, MRP and selling price'));
-
-  // Garment type tabs
+  if(!_estGarment||!garments.find(function(g){return g.id===_estGarment;})){
+    _estGarment=garments[0].id;
+  }
+  // Garment tabs
   var tabsDiv = mk('div');
   tabsDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap';
-  Object.keys(ESTIMATOR_GARMENTS).forEach(function(g){
-    var btn2 = mkBtn(g, function(){
-      _estGarment = g;
+  garments.forEach(function(g){
+    var btn2 = mkBtn(g.name, function(){
+      _estGarment = g.id;
       _estData = {};
       renderEstimatorBody();
-    }, _estGarment===g?'btn btn-primary btn-sm':'btn btn-sm');
-    btn2.setAttribute('data-garment',g);
+    }, _estGarment===g.id?'btn btn-primary btn-sm':'btn btn-sm');
+    btn2.setAttribute('data-garment',g.id);
     tabsDiv.appendChild(btn2);
   });
   wrap.appendChild(tabsDiv);
-
   var body = mk('div'); body.id='est-body';
   wrap.appendChild(body);
   setTimeout(function(){renderEstimatorBody();},0);
@@ -2828,22 +3024,21 @@ function pgEstimator(){
 }
 
 function renderEstimatorBody(){
-  // Update tab styles
   document.querySelectorAll('[data-garment]').forEach(function(b){
     b.className = b.getAttribute('data-garment')===_estGarment?'btn btn-primary btn-sm':'btn btn-sm';
   });
-
   var body = document.getElementById('est-body'); if(!body)return;
   body.innerHTML='';
-
-  var garment = ESTIMATOR_GARMENTS[_estGarment];
-  var components = garment.components;
-  var defaults = garment.defaults;
-
-  // Init data if empty
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj)return;
+  var components=garmentObj.components;
+  var cols=getEstCols();
+  // Init data
   components.forEach(function(comp){
     if(!_estData[comp]){
-      _estData[comp] = Object.assign({},defaults[comp]||{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0});
+      _estData[comp]={};
+      cols.forEach(function(c){_estData[comp][c.id]=0;});
     }
   });
 
@@ -2865,8 +3060,8 @@ function renderEstimatorBody(){
 
   // Header
   var hdr = mk('div');
-  hdr.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;background:#fafafa;border-bottom:1px solid #f0f0f0';
-  ['Component','Fabric','Embroidery','Laces','Stitching','Dying','Raw Mat.','Misc','Total'].forEach(function(h,i){
+  hdr.style.cssText='display:grid;grid-template-columns:130px repeat('+cols.length+',1fr) 90px;gap:0;background:#fafafa;border-bottom:1px solid #f0f0f0';
+  (['Component'].concat(cols.map(function(c){return c.label;})).concat(['Total'])).forEach(function(h,i){
     var th = mk('div');
     th.style.cssText='padding:10px 8px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;'+(i===0?'':'text-align:right');
     th.textContent=h; hdr.appendChild(th);
@@ -2876,7 +3071,7 @@ function renderEstimatorBody(){
   // Component rows
   components.forEach(function(comp){
     var row = mk('div'); row.id='est-row-'+comp.replace(/\s/g,'-');
-    row.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;border-bottom:1px solid #f9f9f9;align-items:center';
+    row.style.cssText='display:grid;grid-template-columns:130px repeat('+cols.length+',1fr) 90px;gap:0;border-bottom:1px solid #f9f9f9;align-items:center';
 
     // Component label
     var lbl = mk('div');
@@ -2884,11 +3079,11 @@ function renderEstimatorBody(){
     lbl.textContent=comp; row.appendChild(lbl);
 
     // Cost inputs
-    COST_COLS.forEach(function(col){
+    cols.forEach(function(colDef){
       var cell = mk('div'); cell.style.cssText='padding:4px 4px;';
       var inp = mk('input');
       inp.type='number'; inp.min='0';
-      inp.value=_estData[comp][col]||'';
+      inp.value=_estData[comp][colDef.id]||'';
       inp.placeholder='0';
       inp.style.cssText='width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;font-size:12px;text-align:right;border-radius:4px;color:#333;outline:none';
       inp.onfocus=function(){this.style.borderColor='#2D6B5E';this.style.background='#f9fffe';};
@@ -2897,32 +3092,30 @@ function renderEstimatorBody(){
         _estData[c][co]=Number(this.value||0);
         updateEstRowTotal(c);
         updateEstTotals();
-      };})(comp,col);
+      };})(comp,colDef.id);
       cell.appendChild(inp); row.appendChild(cell);
     });
-
-    // Row total
     var rowTotal = mk('div'); rowTotal.id='est-rowtotal-'+comp.replace(/\s/g,'-');
     rowTotal.style.cssText='padding:8px 8px;font-size:13px;font-weight:600;color:#2D6B5E;text-align:right';
-    rowTotal.textContent=rupee(COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0));
+    rowTotal.textContent=rupee(cols.reduce(function(a,c){return a+Number(_estData[comp][c.id]||0);},0));
     row.appendChild(rowTotal);
     tableWrap.appendChild(row);
   });
 
   // Column totals row
   var totRow = mk('div'); totRow.id='est-coltotals';
-  totRow.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;background:#f9f9f9;border-top:2px solid #e8e8e8';
+  totRow.style.cssText='display:grid;grid-template-columns:130px repeat('+cols.length+',1fr) 90px;gap:0;background:#f9f9f9;border-top:2px solid #e8e8e8';
   var totLbl=mk('div');totLbl.style.cssText='padding:10px 8px;font-size:12px;font-weight:700;color:#555';totLbl.textContent='Total';
   totRow.appendChild(totLbl);
-  COST_COLS.forEach(function(col){
-    var td=mk('div');td.id='est-coltot-'+col;
+  cols.forEach(function(colDef){
+    var td=mk('div');td.id='est-coltot-'+colDef.id;
     td.style.cssText='padding:10px 8px;font-size:12px;font-weight:600;color:#555;text-align:right';
-    var sum=components.reduce(function(a,c){return a+Number(_estData[c][col]||0);},0);
+    var sum=components.reduce(function(a,c){return a+Number(_estData[c][colDef.id]||0);},0);
     td.textContent=rupee(sum); totRow.appendChild(td);
   });
   var grandTotTd=mk('div');grandTotTd.id='est-grandtot';
   grandTotTd.style.cssText='padding:10px 8px;font-size:13px;font-weight:700;color:#2D6B5E;text-align:right';
-  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number(_estData[c][colDef.id]||0);},0);},0);
   grandTotTd.textContent=rupee(grand); totRow.appendChild(grandTotTd);
   tableWrap.appendChild(totRow);
   body.appendChild(tableWrap);
@@ -2948,9 +3141,10 @@ function renderEstimatorBody(){
 }
 
 function updateEstRowTotal(comp){
-  var el=document.getElementById('est-rowtotal-'+comp.replace(/\s/g,'-'));
+  var el=document.getElementById('est-rowtotal-'+comp.replace(/[^a-zA-Z0-9]/g,'-'));
   if(!el)return;
-  var sum=COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0);
+  var cols=getEstCols();
+  var sum=cols.reduce(function(a,c){return a+Number(_estData[comp][c.id]||0);},0);
   el.textContent=rupee(sum);
 }
 
@@ -2968,7 +3162,7 @@ function updateEstTotals(){
   });
 
   // Grand total
-  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number(_estData[c][colDef.id]||0);},0);},0);
   var el2=document.getElementById('est-grandtot');if(el2)el2.textContent=rupee(grand);
 
   var mrp=grand*2;
@@ -3019,15 +3213,19 @@ function printEstimate(){
   if(!garment)return;
   var components=garment.components;
   var discount=_estDiscount;
-  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number(_estData[c][colDef.id]||0);},0);},0);
   var mrp=grand*2;
   var selling=Math.round(mrp-(mrp*discount/100));
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
 
+  var cols=getEstCols();
+  var garments2=getEstGarments();
+  var garmentObj2=garments2.find(function(g){return g.id===_estGarment;});
+  var garmentName=garmentObj2?garmentObj2.name:_estGarment;
   var rows=components.map(function(comp){
-    var rowTotal=COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0);
+    var rowTotal=cols.reduce(function(a,c){return a+Number((_estData[comp]||{})[c.id]||0);},0);
     if(rowTotal===0)return '';
-    var cells=COST_COLS.map(function(col){return '<td style="padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f5f5f5">'+(Number(_estData[comp][col]||0)>0?rupee(Number(_estData[comp][col])):'—')+'</td>';}).join('');
+    var cells=cols.map(function(colDef){return '<td style="padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f5f5f5">'+(Number((_estData[comp]||{})[colDef.id]||0)>0?rupee(Number(_estData[comp][colDef.id])):'—')+'</td>';}).join('');
     return '<tr><td style="padding:6px 10px;font-size:12px;font-weight:500;border-bottom:1px solid #f5f5f5">'+comp+'</td>'+cells+'<td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:700;color:#2D6B5E;border-bottom:1px solid #f5f5f5">'+rupee(rowTotal)+'</td></tr>';
   }).filter(Boolean).join('');
 
@@ -3035,10 +3233,10 @@ function printEstimate(){
   '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th{background:#fafafa;padding:8px 10px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em}@media print{body{padding:12px}}</style></head><body>'+
   '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #2D6B5E">'+
   '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
-  '<div style="font-size:20px;font-weight:800;color:#2D6B5E">'+_estGarment+' — Price Estimate</div></div>'+
+  '<div style="font-size:20px;font-weight:800;color:#2D6B5E">'+garmentName+' — Price Estimate</div></div>'+
   '<div style="font-size:11px;color:#aaa">'+today+'</div></div>'+
   '<table style="margin-bottom:20px"><thead><tr><th style="text-align:left">Component</th>'+
-  COST_COLS.map(function(c){return '<th style="text-align:right">'+COST_LABELS[c]+'</th>';}).join('')+
+  cols.map(function(c){return '<th style="text-align:right">'+c.label+'</th>';}).join('')+
   '<th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'+
   '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">'+
   '<div style="padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0"><div style="font-size:11px;color:#888;margin-bottom:4px">TOTAL COST</div><div style="font-size:18px;font-weight:700">'+rupee(grand)+'</div></div>'+
