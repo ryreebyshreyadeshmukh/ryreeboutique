@@ -1648,19 +1648,24 @@ function openExpenseModal(){
   var invSel=mkSelect('e-inv',invOpts,'');
   var invQtyInp=mkInput('e-inv-qty','number','Qty to add to stock');
   var invFg=mk('div','form-group');invFg.id='e-inv-fg';invFg.style.display='none';
-  var invLabel=mk('label','form-label','Update inventory stock (optional)');
+  var invLabel=mk('div');
+  invLabel.style.cssText='font-size:12px;font-weight:600;color:#2D6B5E;background:#e6f0ee;padding:8px 12px;border-radius:6px;margin-bottom:8px';
+  invLabel.textContent='↓ This purchase will update inventory stock automatically';
   var invRow=mk('div');invRow.style.cssText='display:grid;grid-template-columns:1fr auto;gap:8px;align-items:flex-end';
   app(invRow,[mkFg('Inventory item',invSel),mkFg('Qty to add',invQtyInp)]);
   app(invFg,[invLabel,invRow]);
 
   // Show/hide vendor based on entry type
   var vendorFg=mkFg('Vendor / Supplier',vendorSel);vendorFg.id='e-vendor-fg';
-  typeSel.onchange=function(){
-    var isCashIn=this.value==='cash-in';
+  function updateExpFields(){
+    var isCashIn=document.getElementById('e-type').value==='cash-in';
+    var isRawMat=document.getElementById('e-cat').value==='Raw material purchase';
     document.getElementById('e-vendor-fg').style.display=isCashIn?'none':'block';
-    document.getElementById('e-inv-fg').style.display=isCashIn?'none':'block';
+    document.getElementById('e-inv-fg').style.display=(!isCashIn&&isRawMat)?'block':'none';
     if(isCashIn){vendorSel.value='';invSel.value='';}
-  };
+  }
+  typeSel.onchange=updateExpFields;
+  catSel.onchange=updateExpFields;
   // When vendor is selected, auto-fill description if empty
   vendorSel.onchange=function(){
     var vid=this.value;
