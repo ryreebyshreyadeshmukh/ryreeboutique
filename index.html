@@ -155,6 +155,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
+    <div class="nav-item" id="nav-estimator" data-page="estimator">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
+    </div>
     <div class="nav-item" id="nav-tasks" data-page="tasks">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
     </div>
@@ -486,7 +489,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -2744,6 +2747,310 @@ function openTaskModal(id, defaultStatus, prefillOrderId, prefillStaffId){
     var e=document.getElementById('tk-title');if(e)e.focus();
   },50);
 }
+
+// ── PRICE ESTIMATOR ───────────────────────────────────────────────────────
+var ESTIMATOR_GARMENTS = {
+  'Lehenga': {
+    components: ['Skirt','Blouse','Dupatta 1','Dupatta 2','Tassels','Belt','Potli','Other'],
+    defaults: {
+      'Skirt':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Blouse':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Dupatta 1':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Dupatta 2':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Tassels':  {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Belt':     {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Potli':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Other':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
+    }
+  },
+  'Saree': {
+    components: ['Saree','Blouse','Accessories'],
+    defaults: {
+      'Saree':      {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Blouse':     {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Accessories':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
+    }
+  },
+  'Blouse': {
+    components: ['Blouse'],
+    defaults: {
+      'Blouse': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
+    }
+  },
+  'Co-ord Set': {
+    components: ['Top','Bottom','Dupatta','Other'],
+    defaults: {
+      'Top':    {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Bottom': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Dupatta':{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Other':  {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
+    }
+  },
+  'Dress': {
+    components: ['Dress','Dupatta','Other'],
+    defaults: {
+      'Dress':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Dupatta': {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0},
+      'Other':   {fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0}
+    }
+  }
+};
+
+var COST_COLS = ['fabric','embroidery','laces','stitching','dying','rawMaterials','misc'];
+var COST_LABELS = {fabric:'Fabric',embroidery:'Embroidery',laces:'Laces',stitching:'Stitching',dying:'Dying',rawMaterials:'Raw Materials',misc:'Misc'};
+
+var _estGarment = 'Lehenga';
+var _estDiscount = 20;
+var _estData = {};
+
+function pgEstimator(){
+  var wrap = mk('div');
+  wrap.appendChild(mkPageHeader('Price Estimator','Calculate garment cost, MRP and selling price'));
+
+  // Garment type tabs
+  var tabsDiv = mk('div');
+  tabsDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap';
+  Object.keys(ESTIMATOR_GARMENTS).forEach(function(g){
+    var btn2 = mkBtn(g, function(){
+      _estGarment = g;
+      _estData = {};
+      renderEstimatorBody();
+    }, _estGarment===g?'btn btn-primary btn-sm':'btn btn-sm');
+    btn2.setAttribute('data-garment',g);
+    tabsDiv.appendChild(btn2);
+  });
+  wrap.appendChild(tabsDiv);
+
+  var body = mk('div'); body.id='est-body';
+  wrap.appendChild(body);
+  setTimeout(function(){renderEstimatorBody();},0);
+  return wrap;
+}
+
+function renderEstimatorBody(){
+  // Update tab styles
+  document.querySelectorAll('[data-garment]').forEach(function(b){
+    b.className = b.getAttribute('data-garment')===_estGarment?'btn btn-primary btn-sm':'btn btn-sm';
+  });
+
+  var body = document.getElementById('est-body'); if(!body)return;
+  body.innerHTML='';
+
+  var garment = ESTIMATOR_GARMENTS[_estGarment];
+  var components = garment.components;
+  var defaults = garment.defaults;
+
+  // Init data if empty
+  components.forEach(function(comp){
+    if(!_estData[comp]){
+      _estData[comp] = Object.assign({},defaults[comp]||{fabric:0,embroidery:0,laces:0,stitching:0,dying:0,rawMaterials:0,misc:0});
+    }
+  });
+
+  // Discount control row
+  var discRow = mk('div');
+  discRow.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px 16px;background:#fff;border:1px solid #e8e8e8;border-radius:10px';
+  var discLabel = mk('span'); discLabel.style.cssText='font-size:13px;font-weight:600;color:#555'; discLabel.textContent='Discount % on MRP:';
+  var discInp = mk('input','form-input');
+  discInp.type='number'; discInp.id='est-discount'; discInp.value=_estDiscount;
+  discInp.style.cssText='width:80px;text-align:center';discInp.min='0';discInp.max='100';
+  discInp.oninput=function(){_estDiscount=Number(this.value||0);updateEstTotals();};
+  var discHint=mk('span');discHint.style.cssText='font-size:12px;color:#aaa';discHint.textContent='MRP = Total cost \u00d7 2';
+  app(discRow,[discLabel,discInp,discHint]);
+  body.appendChild(discRow);
+
+  // Table
+  var tableWrap = mk('div');
+  tableWrap.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden;margin-bottom:16px';
+
+  // Header
+  var hdr = mk('div');
+  hdr.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;background:#fafafa;border-bottom:1px solid #f0f0f0';
+  ['Component','Fabric','Embroidery','Laces','Stitching','Dying','Raw Mat.','Misc','Total'].forEach(function(h,i){
+    var th = mk('div');
+    th.style.cssText='padding:10px 8px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;'+(i===0?'':'text-align:right');
+    th.textContent=h; hdr.appendChild(th);
+  });
+  tableWrap.appendChild(hdr);
+
+  // Component rows
+  components.forEach(function(comp){
+    var row = mk('div'); row.id='est-row-'+comp.replace(/\s/g,'-');
+    row.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;border-bottom:1px solid #f9f9f9;align-items:center';
+
+    // Component label
+    var lbl = mk('div');
+    lbl.style.cssText='padding:8px 8px;font-size:13px;font-weight:500;color:#333';
+    lbl.textContent=comp; row.appendChild(lbl);
+
+    // Cost inputs
+    COST_COLS.forEach(function(col){
+      var cell = mk('div'); cell.style.cssText='padding:4px 4px;';
+      var inp = mk('input');
+      inp.type='number'; inp.min='0';
+      inp.value=_estData[comp][col]||'';
+      inp.placeholder='0';
+      inp.style.cssText='width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;font-size:12px;text-align:right;border-radius:4px;color:#333;outline:none';
+      inp.onfocus=function(){this.style.borderColor='#2D6B5E';this.style.background='#f9fffe';};
+      inp.onblur=function(){this.style.borderColor='transparent';this.style.background='transparent';};
+      inp.oninput=(function(c,co){return function(){
+        _estData[c][co]=Number(this.value||0);
+        updateEstRowTotal(c);
+        updateEstTotals();
+      };})(comp,col);
+      cell.appendChild(inp); row.appendChild(cell);
+    });
+
+    // Row total
+    var rowTotal = mk('div'); rowTotal.id='est-rowtotal-'+comp.replace(/\s/g,'-');
+    rowTotal.style.cssText='padding:8px 8px;font-size:13px;font-weight:600;color:#2D6B5E;text-align:right';
+    rowTotal.textContent=rupee(COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0));
+    row.appendChild(rowTotal);
+    tableWrap.appendChild(row);
+  });
+
+  // Column totals row
+  var totRow = mk('div'); totRow.id='est-coltotals';
+  totRow.style.cssText='display:grid;grid-template-columns:130px repeat(7,1fr) 90px;gap:0;background:#f9f9f9;border-top:2px solid #e8e8e8';
+  var totLbl=mk('div');totLbl.style.cssText='padding:10px 8px;font-size:12px;font-weight:700;color:#555';totLbl.textContent='Total';
+  totRow.appendChild(totLbl);
+  COST_COLS.forEach(function(col){
+    var td=mk('div');td.id='est-coltot-'+col;
+    td.style.cssText='padding:10px 8px;font-size:12px;font-weight:600;color:#555;text-align:right';
+    var sum=components.reduce(function(a,c){return a+Number(_estData[c][col]||0);},0);
+    td.textContent=rupee(sum); totRow.appendChild(td);
+  });
+  var grandTotTd=mk('div');grandTotTd.id='est-grandtot';
+  grandTotTd.style.cssText='padding:10px 8px;font-size:13px;font-weight:700;color:#2D6B5E;text-align:right';
+  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  grandTotTd.textContent=rupee(grand); totRow.appendChild(grandTotTd);
+  tableWrap.appendChild(totRow);
+  body.appendChild(tableWrap);
+
+  // Result card
+  var resultCard = mk('div'); resultCard.id='est-result';
+  resultCard.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px';
+  body.appendChild(resultCard);
+  updateEstTotals();
+
+  // Actions
+  var actions = mk('div'); actions.style.cssText='display:flex;gap:10px;flex-wrap:wrap';
+  app(actions,[
+    mkBtn('Reset to defaults',function(){_estData={};renderEstimatorBody();},'btn btn-sm'),
+    mkBtn('Clear all',function(){
+      Object.keys(_estData).forEach(function(c){COST_COLS.forEach(function(col){_estData[c][col]=0;});});
+      renderEstimatorBody();
+    },'btn btn-sm'),
+    mkBtn('Save as quotation',function(){saveEstimatorAsQuotation();},'btn btn-primary btn-sm'),
+    mkBtn('Print estimate',function(){printEstimate();},'btn btn-sm')
+  ]);
+  body.appendChild(actions);
+}
+
+function updateEstRowTotal(comp){
+  var el=document.getElementById('est-rowtotal-'+comp.replace(/\s/g,'-'));
+  if(!el)return;
+  var sum=COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0);
+  el.textContent=rupee(sum);
+}
+
+function updateEstTotals(){
+  var garment=ESTIMATOR_GARMENTS[_estGarment];
+  if(!garment)return;
+  var components=garment.components;
+  var discount=Number(document.getElementById('est-discount')?document.getElementById('est-discount').value:_estDiscount)||0;
+  _estDiscount=discount;
+
+  // Update col totals
+  COST_COLS.forEach(function(col){
+    var el=document.getElementById('est-coltot-'+col);
+    if(el){var sum=components.reduce(function(a,c){return a+Number(_estData[c][col]||0);},0);el.textContent=rupee(sum);}
+  });
+
+  // Grand total
+  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var el2=document.getElementById('est-grandtot');if(el2)el2.textContent=rupee(grand);
+
+  var mrp=grand*2;
+  var disc=mrp*(discount/100);
+  var selling=mrp-disc;
+
+  var rc=document.getElementById('est-result');if(!rc)return;
+  rc.innerHTML='';
+
+  function resCard(label,val,color,bg){
+    var card=mk('div','stat-card');card.style.background=bg||'#fff';
+    var lbl=mk('div','stat-label',label);
+    var v=mk('div','stat-val',rupee(val));v.style.color=color||'#1a1a1a';
+    app(card,[lbl,v]);return card;
+  }
+  app(rc,[
+    resCard('Total cost (sum)',grand,'#555','#fafafa'),
+    resCard('MRP (cost \u00d7 2)',mrp,'#2D6B5E','#e6f0ee'),
+    resCard('Selling price (MRP \u2212 '+discount+'%)',selling,'#166534','#F0FDF4')
+  ]);
+}
+
+function saveEstimatorAsQuotation(){
+  var garment=ESTIMATOR_GARMENTS[_estGarment];
+  if(!garment)return;
+  var grand=garment.components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var discount=_estDiscount;
+  var mrp=grand*2;
+  var selling=Math.round(mrp-(mrp*discount/100));
+  // Open quotation modal pre-filled
+  nav('quotations');
+  setTimeout(function(){
+    openQuotationModal();
+    setTimeout(function(){
+      // Pre-fill service with garment name and selling price
+      var rows=document.querySelectorAll('.quot-svc-row');
+      if(rows.length>0){
+        rows[0].querySelector('.quot-svc-name').value=_estGarment+' (custom)';
+        rows[0].querySelector('.quot-svc-price').value=selling;
+        updateQuotTotal();
+      }
+    },100);
+  },200);
+}
+
+function printEstimate(){
+  var garment=ESTIMATOR_GARMENTS[_estGarment];
+  if(!garment)return;
+  var components=garment.components;
+  var discount=_estDiscount;
+  var grand=components.reduce(function(a,c){return a+COST_COLS.reduce(function(b,col){return b+Number(_estData[c][col]||0);},0);},0);
+  var mrp=grand*2;
+  var selling=Math.round(mrp-(mrp*discount/100));
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+
+  var rows=components.map(function(comp){
+    var rowTotal=COST_COLS.reduce(function(a,c){return a+Number(_estData[comp][c]||0);},0);
+    if(rowTotal===0)return '';
+    var cells=COST_COLS.map(function(col){return '<td style="padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f5f5f5">'+(Number(_estData[comp][col]||0)>0?rupee(Number(_estData[comp][col])):'—')+'</td>';}).join('');
+    return '<tr><td style="padding:6px 10px;font-size:12px;font-weight:500;border-bottom:1px solid #f5f5f5">'+comp+'</td>'+cells+'<td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:700;color:#2D6B5E;border-bottom:1px solid #f5f5f5">'+rupee(rowTotal)+'</td></tr>';
+  }).filter(Boolean).join('');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Estimate</title>'+
+  '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th{background:#fafafa;padding:8px 10px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em}@media print{body{padding:12px}}</style></head><body>'+
+  '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #2D6B5E">'+
+  '<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'+
+  '<div style="font-size:20px;font-weight:800;color:#2D6B5E">'+_estGarment+' — Price Estimate</div></div>'+
+  '<div style="font-size:11px;color:#aaa">'+today+'</div></div>'+
+  '<table style="margin-bottom:20px"><thead><tr><th style="text-align:left">Component</th>'+
+  COST_COLS.map(function(c){return '<th style="text-align:right">'+COST_LABELS[c]+'</th>';}).join('')+
+  '<th style="text-align:right">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+  '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">'+
+  '<div style="padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0"><div style="font-size:11px;color:#888;margin-bottom:4px">TOTAL COST</div><div style="font-size:18px;font-weight:700">'+rupee(grand)+'</div></div>'+
+  '<div style="padding:14px;background:#e6f0ee;border-radius:8px;border:1px solid #b8d5ce"><div style="font-size:11px;color:#2D6B5E;margin-bottom:4px">MRP (cost \u00d7 2)</div><div style="font-size:18px;font-weight:700;color:#2D6B5E">'+rupee(mrp)+'</div></div>'+
+  '<div style="padding:14px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC"><div style="font-size:11px;color:#166534;margin-bottom:4px">SELLING PRICE (\u2212'+discount+'%)</div><div style="font-size:22px;font-weight:800;color:#166534">'+rupee(selling)+'</div></div>'+
+  '</div><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh \u00b7 '+today+'</div></body></html>';
+
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Allow popups to print.');
+}
+
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
