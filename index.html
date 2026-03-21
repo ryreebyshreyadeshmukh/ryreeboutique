@@ -1330,7 +1330,7 @@ function pgStaff(){
   if(!DB.staff.length){var c=mk('div','card');c.appendChild(mk('div','empty','No staff added yet.'));wrap.appendChild(c);return wrap;}
   var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px';
   DB.staff.forEach(function(s){
-    var active=DB.orders.filter(function(o){return o.assignedTo===s.id&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+    var active=DB.tasks.filter(function(t){return t.assignedTo===s.id&&t.status!=='done';});
     var card=mk('div','card');
     var hdr=mkRow('display:flex;align-items:center;gap:12px;margin-bottom:12px');
     var av=mkAvatar(s.name,40);
@@ -1338,14 +1338,16 @@ function pgStaff(){
     var nm=mk('div');nm.style.cssText='font-weight:600;font-size:15px';nm.textContent=s.name;
     var role=mk('div');role.style.cssText='font-size:12px;color:#888';role.textContent=(s.role||'Tailor')+(s.phone?' · '+s.phone:'');
     app(info,[nm,role]);app(hdr,[av,info]);card.appendChild(hdr);
-    var ot=mk('div');ot.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em';ot.textContent='Active orders ('+active.length+')';
+    var ot=mk('div');ot.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em';ot.textContent='Active tasks ('+active.length+')';
     card.appendChild(ot);
     if(!active.length){var fr=mk('div');fr.style.cssText='font-size:12px;color:#aaa;padding:4px 0';fr.textContent='Available';card.appendChild(fr);}
-    else active.forEach(function(o){
-      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    else active.slice(0,3).forEach(function(t){
       var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px';
-      var l=mk('div');var it=mk('div');it.style.fontWeight='500';it.textContent=o.item+(cl?' — '+cl.name:'');
-      var dl=mk('div');dl.style.color='#aaa';dl.textContent='By '+(o.delivery||'—');app(l,[it,dl]);app(row,[l,mkBadge(o.status)]);card.appendChild(row);
+      var l=mk('div');var it=mk('div');it.style.fontWeight='500';it.textContent=t.title;
+      var dl=mk('div');dl.style.color='#aaa';dl.textContent=t.dueDate?'Due '+t.dueDate:'';app(l,[it,dl]);
+      var pb=mk('span','badge');var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};var pCs={high:'#991B1B',medium:'#B45309',low:'#166534'};
+      pb.style.cssText='font-size:10px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pCs[t.priority]||'#888');pb.textContent=(t.priority||'medium');
+      app(row,[l,pb]);card.appendChild(row);
     });
     var acts=mkRow('display:flex;gap:6px;margin-top:12px');
     var sTaskBtn=mkBtn('+ Task',function(){openTaskModal(null,'todo',null,s.id);},'btn btn-xs');
@@ -1400,9 +1402,11 @@ function pgInventory(){
       if(isLow){var lb=mk('span');lb.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:6px';lb.textContent='LOW';qtyTd.appendChild(lb);}
       var val=Number(item.qty||0)*Number(item.price||0);
       var valTd=mk('td');valTd.style.color='#888';valTd.textContent=val>0?rupee(val):'—';
-      var acts=mkRow('display:flex;gap:5px');
-      var addB=mkBtn('+',function(){quickAddStock(item.id);},'btn btn-xs');addB.style.color='#166534';addB.style.borderColor='#86EFAC';
-      app(acts,[addB,mkBtn('Edit',function(){openInventoryModal(item.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('inventory',item.id);},'btn-danger')]);
+      var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
+      var addB=mkBtn('+ Add',function(){quickAddStock(item.id);},'btn btn-xs');addB.style.color='#166534';addB.style.borderColor='#86EFAC';
+      var useB=mkBtn('- Use',function(){quickUseStock(item.id);},'btn btn-xs');useB.style.color='#991B1B';useB.style.borderColor='#FCA5A5';
+      var logB=mkBtn('Log',function(){viewStockLog(item.id);},'btn btn-xs');
+      app(acts,[addB,useB,logB,mkBtn('Edit',function(){openInventoryModal(item.id);},'btn btn-xs'),mkBtn('Del',function(){if(confirm('Delete?'))dbDel('inventory',item.id);},'btn-danger')]);
       var actTd=mk('td');actTd.appendChild(acts);
       [mk('td',null,item.name),mk('td',null,item.category||'—'),qtyTd,mk('td',null,item.unit||'—'),mk('td',null,item.minQty||'—'),valTd,actTd].forEach(function(td){tr.appendChild(td);});
       t._body.appendChild(tr);
@@ -1437,6 +1441,73 @@ function quickAddStock(id){
     dbSave('inventory',Object.assign({},item,{qty:Number(item.qty||0)+add}));closeModal();
   },'btn btn-primary')])]);
   showM(wrap);setTimeout(function(){var e=document.getElementById('qa-qty');if(e)e.focus();},50);
+}
+
+function quickUseStock(id){
+  var item=DB.inventory.find(function(x){return x.id===id;});
+  var current=Number(item.qty||0);
+  var qtyInp=mkInput('qu-qty','number','Quantity used');
+  var orderOpts=[{value:'',label:'— General use —'}].concat(
+    DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).map(function(o){
+      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+      return {value:o.id,label:(cl?cl.name+' — ':'')+o.item};
+    })
+  );
+  var orderSel=mkSelect('qu-order',orderOpts,'');
+  var noteInp=mkInput('qu-note','text','e.g. Cut for blouse lining');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Use stock — '+item.name),
+    mk('div','modal-sub','Current stock: '+current+' '+item.unit),
+    app(mk('div','form-row'),[mkFg('Quantity used *',qtyInp),mkFg('Linked order (optional)',orderSel)]),
+    mkFg('Note',noteInp),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn('Record usage',function(){
+      var use=Number(document.getElementById('qu-qty').value||0);
+      if(!use||use<=0){alert('Enter quantity used.');return;}
+      if(use>current){alert('Cannot use more than current stock ('+current+' '+item.unit+').');return;}
+      var newQty=current-use;
+      // Save stock movement to inventory log
+      var log=(item.log||[]).concat([{
+        type:'use',qty:use,date:new Date().toISOString().split('T')[0],
+        orderId:document.getElementById('qu-order').value,
+        note:document.getElementById('qu-note').value,
+        ts:Date.now()
+      }]);
+      dbSave('inventory',Object.assign({},item,{qty:newQty,log:log}));
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('qu-qty');if(e)e.focus();},50);
+}
+
+function viewStockLog(id){
+  var item=DB.inventory.find(function(x){return x.id===id;});
+  var log=(item.log||[]).slice().reverse();
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Stock log — '+item.name));
+  var sub=mk('div','modal-sub');sub.textContent='Current stock: '+item.qty+' '+item.unit;wrap.appendChild(sub);
+  if(!log.length){wrap.appendChild(mk('div','empty','No movements recorded yet.'));}
+  else{
+    var t=mkTable(['Date','Type','Qty','Linked to','Note']);
+    log.forEach(function(l){
+      var isAdd=l.type==='purchase'||l.type==='add';
+      var typeTd=mk('td');var tb=mk('span','badge');
+      tb.style.cssText='font-size:10px;background:'+(isAdd?'#F0FDF4':'#FEF2F2')+';color:'+(isAdd?'#166534':'#991B1B');
+      tb.textContent=isAdd?'+ Added':'- Used';typeTd.appendChild(tb);
+      var qtyTd=mk('td');qtyTd.style.cssText='font-weight:600;color:'+(isAdd?'#166534':'#991B1B');
+      qtyTd.textContent=(isAdd?'+':'-')+l.qty;
+      var linkTd=mk('td');linkTd.style.cssText='font-size:12px;color:#888';
+      if(l.orderId){var o=DB.orders.find(function(x){return x.id===l.orderId;});linkTd.textContent=o?o.item:'Order';}
+      else if(l.vendorName){linkTd.textContent=l.vendorName;}
+      else{linkTd.textContent='—';}
+      var tr=mk('tr');[mk('td',null,l.date||'—'),typeTd,qtyTd,linkTd,mk('td',null,l.note||'—')].forEach(function(td){tr.appendChild(td);});
+      t._body.appendChild(tr);
+    });
+    var tw=mk('div','card-p0');tw.appendChild(t);wrap.appendChild(tw);
+  }
+  wrap.appendChild(mkActions([mkBtn('Close',closeModal)]));
+  showM(wrap);
 }
 
 // ── VENDORS ───────────────────────────────────────────────────────────────
@@ -1571,12 +1642,24 @@ function openExpenseModal(){
   var amtInp=mkInput('e-amount','number','Amount (₹)');
   var dateInp=mkInput('e-date','date','',new Date().toISOString().split('T')[0]);
   var descInp=mkInput('e-desc','text','e.g. Zardosi thread, 5 metres silk...');
+  // Inventory item linkage for raw material purchases
+  var invOpts=[{value:'',label:'— No inventory item —'}].concat(
+    DB.inventory.map(function(i){return {value:i.id,label:i.name+' ('+i.qty+' '+i.unit+')'};}));
+  var invSel=mkSelect('e-inv',invOpts,'');
+  var invQtyInp=mkInput('e-inv-qty','number','Qty to add to stock');
+  var invFg=mk('div','form-group');invFg.id='e-inv-fg';invFg.style.display='none';
+  var invLabel=mk('label','form-label','Update inventory stock (optional)');
+  var invRow=mk('div');invRow.style.cssText='display:grid;grid-template-columns:1fr auto;gap:8px;align-items:flex-end';
+  app(invRow,[mkFg('Inventory item',invSel),mkFg('Qty to add',invQtyInp)]);
+  app(invFg,[invLabel,invRow]);
+
   // Show/hide vendor based on entry type
   var vendorFg=mkFg('Vendor / Supplier',vendorSel);vendorFg.id='e-vendor-fg';
   typeSel.onchange=function(){
     var isCashIn=this.value==='cash-in';
     document.getElementById('e-vendor-fg').style.display=isCashIn?'none':'block';
-    if(isCashIn)vendorSel.value='';
+    document.getElementById('e-inv-fg').style.display=isCashIn?'none':'block';
+    if(isCashIn){vendorSel.value='';invSel.value='';}
   };
   // When vendor is selected, auto-fill description if empty
   vendorSel.onchange=function(){
@@ -1595,10 +1678,24 @@ function openExpenseModal(){
     app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),
     vendorFg,
     mkFg('Description',descInp),
+    invFg,
     mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
       var amt=document.getElementById('e-amount').value;if(!amt||Number(amt)<=0){alert('Enter a valid amount.');return;}
       var vid=document.getElementById('e-vendor').value;
       var v=vid?DB.vendors.find(function(x){return x.id===vid;}):null;
+      // Auto-update inventory if item selected
+      var invId=document.getElementById('e-inv').value;
+      var invQty=Number(document.getElementById('e-inv-qty').value||0);
+      if(invId&&invQty>0){
+        var invItem=DB.inventory.find(function(x){return x.id===invId;});
+        if(invItem){
+          var log=(invItem.log||[]).concat([{
+            type:'purchase',qty:invQty,date:document.getElementById('e-date').value,
+            vendorName:v?v.name:'',note:'From expense entry',ts:Date.now()
+          }]);
+          dbSave('inventory',Object.assign({},invItem,{qty:Number(invItem.qty||0)+invQty,log:log}));
+        }
+      }
       dbSave('expenses',{id:uid(),
         date:document.getElementById('e-date').value,
         amount:amt,
@@ -1607,6 +1704,8 @@ function openExpenseModal(){
         mode:document.getElementById('e-mode').value,
         vendorId:vid||'',
         vendorName:v?v.name:'',
+        inventoryId:invId||'',
+        inventoryQtyAdded:invQty||0,
         description:document.getElementById('e-desc').value,
         created:Date.now()
       });
