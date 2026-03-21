@@ -1216,9 +1216,62 @@ function pgDashboard(){
     var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';tm.textContent=a.time||'';
     app(right,[dt,tm]);app(row,[left,right]);ac.appendChild(row);
   });
+  // Tasks section
+  var pendingTasksList=DB.tasks.filter(function(t){return t.status!=='done';}).sort(function(a,b){
+    var pOrder={high:0,medium:1,low:2};
+    var pd=(pOrder[a.priority]||1)-(pOrder[b.priority]||1);
+    if(pd!==0)return pd;
+    return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
+  }).slice(0,6);
+
+  var tc=mk('div','card-p0');
+  if(!pendingTasksList.length){
+    tc.appendChild(mk('div','empty','No pending tasks.'));
+  } else {
+    pendingTasksList.forEach(function(t){
+      var isOverdue=t.dueDate&&t.dueDate<today&&t.status!=='done';
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer';
+      row.onclick=function(){nav('tasks');};
+
+      var left=mk('div');
+      var title2=mk('div');title2.style.cssText='font-size:13px;font-weight:600';title2.textContent=t.title;
+      var meta=mk('div');meta.style.cssText='font-size:11px;color:#aaa;margin-top:1px';
+      var metaParts=[];
+      if(t.dueDate)metaParts.push((isOverdue?'⚠ Overdue: ':'Due: ')+t.dueDate);
+      if(t.assignedTo){var st=DB.staff.find(function(x){return x.id===t.assignedTo;});if(st)metaParts.push(st.name);}
+      meta.textContent=metaParts.join(' · ');
+      meta.style.color=isOverdue?'#991B1B':'#aaa';
+      app(left,[title2,meta]);
+
+      var right=mk('div');right.style.cssText='display:flex;align-items:center;gap:8px';
+      var priBadge=mk('span','badge');
+      var pColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
+      var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+      priBadge.style.cssText='font-size:10px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pColors[t.priority]||'#888');
+      priBadge.textContent=(t.priority||'medium').toUpperCase();
+
+      // Quick done button
+      var doneBtn2=mk('button');doneBtn2.style.cssText='background:none;border:1px solid #e8e8e8;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px;color:#aaa';
+      doneBtn2.textContent='✓';doneBtn2.title='Mark done';
+      doneBtn2.onclick=function(e){e.stopPropagation();dbSave('tasks',Object.assign({},t,{status:'done',completedAt:today}));};
+      app(right,[priBadge,doneBtn2]);
+      app(row,[left,right]);tc.appendChild(row);
+    });
+  }
+
+  var taskTitle=mk('div');taskTitle.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  var tl=mk('div','section-title','Pending tasks');tl.style.margin='0';
+  var tlBtn=mkBtn('View all',function(){nav('tasks');},'btn btn-xs');
+  app(taskTitle,[tl,tlBtn]);
+
   var col1=mk('div');app(col1,[mk('div','section-title','Recent orders'),oc]);
   var col2=mk('div');app(col2,[mk('div','section-title','Upcoming appointments'),ac]);
   var two=mk('div','two-col');app(two,[col1,col2]);
+
+  var taskTitle=mk('div');taskTitle.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  var tl=mk('div','section-title','Pending tasks');tl.style.margin='0';
+  var tlBtn=mkBtn('View all',function(){nav('tasks');},'btn btn-xs');
+  app(taskTitle,[tl,tlBtn]);
 
   // Birthday reminders
   var bdays=getBirthdayReminders();
@@ -1259,6 +1312,7 @@ function pgDashboard(){
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Dashboard',''));
   wrap.appendChild(stats);wrap.appendChild(two);
+  wrap.appendChild(app(mk('div'),[(function(){var d=mk('div');d.style.marginTop='20px';d.appendChild(taskTitle);d.appendChild(tc);return d;})()]));
   wrap.appendChild(bdaySection);wrap.appendChild(stockSection);
   return wrap;
 }
@@ -2522,7 +2576,7 @@ function buildTaskCard(t, today){
   return card;
 }
 
-function openTaskModal(id, defaultStatus, prefillOrderId){
+function openTaskModal(id, defaultStatus, prefillOrderId, prefillStaffId){
   var t = id ? DB.tasks.find(function(x){return x.id===id;}) : null;
   var today = new Date().toISOString().split('T')[0];
 
@@ -2543,7 +2597,7 @@ function openTaskModal(id, defaultStatus, prefillOrderId){
   var statusSel=mkSelect('tk-status',statusOpts,t?(t.status||'todo'):(defaultStatus||'todo'));
   var prioritySel=mkSelect('tk-priority',priorityOpts,t?(t.priority||'medium'):'medium');
   var typeSel=mkSelect('tk-type',typeOpts,t?(t.type||'general'):prefillOrderId?'order':'general');
-  var staffSel=mkSelect('tk-staff',staffOpts,t?(t.assignedTo||''):'');
+  var staffSel=mkSelect('tk-staff',staffOpts,t?(t.assignedTo||''):(prefillStaffId||''));
   var orderSel=mkSelect('tk-order',orderOpts,t?(t.orderId||''):prefillOrder);
   var apptSel=mkSelect('tk-appt',apptOpts,t?(t.appointmentId||''):'');
   var clientSel=mkClientSelect('tk-client',t?(t.clientId||''):'');
