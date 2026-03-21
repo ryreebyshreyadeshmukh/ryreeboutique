@@ -925,50 +925,117 @@ function pgOrders(){
 function openOrderModal(id){
   var o=id?DB.orders.find(function(x){return x.id===id;}):null;
   var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
-  // Combine clothing items and services in dropdown
-  var itOpts=[{value:'',label:'Select item...'}];
+
+  // Build combined item list for suggestions
+  var allItems=[];
   if(DB.clothing.length){
-    itOpts.push({value:'',label:'── Clothing ──',disabled:true});
-    DB.clothing.forEach(function(c){itOpts.push({value:c.name,label:c.name});});
+    allItems.push({group:'Clothing',items:DB.clothing.map(function(c){return c.name;})});
   }
   if(DB.services.length){
-    itOpts.push({value:'',label:'── Services ──',disabled:true});
-    DB.services.forEach(function(s){itOpts.push({value:s.name,label:s.name+(s.price?' — '+rupee(s.price):'')});});
+    allItems.push({group:'Services',items:DB.services.map(function(s){return s.name;})});
   }
+
+  // Items rows container
+  var itemsWrap=mk('div');itemsWrap.id='order-items-wrap';
+  var existingItems=o&&o.items?o.items:(o&&o.item?[{name:o.item,qty:1}]:[{name:'',qty:1}]);
+
+  function addItemRow(name,qty){
+    var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr 60px auto;gap:8px;margin-bottom:6px;align-items:center';
+    row.className='order-item-row';
+
+    // Item name with datalist
+    var nameInp=mk('input','form-input');
+    nameInp.placeholder='Select or type item...';
+    nameInp.value=name||'';
+    nameInp.className='order-item-name form-input';
+    nameInp.setAttribute('list','order-item-list');
+
+    var qtyInp=mk('input','form-input');
+    qtyInp.type='number';qtyInp.min='1';qtyInp.value=qty||1;
+    qtyInp.className='order-item-qty';
+    qtyInp.style.width='100%';
+    qtyInp.title='Quantity';
+
+    var delBtn=mk('button','btn-danger');delBtn.textContent='×';delBtn.style.cssText='padding:4px 8px;font-size:14px';
+    delBtn.onclick=function(){
+      if(itemsWrap.querySelectorAll('.order-item-row').length>1)row.parentNode.removeChild(row);
+      else{nameInp.value='';qtyInp.value=1;}
+    };
+    app(row,[nameInp,qtyInp,delBtn]);
+    itemsWrap.appendChild(row);
+  }
+
+  existingItems.forEach(function(it){addItemRow(it.name,it.qty);});
+
+  // Datalist combining clothing + services
+  var datalist=mk('datalist');datalist.id='order-item-list';
+  DB.clothing.forEach(function(c){var op=mk('option');op.value=c.name;datalist.appendChild(op);});
+  DB.services.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
+
+  var addItemBtn=mkBtn('+ Add another item',function(){addItemRow('',1);},'btn btn-xs');
+  addItemBtn.style.marginTop='4px';
+
+  // Column labels
+  var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr 60px auto;gap:8px;margin-bottom:4px';
+  ['Item','Qty',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:11px;font-weight:600;color:#888';l.textContent=h;colHdr.appendChild(l);});
+
   var clSel=mkSelect('m-client',clOpts,o?o.clientId:'');
-  var itSel=mkSelect('m-item',itOpts,o?o.item:'');
-  var amt=mkInput('m-amount','number','0',o?(o.amount||''):'');
-  var adv=mkInput('m-advance','number','0',o?(o.advance||''):'');
-  var del=mkInput('m-delivery','date','',o?(o.delivery||''):'');
-  var not=mk('textarea','form-input');not.id='m-notes';not.rows=2;if(o)not.value=o.notes||'';
-  var wrap=mk('div');
-  app(wrap,[
+  var amtInp=mkInput('m-amount','number','Total amount (₹)',o?(o.amount||''):'');
+  var advInp=mkInput('m-advance','number','Advance paid (₹)',o?(o.advance||''):'');
+  var delInp=mkInput('m-delivery','date','',o?(o.delivery||''):'');
+  var notesTA=mk('textarea','form-input');notesTA.id='m-notes';notesTA.rows=2;notesTA.placeholder='Notes...';if(o)notesTA.value=o.notes||'';
+
+  var wrap2=mk('div');
+  app(wrap2,[
     mk('div','modal-title',(id?'Edit':'New')+' order'),
-    mkFg('Client *',clSel),mkFg('Clothing item *',itSel),
-    app(mk('div','form-row'),[mkFg('Total amount (\u20b9)',amt),mkFg('Advance paid (\u20b9)',adv)]),
-    mkFg('Delivery date',del),mkFg('Notes',not),
+    mkFg('Client *',clSel),
+    (function(){
+      var fg=mk('div','form-group');
+      var l=mk('label','form-label','Items *');
+      app(fg,[l,colHdr,datalist,itemsWrap,addItemBtn]);
+      return fg;
+    })(),
+    app(mk('div','form-row'),[mkFg('Total amount (₹)',amtInp),mkFg('Advance paid (₹)',advInp)]),
+    mkFg('Delivery date',delInp),
+    mkFg('Notes',notesTA),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
-      var cid=document.getElementById('m-client').value;
-      var item=document.getElementById('m-item').value;
-      if(!cid||!item)return;
-      var ex=id?DB.orders.find(function(x){return x.id===id;}):null;
-      var newId=id||uid();
-      var advAmt=document.getElementById('m-advance').value;
-      var prevAdv=ex?Number(ex.advance||0):0;
-      dbSave('orders',{id:newId,clientId:cid,item:item,
+      var clientId=document.getElementById('m-client').value;
+      if(!clientId){alert('Select a client.');return;}
+
+      // Collect items
+      var itemRows=document.querySelectorAll('.order-item-row');
+      var items=[];
+      itemRows.forEach(function(row){
+        var name=row.querySelector('.order-item-name').value.trim();
+        var qty=Number(row.querySelector('.order-item-qty').value||1);
+        if(name)items.push({name:name,qty:qty});
+      });
+      if(!items.length){alert('Add at least one item.');return;}
+
+      // item field for backward compat = first item name
+      var itemLabel=items.map(function(i){return i.qty>1?i.qty+'x '+i.name:i.name;}).join(', ');
+      var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
+      dbSave('orders',{
+        id:id||uid(),
+        clientId:clientId,
+        items:items,
+        item:itemLabel,
         amount:document.getElementById('m-amount').value,
-        advance:advAmt,
+        advance:document.getElementById('m-advance').value,
         delivery:document.getElementById('m-delivery').value,
         notes:document.getElementById('m-notes').value,
-        status:ex?ex.status:'Pending',created:ex?ex.created:Date.now()});
-      // Payments tracked on order record itself
+        payments:existing?existing.payments||[]:existing&&Number(existing.advance||0)>0?[{id:uid(),amount:Number(existing.advance),mode:'Cash',date:new Date().toISOString().split('T')[0],note:'Advance'}]:[],
+        status:existing?existing.status:'Pending',
+        created:existing?existing.created:Date.now()
+      });
       closeModal();
     },'btn btn-primary')])
   ]);
-  showM(wrap);
+  showM(wrap2);
+  setTimeout(function(){var e=document.getElementById('m-client');if(e)e.focus();},50);
 }
 
-// ── APPOINTMENTS ──────────────────────────────────────────────────────────
+
 function pgAppointments(){
   var today=new Date().toISOString().split('T')[0];
   var up=DB.appointments.filter(function(a){return a.date>=today;}).sort(function(a,b){return a.date.localeCompare(b.date);});
