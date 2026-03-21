@@ -357,6 +357,68 @@ function mkSelect(id,options,selectedVal){
   });
   return s;
 }
+
+function mkClientSelect(id,selectedVal){
+  var opts=[{value:'',label:'Select client...'}]
+    .concat(DB.clients.map(function(c){
+      return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};
+    }))
+    .concat([{value:'__new__',label:'+ Add new client...'}]);
+  var s=mkSelect(id,opts,selectedVal||'');
+  s.style.cssText=(s.style.cssText||'')+'';
+  // Style the last option green
+  var lastOpt=s.options[s.options.length-1];
+  if(lastOpt){lastOpt.style.cssText='color:#166534;font-weight:600';}
+  s.onchange=function(){
+    if(this.value==='__new__'){
+      var selId=this.id;
+      this.value=selectedVal||'';
+      openQuickAddClient(function(newClientId){
+        // Rebuild the select with new client and select it
+        var sel=document.getElementById(selId);
+        if(!sel)return;
+        var newOpts=[{value:'',label:'Select client...'}]
+          .concat(DB.clients.map(function(c){return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};}))
+          .concat([{value:'__new__',label:'+ Add new client...'}]);
+        while(sel.options.length)sel.remove(0);
+        newOpts.forEach(function(o){
+          var opt=document.createElement('option');opt.value=o.value;opt.textContent=o.label;
+          if(o.value===newClientId)opt.selected=true;
+          if(o.value==='__new__')opt.style.cssText='color:#166634;font-weight:600';
+          sel.appendChild(opt);
+        });
+      });
+    }
+  };
+  return s;
+}
+
+function openQuickAddClient(onSave){
+  var nmInp=mkInput('qc-name','text','Full name *');
+  var phInp=mkInput('qc-phone','text','Phone number');
+  var wrap=mk('div');
+  app(wrap,[
+    mk('div','modal-title','Add new client'),
+    mk('div','modal-sub','Quick add — you can fill more details later from Clients page.'),
+    mkFg('Full name *',nmInp),
+    mkFg('Phone',phInp),
+    mkActions([
+      mkBtn('Cancel',function(){closeModal();if(onSave)onSave(null);}),
+      mkBtn('Add client',function(){
+        var name=document.getElementById('qc-name').value.trim();
+        if(!name){alert('Please enter a name.');return;}
+        var phone=document.getElementById('qc-phone').value.trim();
+        var newId=uid();
+        dbSave('clients',{id:newId,name:name,phone:phone,email:'',notes:'',birthday:'',measurements:{}});
+        closeModal();
+        // Small delay to let Firebase update DB.clients
+        setTimeout(function(){if(onSave)onSave(newId);},600);
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
+  setTimeout(function(){var e=document.getElementById('qc-name');if(e)e.focus();},50);
+}
 function mkFg(label,input){
   var fg=mk('div','form-group');
   var l=mk('label','form-label',label);
@@ -994,7 +1056,7 @@ function openOrderModal(id){
   var chLeft=mk('div');chLeft.style.cssText='font-size:11px;font-weight:600;color:#888';chLeft.textContent='Items (name · qty · delivery date per item)';
   colHdr.appendChild(chLeft);
 
-  var clSel=mkSelect('m-client',clOpts,o?o.clientId:'');
+  var clSel=mkClientSelect('m-client',o?o.clientId:'');
   var amtInp=mkInput('m-amount','number','Total amount (₹)',o?(o.amount||''):'');
   var advInp=mkInput('m-advance','number','Advance paid (₹)',o?(o.advance||''):'');
   // delivery now per-item
@@ -1082,8 +1144,7 @@ function pgAppointments(){
   app(wrap,[utt,uw,ptt,pw]);return wrap;
 }
 function openApptModal(){
-  var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
-  var clSel=mkSelect('m-client',clOpts,'');
+  var clSel=mkClientSelect('m-client','');
   var dateInp=mkInput('m-date','date','',new Date().toISOString().split('T')[0]);
   var timeInp=mkInput('m-time','time');
   var purpInp=mkInput('m-purpose','text','e.g. First fitting, Trial, Delivery');
@@ -2002,7 +2063,7 @@ function openQuotationModal(id){
   var termsArea=mk('textarea','form-input');termsArea.id='quot-terms';termsArea.rows=4;
   termsArea.value=q?(q.terms||DEFAULT_TERMS.join('\n')):(DEFAULT_TERMS.join('\n'));
 
-  var clientSel=mkSelect('quot-client',clientOpts,q?(q.clientId||''):'');
+  var clientSel=mkClientSelect('quot-client',q?(q.clientId||''):'');
   var clientNameInp=mkInput('quot-client-name','text','Client name (if not in list)',q?(q.clientName||''):'');
   var dateInp=mkInput('quot-date','date','',new Date().toISOString().split('T')[0]);
   var validInp=mkInput('quot-valid','date','',q?(q.validTill||validStr):validStr);
