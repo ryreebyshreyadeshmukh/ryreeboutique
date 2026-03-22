@@ -949,7 +949,7 @@ function pgOrders(){
     // Actions
     var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
     var collectBtn=mkBtn('+ Collect',function(){openCollectPayment(o.id);},'btn btn-xs btn-primary');
-    var taskBtn=mkBtn('+ Task',function(){openTaskModal(null,'todo',o.id);},'btn btn-xs');taskBtn.style.color='#B45309';taskBtn.style.borderColor='#FDE68A';
+
     if(balance<=0)collectBtn.style.opacity='0.4';
     var editBtn=mkBtn('Edit',function(){openOrderModal(o.id);},'btn btn-xs');
     var delBtn=mk('button','btn-danger','Del');
@@ -957,7 +957,7 @@ function pgOrders(){
     delBtn.onclick=function(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
-    app(acts,[collectBtn,taskBtn,editBtn,delBtn]);
+    app(acts,[collectBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
