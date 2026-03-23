@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ryree by Shreya Deshmukh</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -103,6 +106,8 @@ textarea.form-input{resize:vertical}
 @media(max-width:700px){.two-col{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.meas-grid{grid-template-columns:1fr}.sidebar{transform:translateX(-100%);transition:transform .25s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.stats-row{grid-template-columns:repeat(2,1fr)}#mob-menu{display:flex!important}.main{padding:16px;padding-top:52px}}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9}
 .sidebar-overlay.show{display:block}
+
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -129,52 +134,9 @@ textarea.form-input{resize:vertical}
   <button id="mob-menu" onclick="toggleSidebar()" style="display:none;position:fixed;top:12px;left:12px;z-index:100;background:#2D6B5E;border:none;border-radius:8px;padding:8px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#C9A84C" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
   <div class="sidebar">
     <div class="logo">
-      <img src="https://ryreebyshreyadeshmukh.github.io/ryreeboutique/IMG_0580.PNG" style="width:100%;max-width:170px;display:block;margin:0 auto 6px;mix-blend-mode:screen;filter:brightness(1.1)">
-      <div class="logo-sub">Boutique Management Software</div>
-    </div>
-    <div class="nav-section">Master</div>
-    <div class="nav-item" id="nav-measitems" data-page="measitems">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h7M3 12h4" stroke-linecap="round"/></svg>Measurement Items
-    </div>
-    <div class="nav-item" id="nav-clothing" data-page="clothing">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
-    </div>
-    <div class="nav-item" id="nav-estsettings" data-page="estsettings">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
-    </div>
-    <div class="nav-item" id="nav-services" data-page="services">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>Services
-    </div>
-    <div class="nav-item" id="nav-clients" data-page="clients">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>Clients
-    </div>
-    <div class="nav-item" id="nav-staff" data-page="staff">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1 13c0-2.5 2-4 5-4"/><circle cx="11" cy="7" r="2"/><path d="M8.5 13c0-1.8 1.1-3 2.5-3s2.5 1.2 2.5 3"/></svg>Staff
-    </div>
-    <div class="nav-item" id="nav-inventory" data-page="inventory">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="12" height="8" rx="1.5"/><path d="M5 6V4a3 3 0 0 1 6 0v2"/><path d="M8 9v3" stroke-linecap="round"/></svg>Inventory
-    </div>
-    <div class="nav-section">Entry</div>
-    <div class="nav-item" id="nav-orders" data-page="orders">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
-    </div>
-    <div class="nav-item" id="nav-estimator" data-page="estimator">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
-    </div>
-    <div class="nav-item" id="nav-tasks" data-page="tasks">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
-    </div>
-    <div class="nav-item" id="nav-expenses" data-page="expenses">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
-    </div>
-    <div class="nav-item" id="nav-vendors" data-page="vendors">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-1.5 7H3.5L2 3z"/><circle cx="6" cy="13" r="1"/><circle cx="11" cy="13" r="1"/><path d="M2 3L1 1" stroke-linecap="round"/></svg>Vendors
-    </div>
-    <div class="nav-item" id="nav-quotations" data-page="quotations">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none"/><path d="M11.5 10.5l1 1 1.5-1.5" stroke="#2D6B5E" stroke-width="1" fill="none" stroke-linecap="round"/></svg>Quotations
-    </div>
-    <div class="nav-item" id="nav-appointments" data-page="appointments">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
+      <img src="https://ryreebyshreyadeshmukh.github.io/ryreeboutique/IMG_0580.PNG" style="width:100%;max-width:210px;display:block;margin:0 auto 2px;mix-blend-mode:screen;filter:brightness(1.1)">
+      <div class="logo-sub" style="margin-top:2px;margin-bottom:2px">Boutique Management Software</div>
+      <div id="sidebar-date" style="font-size:11px;color:rgba(201,168,76,.6);text-align:center;padding-bottom:4px"></div>
     </div>
     <div class="nav-section">View</div>
     <div class="nav-item active" id="nav-dashboard" data-page="dashboard">
@@ -186,11 +148,62 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-dues" data-page="dues">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Outstanding Dues
     </div>
+    <div class="nav-section">Entry</div>
+    <div class="nav-item" id="nav-tasks" data-page="tasks">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
+    </div>
+    <div class="nav-item" id="nav-quotations" data-page="quotations">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none"/><path d="M11.5 10.5l1 1 1.5-1.5" stroke="#2D6B5E" stroke-width="1" fill="none" stroke-linecap="round"/></svg>Quotations
+    </div>
+    <div class="nav-item" id="nav-orders" data-page="orders">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
+    </div>
+    <div class="nav-item" id="nav-appointments" data-page="appointments">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
+    </div>
+    <div class="nav-item" id="nav-expenses" data-page="expenses">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
+    </div>
+    <div class="nav-item" id="nav-inventory" data-page="inventory">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke-linecap="round"/></svg>Inventory
+    </div>
+    <div class="nav-item" id="nav-estimator" data-page="estimator">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
+    </div>
+    <div class="nav-section">Master</div>
+    <div class="nav-item" id="nav-clients" data-page="clients">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients
+    </div>
+    <div class="nav-item" id="nav-services" data-page="services">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>Services
+    </div>
+    <div class="nav-item" id="nav-vendors" data-page="vendors">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-1.5 7H3.5L2 3z"/><circle cx="6" cy="13" r="1"/><circle cx="11" cy="13" r="1"/><path d="M2 3L1 1" stroke-linecap="round"/></svg>Vendors
+    </div>
+    <div class="nav-item" id="nav-staff" data-page="staff">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><circle cx="11" cy="5" r="2"/><path d="M1 13c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12 8c1.7.4 3 1.9 3 4"/></svg>Staff
+    </div>
+    <div class="nav-item" id="nav-clothing" data-page="clothing">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
+    </div>
+    <div class="nav-item" id="nav-measitems" data-page="measitems">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M2 4h4M2 12h4M10 4h4M10 12h4" stroke-linecap="round"/></svg>Measurement Items
+    </div>
+    <div class="nav-item" id="nav-estsettings" data-page="estsettings">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
+    </div>
+
     <div style="flex:1"></div>
     <div style="padding:12px 16px;border-top:1px solid rgba(201,168,76,.2)">
-      <div style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px">
-        <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;margin-right:5px;vertical-align:middle"></span>
-        <span id="sync-text">Connecting...</span>
+      <div style="font-size:11px;color:rgba(201,168,76,.6);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <span id="sync-dot" style="width:6px;height:6px;border-radius:50%;background:#F59E0B;display:inline-block;margin-right:5px;vertical-align:middle"></span>
+          <span id="sync-text">Connecting...</span>
+        </div>
+        <button id="sync-btn" onclick="manualSync()" title="Sync data now" style="background:none;border:1px solid rgba(201,168,76,.3);border-radius:6px;cursor:pointer;padding:3px 7px;display:flex;align-items:center;gap:4px;color:rgba(201,168,76,.7)">
+          <svg id="sync-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 8a6 6 0 0 1 10.3-4.2M14 8a6 6 0 0 1-10.3 4.2"/><path d="M12 3.5l.3 2.5-2.5.3M4 12l-.3-2.5 2.5-.3"/></svg>
+          <span style="font-size:10px">Sync</span>
+        </button>
       </div>
       <button id="chpw-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>Change password
@@ -206,7 +219,6 @@ textarea.form-input{resize:vertical}
   <div class="main" id="main-content"></div>
 </div>
 <div id="modal-root"></div>
-<div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
 <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
 
 <script>
@@ -291,6 +303,14 @@ function showApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
   document.getElementById('export-btn').addEventListener('click',exportAllData);
+  // Set sidebar date
+  var dateEl=document.getElementById('sidebar-date');
+  if(dateEl){
+    var now=new Date();
+    var days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    dateEl.textContent=days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
+  }
   initDB();
   loadEstConfig();
 }
@@ -368,40 +388,85 @@ function mkSelect(id,options,selectedVal){
   return s;
 }
 
-function mkClientSelect(id,selectedVal){
-  var opts=[{value:'',label:'Select client...'}]
-    .concat(DB.clients.map(function(c){
-      return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};
-    }))
-    .concat([{value:'__new__',label:'+ Add new client...'}]);
-  var s=mkSelect(id,opts,selectedVal||'');
-  s.style.cssText=(s.style.cssText||'')+'';
-  // Style the last option green
-  var lastOpt=s.options[s.options.length-1];
-  if(lastOpt){lastOpt.style.cssText='color:#166534;font-weight:600';}
-  s.onchange=function(){
-    if(this.value==='__new__'){
-      var selId=this.id;
-      this.value=selectedVal||'';
-      openQuickAddClient(function(newClientId){
-        // Rebuild the select with new client and select it
-        var sel=document.getElementById(selId);
-        if(!sel)return;
-        var newOpts=[{value:'',label:'Select client...'}]
-          .concat(DB.clients.map(function(c){return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};}))
-          .concat([{value:'__new__',label:'+ Add new client...'}]);
-        while(sel.options.length)sel.remove(0);
-        newOpts.forEach(function(o){
-          var opt=document.createElement('option');opt.value=o.value;opt.textContent=o.label;
-          if(o.value===newClientId)opt.selected=true;
-          if(o.value==='__new__')opt.style.cssText='color:#166634;font-weight:600';
-          sel.appendChild(opt);
-        });
+function mkClientSelect(id, selectedVal){
+  // Wrapper div
+  var wrap = mk('div'); wrap.style.cssText='position:relative';
+
+  // Search input
+  var inp = mk('input','form-input');
+  inp.id = id+'-search';
+  inp.placeholder = 'Search client name...';
+  inp.autocomplete = 'off';
+  inp.style.cssText='width:100%';
+
+  // Pre-fill if editing
+  if(selectedVal){
+    var existing = DB.clients.find(function(c){return c.id===selectedVal;});
+    if(existing) inp.value = existing.name+(existing.phone?' ('+existing.phone+')':'');
+  }
+
+  // Hidden real value holder
+  var hidden = mk('input');
+  hidden.type='hidden'; hidden.id=id; hidden.value=selectedVal||'';
+
+  // Dropdown list
+  var dropdown = mk('div');
+  dropdown.id = id+'-dropdown';
+  dropdown.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.12)';
+
+  function renderDropdown(query){
+    dropdown.innerHTML='';
+    var q=(query||'').toLowerCase().trim();
+    var filtered = q
+      ? DB.clients.filter(function(c){return c.name.toLowerCase().includes(q)||(c.phone&&c.phone.includes(q));})
+      : DB.clients;
+
+    if(!filtered.length && q){
+      var noRes=mk('div');noRes.style.cssText='padding:10px 14px;font-size:13px;color:#aaa';noRes.textContent='No client found';
+      dropdown.appendChild(noRes);
+    } else {
+      filtered.slice(0,20).forEach(function(c){
+        var item=mk('div');item.style.cssText='padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center';
+        var nm=mk('span');nm.style.fontWeight='500';nm.textContent=c.name;
+        var ph=mk('span');ph.style.cssText='font-size:11px;color:#888';ph.textContent=c.phone||'';
+        item.appendChild(nm);item.appendChild(ph);
+        item.onmousedown=function(e){
+          e.preventDefault();
+          inp.value=c.name+(c.phone?' ('+c.phone+')':'');
+          hidden.value=c.id;
+          dropdown.style.display='none';
+        };
+        item.onmouseenter=function(){this.style.background='#e6f0ee';};
+        item.onmouseleave=function(){this.style.background='';};
+        dropdown.appendChild(item);
       });
     }
-  };
-  return s;
+
+    // Add new client option always at bottom
+    var addItem=mk('div');addItem.style.cssText='padding:10px 14px;cursor:pointer;font-size:13px;color:#2D6B5E;font-weight:600;background:#f9fffe;border-top:1px solid #e8e8e8';
+    addItem.textContent='+ Add new client...';
+    addItem.onmousedown=function(e){
+      e.preventDefault();
+      dropdown.style.display='none';
+      inp.value='';hidden.value='';
+      openQuickAddClient(function(newId){
+        if(!newId)return;
+        var nc=DB.clients.find(function(x){return x.id===newId;});
+        if(nc){inp.value=nc.name+(nc.phone?' ('+nc.phone+')':'');hidden.value=newId;}
+      });
+    };
+    dropdown.appendChild(addItem);
+    dropdown.style.display='block';
+  }
+
+  inp.onfocus=function(){renderDropdown(this.value);};
+  inp.oninput=function(){hidden.value='';renderDropdown(this.value);};
+  inp.onblur=function(){setTimeout(function(){dropdown.style.display='none';},150);};
+
+  app(wrap,[inp,hidden,dropdown]);
+  return wrap;
 }
+
 
 function openQuickAddClient(onSave){
   var nmInp=mkInput('qc-name','text','Full name *');
@@ -496,6 +561,21 @@ function render(){
   var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
+}
+
+function mkSearchBar(id, placeholder, onSearch){
+  var wrap=mk('div');wrap.style.cssText='position:relative;margin-bottom:16px';
+  var icon=mk('div');icon.style.cssText='position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:#aaa';
+  icon.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3" stroke-linecap="round"/></svg>';
+  var inp=mk('input','form-input');inp.id=id;inp.placeholder=placeholder||'Search...';
+  inp.style.cssText='padding-left:34px;width:100%;max-width:320px';
+  inp.oninput=function(){onSearch(this.value.toLowerCase().trim());};
+  var clearBtn=mk('button');clearBtn.style.cssText='position:absolute;right:calc(100% - 320px + 8px);top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;padding:2px 6px;font-size:16px;display:none';
+  clearBtn.textContent='×';
+  clearBtn.onclick=function(){inp.value='';clearBtn.style.display='none';onSearch('');};
+  inp.addEventListener('input',function(){clearBtn.style.display=this.value?'inline':'none';});
+  app(wrap,[icon,inp,clearBtn]);
+  return wrap;
 }
 
 function mkPageHeader(title,sub,actionEl){
@@ -870,12 +950,12 @@ function printCard(clientId){
   var secs=mKeys.map(function(cid){
     var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return'';
     var vals=cl.measurements[cid]||{};
-    var rows=Object.keys(vals).map(function(k){return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+'</td></tr>';}).join('');
+    var rows=Object.keys(vals).map(function(k){var mi=DB.measitems.find(function(m){return m.name===k;});var unit=mi&&mi.unit?mi.unit:'';return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+(unit?' <span style="font-size:11px;color:#888;font-weight:400">'+unit+'</span>':'')+'</td></tr>';}).join('');
     return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }).join('');
   var ords=DB.orders.filter(function(o){return o.clientId===clientId&&['Delivered','Cancelled'].indexOf(o.status)<0;});
   var ordSec=ords.length?'<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0"><div style="font-size:11px;font-weight:700;color:#999;margin-bottom:10px">ACTIVE ORDERS</div>'+ords.map(function(o){return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid #f0f0f0"><span>'+o.item+'</span><span style="color:#B45309;font-weight:600">'+o.status+(o.delivery?' · By '+o.delivery:'')+'</span></div>';}).join('')+'</div>':'';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Measurement Card</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px}@media print{body{padding:12px}}</style></head><body><div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:22px;font-weight:800">'+cl.name+'</div><div style="font-size:13px;color:#666;margin-top:5px">'+(cl.phone||'')+(cl.email?' · '+cl.email:'')+'</div></div><div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px"><div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div><div style="font-size:13px;font-weight:700;color:#2D6B5E">'+today+'</div></div></div>'+(mKeys.length?secs:'<p style="color:#aaa">No measurements recorded.</p>')+(cl.notes?'<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px"><strong>Notes:</strong> '+cl.notes+'</div>':'')+ordSec+'<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · '+today+'</div></div></body></html>';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>Measurement Card</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px}@media print{body{padding:12px}}</style></head><body><div style="border:2px solid #2D6B5E;border-radius:10px;padding:24px;max-width:520px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:22px;font-weight:800">'+cl.name+'</div><div style="font-size:13px;color:#666;margin-top:5px">'+(cl.phone||'')+(cl.email?' · '+cl.email:'')+'</div></div><div style="text-align:right;background:#e6f0ee;padding:10px 14px;border-radius:8px"><div style="font-size:10px;color:#aaa;font-weight:700;margin-bottom:2px">DATE</div><div style="font-size:13px;font-weight:700;color:#2D6B5E">'+today+'</div></div></div>'+(mKeys.length?secs:'<p style="color:#aaa">No measurements recorded.</p>')+(cl.notes?'<div style="margin-top:18px;background:#f9f9f9;border-left:4px solid #C9A84C;padding:10px 14px;font-size:13px"><strong>Notes:</strong> '+cl.notes+'</div>':'')+ordSec+'<div style="margin-top:20px;text-align:center;font-size:11px;color:#ccc;padding-top:14px;border-top:1px solid #f0f0f0">Ryree by Shreya Deshmukh · '+today+'</div></div></body></html>';
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Please allow popups to print.');
@@ -895,6 +975,14 @@ function pgOrders(){
   app(stats,[sc('Total orders',DB.orders.length),sc('Active',activeOrds.length,'#2D6B5E'),sc('Pending collections',rupee(totalPending),'#B45309')]);
   wrap.appendChild(mkPageHeader('Orders','Track all client orders & payments',mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
   wrap.appendChild(stats);
+  var _orderSearch='';
+  wrap.appendChild(mkSearchBar('orders-search','Search by client or item...',function(q){
+    _orderSearch=q;
+    document.querySelectorAll('.order-card-wrap').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
   if(!DB.orders.length){var empty=mk('div','card-p0');empty.appendChild(mk('div','empty','No orders yet.'));wrap.appendChild(empty);return wrap;}
   var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
   DB.orders.slice().reverse().forEach(function(o){
@@ -1150,6 +1238,12 @@ function pgAppointments(){
   }
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Appointments',up.length+' upcoming',mkBtn('+ Schedule',function(){openApptModal();},'btn btn-primary')));
+  wrap.appendChild(mkSearchBar('appt-search','Search by client or purpose...',function(q){
+    document.querySelectorAll('.appt-row').forEach(function(row){
+      var txt=(row.getAttribute('data-search')||'').toLowerCase();
+      row.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
   var utt=mk('div','section-title','Upcoming');
   var uw=mk('div','card-p0');uw.style.marginBottom='20px';
   if(!up.length)uw.appendChild(mk('div','empty','No upcoming appointments.'));else uw.appendChild(makeTbl(up,false));
@@ -1397,6 +1491,12 @@ function pgInventory(){
   app(stats,[sc('Total items',DB.inventory.length),sc('Low stock',lowStock.length,lowStock.length>0?'#991B1B':'#166534',lowStock.length>0?'#FEF2F2':'#F0FDF4'),sc('Total tracked',DB.inventory.reduce(function(a,i){return a+Number(i.qty||0);},0))]);
   wrap.appendChild(mkPageHeader('Inventory','Fabric and material stock',mkBtn('+ Add Item',function(){openInventoryModal();},'btn btn-primary')));
   wrap.appendChild(stats);
+  wrap.appendChild(mkSearchBar('inv-search','Search by name or category...',function(q){
+    document.querySelectorAll('.inv-row').forEach(function(row){
+      var txt=(row.getAttribute('data-search')||'').toLowerCase();
+      row.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
   if(lowStock.length>0){var al=mk('div');al.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#991B1B;font-weight:500';al.textContent='Low stock: '+lowStock.map(function(i){return i.name;}).join(', ');wrap.appendChild(al);}
   var tw=mk('div','card-p0');
   if(!DB.inventory.length){tw.appendChild(mk('div','empty','No inventory items yet.'));}
@@ -1404,7 +1504,7 @@ function pgInventory(){
     var t=mkTable(['Item','Category','In stock','Unit','Min qty','Value','']);
     DB.inventory.slice().sort(function(a,b){return (Number(a.qty||0)<=Number(a.minQty||0))-(Number(b.qty||0)<=Number(b.minQty||0));}).reverse().forEach(function(item){
       var isLow=Number(item.qty||0)<=Number(item.minQty||0)&&Number(item.minQty||0)>0;
-      var tr=mk('tr');if(isLow)tr.style.background='#FFF5F5';
+      var tr=mk('tr');tr.className='inv-row';tr.setAttribute('data-search',(item.name+' '+(item.category||'')).toLowerCase());if(isLow)tr.style.background='#FFF5F5';
       var qtyTd=mk('td');var qv=mk('span');qv.style.cssText='font-weight:600;color:'+(isLow?'#991B1B':'#166534');qv.textContent=item.qty||'0';qtyTd.appendChild(qv);
       if(isLow){var lb=mk('span');lb.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:6px';lb.textContent='LOW';qtyTd.appendChild(lb);}
       var val=Number(item.qty||0)*Number(item.price||0);
@@ -1821,7 +1921,7 @@ function printOrderReceipt(o,cl,paidNow,mode,note,recNo,today,totalPaidSoFar){
   var balance=total-newAdv;
   var modeColor=mode==='Cash'?'#166534':mode==='UPI'?'#1D4ED8':'#6D28D9';
   var modeBg=mode==='Cash'?'#F0FDF4':mode==='UPI'?'#EFF6FF':'#F5F3FF';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#fff;padding:30px}@media print{body{padding:15px}}.container{max-width:420px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden}.header{background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between}.brand{color:#C9A84C;font-size:18px;font-weight:800}.brand-sub{color:rgba(201,168,76,.7);font-size:10px;margin-top:2px}.rec-no{text-align:right;color:rgba(201,168,76,.8);font-size:11px}.body{padding:20px 24px}.client-name{font-size:18px;font-weight:700;margin-bottom:2px}.client-phone{font-size:12px;color:#888;margin-bottom:16px}hr{border:none;border-top:1px solid #f0f0f0;margin:14px 0}.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.label{color:#888}.paid-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;text-align:center}.paid-label{font-size:11px;color:#166534;font-weight:600;letter-spacing:.05em;margin-bottom:4px}.paid-amount{font-size:28px;font-weight:800;color:#166534}.mode-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px}.balance-row{display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #f0f0f0;font-size:14px}.footer{background:#f9f9f9;padding:12px 24px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #f0f0f0}</style></head><body>'+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>Receipt</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#fff;padding:30px}@media print{body{padding:15px}}.container{max-width:420px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden}.header{background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between}.brand{color:#C9A84C;font-size:18px;font-weight:800}.brand-sub{color:rgba(201,168,76,.7);font-size:10px;margin-top:2px}.rec-no{text-align:right;color:rgba(201,168,76,.8);font-size:11px}.body{padding:20px 24px}.client-name{font-size:18px;font-weight:700;margin-bottom:2px}.client-phone{font-size:12px;color:#888;margin-bottom:16px}hr{border:none;border-top:1px solid #f0f0f0;margin:14px 0}.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.label{color:#888}.paid-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;text-align:center}.paid-label{font-size:11px;color:#166534;font-weight:600;letter-spacing:.05em;margin-bottom:4px}.paid-amount{font-size:28px;font-weight:800;color:#166534}.mode-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px}.balance-row{display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #f0f0f0;font-size:14px}.footer{background:#f9f9f9;padding:12px 24px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #f0f0f0}</style></head><body>'+
     '<div class="container"><div class="header"><div><div class="brand">RYREE</div><div class="brand-sub">by Shreya Deshmukh</div></div><div class="rec-no"><div>RECEIPT</div><div>'+recNo+'</div><div style="margin-top:3px">'+today+'</div></div></div>'+
     '<div class="body"><div class="client-name">'+(cl?cl.name:'Client')+'</div><div class="client-phone">'+(cl&&cl.phone?cl.phone:'')+'</div>'+
     '<div class="row"><span class="label">Order item</span><span style="font-weight:600">'+o.item+'</span></div>'+
@@ -1938,7 +2038,7 @@ function renderPLContent(){
 function printPL(){
   var d=getPLData();var isProfit=d.net>=0;
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>P&L</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}.summary{display:flex;gap:16px;margin:16px 0}.sum-box{flex:1;padding:12px;border-radius:8px;text-align:center}.sum-label{font-size:11px;color:#888;margin-bottom:4px}.sum-val{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}td{padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}@media print{body{padding:15px}}</style></head><body>'+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>P&L</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}.summary{display:flex;gap:16px;margin:16px 0}.sum-box{flex:1;padding:12px;border-radius:8px;text-align:center}.sum-label{font-size:11px;color:#888;margin-bottom:4px}.sum-val{font-size:20px;font-weight:700}table{width:100%;border-collapse:collapse;margin:8px 0}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}td{padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px}@media print{body{padding:15px}}</style></head><body>'+
   '<div style="display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:20px;font-weight:800">P&L Report — '+d.months[d.m]+' '+d.y+'</div></div><div style="font-size:11px;color:#aaa">'+today+'</div></div>'+
   '<div class="summary"><div class="sum-box" style="background:#F0FDF4;border:1px solid #86EFAC"><div class="sum-label">Total Income</div><div class="sum-val" style="color:#166534">'+rupee(d.totalIncome)+'</div></div><div class="sum-box" style="background:#FEF2F2;border:1px solid #FCA5A5"><div class="sum-label">Total Expenses</div><div class="sum-val" style="color:#991B1B">'+rupee(d.totalExp)+'</div></div><div class="sum-box" style="background:'+(isProfit?'#DCFCE7':'#FFE4E6')+';border:1px solid '+(isProfit?'#86EFAC':'#FCA5A5')+'"><div class="sum-label">'+(isProfit?'Net Profit':'Net Loss')+'</div><div class="sum-val" style="color:'+(isProfit?'#166534':'#991B1B')+'">'+rupee(Math.abs(d.net))+'</div></div></div>'+
   '<h3 style="margin:16px 0 8px;font-size:14px">Expense breakdown</h3><table><thead><tr><th>Category</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+Object.keys(d.catMap).map(function(cat){return '<tr><td>'+cat+'</td><td style="text-align:right;font-weight:600">'+rupee(d.catMap[cat])+'</td></tr>';}).join('')+'</tbody></table>'+
@@ -1996,7 +2096,7 @@ function printDues(orders){
   var todayISO=new Date().toISOString().split('T')[0];
   var total=orders.reduce(function(a,o){return a+Number(o.amount||0)-Number(o.advance||0);},0);
   var rows=orders.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});var bal=Number(o.amount||0)-Number(o.advance||0);var isOD=o.delivery&&o.delivery<todayISO&&o.status!=='Delivered';return '<tr style="background:'+(isOD?'#FFF5F5':'#fff')+'"><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-weight:600">'+(cl?cl.name:'?')+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+(cl&&cl.phone?cl.phone:'—')+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">'+o.item+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">'+rupee(o.amount||0)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;color:#888">'+rupee(o.advance||0)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;color:#991B1B">'+rupee(bal)+'</td><td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:'+(isOD?'#991B1B':'#555')+'">'+(o.delivery||'—')+(isOD?' ⚠':'')+'</td></tr>';}).join('');
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Outstanding Dues</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}table{width:100%;border-collapse:collapse}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}@media print{body{padding:15px}}</style></head><body><div style="display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:20px;font-weight:800">Outstanding Dues</div></div><div style="text-align:right"><div style="font-size:11px;color:#aaa">As of '+today+'</div><div style="font-size:18px;font-weight:700;color:#991B1B">Total: '+rupee(total)+'</div></div></div><table><thead><tr><th>Client</th><th>Phone</th><th>Item</th><th style="text-align:right">Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Delivery</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh · '+today+'</div></body></html>';
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>Outstanding Dues</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px}table{width:100%;border-collapse:collapse}th{background:#fafafa;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}@media print{body{padding:15px}}</style></head><body><div style="display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f0f0f0"><div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div><div style="font-size:20px;font-weight:800">Outstanding Dues</div></div><div style="text-align:right"><div style="font-size:11px;color:#aaa">As of '+today+'</div><div style="font-size:18px;font-weight:700;color:#991B1B">Total: '+rupee(total)+'</div></div></div><table><thead><tr><th>Client</th><th>Phone</th><th>Item</th><th style="text-align:right">Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Balance</th><th>Delivery</th></tr></thead><tbody>'+rows+'</tbody></table><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh · '+today+'</div></body></html>';
   var win=window.open('','_blank');if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}else alert('Allow popups.');
 }
 
@@ -2078,7 +2178,13 @@ function pgQuotations(){
     wrap.appendChild(empty);return wrap;
   }
 
-  var tw=mk('div','card-p0');
+  wrap.appendChild(mkSearchBar('quot-search','Search by client or service...',function(q){
+    document.querySelectorAll('.quot-row').forEach(function(row){
+      var txt=(row.getAttribute('data-search')||'').toLowerCase();
+      row.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
+    var tw=mk('div','card-p0');
   var t=mkTable(['Client','Services','Total','Valid till','Status','']);
   DB.quotations.slice().reverse().forEach(function(q){
     var cl=q.clientId?DB.clients.find(function(x){return x.id===q.clientId;}):null;
@@ -2358,7 +2464,7 @@ function printQuotation(id){
   if(Number(q.travelCharge||0)>0)svcRows+='<tr><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;color:#888">Travel / extra charges</td><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#888">'+rupee(q.travelCharge)+'</td></tr>';
   var termsHtml=q.terms?q.terms.split('\n').filter(function(t){return t.trim();}).map(function(t,i){return '<div style="font-size:12px;color:#555;margin-bottom:4px">'+(i+1)+'. '+t.trim()+'</div>';}).join(''):'';
   var serviceDateHtml=q.serviceDate?'<div style="background:#e6f0ee;border-radius:6px;padding:8px 12px;font-size:12px;color:#2D6B5E;margin-bottom:12px"><strong>Service date & time:</strong> '+new Date(q.serviceDate).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation - '+q.clientName+'</title>'+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>Quotation - '+q.clientName+'</title>'+
     '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;padding:30px;color:#1a1a1a}@media print{body{padding:15px}}</style></head><body>'+
     '<div style="max-width:560px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden">'+
     '<div style="background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start">'+
@@ -2514,7 +2620,13 @@ function pgTasks(){
 
   wrap.appendChild(mkPageHeader('Tasks', 'Manage and assign work', mkBtn('+ New Task', function(){openTaskModal();}, 'btn btn-primary')));
   wrap.appendChild(stats);
-
+  wrap.appendChild(mkSearchBar('tasks-search','Search tasks...',function(q){
+    document.querySelectorAll('.task-card-item').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
+  
   // Filter tabs
   var tabsDiv = mk('div'); tabsDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
   var filters = [
@@ -2600,6 +2712,10 @@ function renderTaskBoard(){
 function buildTaskCard(t, today){
   var isOverdue = t.dueDate && t.dueDate < today && t.status !== 'done';
   var card = mk('div');
+  card.className='task-card-item';
+  var staffName=t.assignedTo?(DB.staff.find(function(x){return x.id===t.assignedTo;})||{}).name||'':'';
+  var orderName=t.orderId?(DB.orders.find(function(x){return x.id===t.orderId;})||{}).item||'':'';
+  card.setAttribute('data-search',(t.title+' '+staffName+' '+orderName+' '+(t.priority||'')+' '+(t.status||'')).toLowerCase());
   card.style.cssText = 'background:#fff;border:1px solid '+(isOverdue?'#FCA5A5':'#e8e8e8')+';border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:box-shadow .12s';
   card.onmouseenter=function(){this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)';};
   card.onmouseleave=function(){this.style.boxShadow='none';};
@@ -3219,6 +3335,67 @@ function updateEstTotals(){
 
 
 
+
+function saveEstimatorAsQuotation(){
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj)return;
+  var cols=getEstCols();
+  var grand=garmentObj.components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number((_estData[c]||{})[colDef.id]||0);},0);},0);
+  var markup=getEstMarkup();
+  var mrp=grand*markup;
+  var selling=Math.round(mrp-(mrp*(_estDiscount/100)));
+  nav('quotations');
+  setTimeout(function(){
+    openQuotationModal();
+    setTimeout(function(){
+      var rows=document.querySelectorAll('.quot-svc-row');
+      if(rows.length>0){
+        var nameInp=rows[0].querySelector('.quot-svc-name');
+        var priceInp=rows[0].querySelector('.quot-svc-price');
+        if(nameInp) nameInp.value=garmentObj.name+' (custom)';
+        if(priceInp){priceInp.value=selling;updateQuotTotal();}
+      }
+    },200);
+  },300);
+}
+
+function printEstimate(){
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj)return;
+  var components=garmentObj.components;
+  var cols=getEstCols();
+  var markup=getEstMarkup();
+  var discount=_estDiscount;
+  var grand=components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number((_estData[c]||{})[colDef.id]||0);},0);},0);
+  var mrp=grand*markup;
+  var selling=Math.round(mrp-(mrp*(discount/100)));
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var rows=components.map(function(comp){
+    var rowTotal=cols.reduce(function(a,c){return a+Number((_estData[comp]||{})[c.id]||0);},0);
+    if(rowTotal===0)return '';
+    var cells=cols.map(function(colDef){var v=Number((_estData[comp]||{})[colDef.id]||0);return '<td style="padding:6px 10px;text-align:right;font-size:12px;border-bottom:1px solid #f5f5f5">'+(v>0?rupee(v):'—')+'</td>';}).join('');
+    return '<tr><td style="padding:6px 10px;font-size:12px;font-weight:500;border-bottom:1px solid #f5f5f5">'+comp+'</td>'+cells+'<td style="padding:6px 10px;text-align:right;font-size:12px;font-weight:700;color:#2D6B5E;border-bottom:1px solid #f5f5f5">'+rupee(rowTotal)+'</td></tr>';
+  }).filter(Boolean).join('');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Estimate</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px}table{width:100%;border-collapse:collapse}th{background:#fafafa;padding:8px 10px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;text-align:right}th:first-child{text-align:left}@media print{body{padding:12px}}</style></head><body>'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #2D6B5E">'
+    +'<div><div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'
+    +'<div style="font-size:20px;font-weight:800;color:#2D6B5E">'+garmentObj.name+' — Price Estimate</div></div>'
+    +'<div style="font-size:11px;color:#aaa">'+today+'</div></div>'
+    +'<table style="margin-bottom:20px"><thead><tr><th style="text-align:left">Component</th>'
+    +cols.map(function(c){return '<th>'+c.label+'</th>';}).join('')
+    +'<th>Total</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">'
+    +'<div style="padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0"><div style="font-size:11px;color:#888;margin-bottom:4px">TOTAL COST</div><div style="font-size:18px;font-weight:700">'+rupee(grand)+'</div></div>'
+    +'<div style="padding:14px;background:#e6f0ee;border-radius:8px;border:1px solid #b8d5ce"><div style="font-size:11px;color:#2D6B5E;margin-bottom:4px">MRP (cost × '+markup+')</div><div style="font-size:18px;font-weight:700;color:#2D6B5E">'+rupee(mrp)+'</div></div>'
+    +'<div style="padding:14px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC"><div style="font-size:11px;color:#166534;margin-bottom:4px">SELLING PRICE (−'+discount+'%)</div><div style="font-size:22px;font-weight:800;color:#166534">'+rupee(selling)+'</div></div>'
+    +'</div><div style="margin-top:16px;font-size:11px;color:#aaa;text-align:center">Ryree by Shreya Deshmukh · '+today+'</div></body></html>';
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  else alert('Allow popups to print.');
+}
+
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
@@ -3345,6 +3522,38 @@ function restoreFromLocalBackup(){
     cols.forEach(function(col){if(data[col]){data[col].forEach(function(item){dbSave(col,item);});}});
     alert('Restore complete!');
   }catch(e){alert('Restore failed: '+e.message);}
+}
+
+// ── MANUAL SYNC ──────────────────────────────────────────────────────────
+function manualSync(){
+  var btn=document.getElementById('sync-btn');
+  var icon=document.getElementById('sync-icon');
+  var txt=document.getElementById('sync-text');
+  if(btn){btn.style.opacity='0.5';btn.disabled=true;}
+  if(icon){icon.style.animation='spin .7s linear infinite';}
+  if(txt){txt.textContent='Syncing...';}
+  // Re-fetch all collections from Firebase
+  var cols2=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig'];
+  var pending=cols2.length;
+  cols2.forEach(function(col){
+    db.collection(col).get().then(function(snap){
+      DB[col]=snap.docs.map(function(d){return d.data();});
+      pending--;
+      if(pending===0){
+        if(btn){btn.style.opacity='1';btn.disabled=false;}
+        if(icon){icon.style.animation='';}
+        setSync('ok');
+        render();
+      }
+    }).catch(function(){
+      pending--;
+      if(pending===0){
+        if(btn){btn.style.opacity='1';btn.disabled=false;}
+        if(icon){icon.style.animation='';}
+        setSync('error');
+      }
+    });
+  });
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
