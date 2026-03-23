@@ -846,7 +846,7 @@ function pgClients(){
       var acts=mkRow('display:flex;gap:6px;flex-wrap:wrap');
       var mb=mkBtn('📏 Measurements',function(){openTakeMeas(c.id);},'btn-meas');
       var vb=mkBtn('View',function(){selClient=c.id;render();},'btn btn-xs');
-      var db2=mkBtn('Delete',function(){if(confirm('Delete?'))dbDel('clients',c.id);},'btn-danger');
+      var db2=mkBtn('Delete',function(){if(confirm('Delete client "'+c.name+'"?'+(DB.orders.filter(function(o){return o.clientId===c.id;}).length?' This client has '+DB.orders.filter(function(o){return o.clientId===c.id;}).length+' order(s). All data will be lost.':' Their measurements will also be deleted.'))){dbDel('clients',c.id)};},'btn-danger');
       app(acts,[mb,vb,db2]);
       var nameTd=mk('td');nameTd.style.cursor='pointer';nameTd.onclick=function(){selClient=c.id;render();};nameTd.appendChild(nameCell);
       var phoneTd=mk('td');phoneTd.style.color='#666';phoneTd.textContent=c.phone||'—';
@@ -950,7 +950,9 @@ function printCard(clientId){
   var secs=mKeys.map(function(cid){
     var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return'';
     var vals=cl.measurements[cid]||{};
-    var rows=Object.keys(vals).map(function(k){var mi=DB.measitems.find(function(m){return m.name===k;});var unit=mi&&mi.unit?mi.unit:'';return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+(unit?' <span style="font-size:11px;color:#888;font-weight:400">'+unit+'</span>':'')+'</td></tr>';}).join('');
+    var filledVals=Object.keys(vals).filter(function(k){return vals[k]!==''&&vals[k]!==null&&vals[k]!==undefined;});
+    if(!filledVals.length)return '';
+    var rows=filledVals.map(function(k){var mi=DB.measitems.find(function(m){return m.name===k;});var unit=mi&&mi.unit?mi.unit:'';return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+(unit?' <span style="font-size:11px;color:#888;font-weight:400">'+unit+'</span>':'')+'</td></tr>';}).join('');
     return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td></tr></thead><tbody>'+rows+'</tbody></table></div>';
   }).join('');
   var ords=DB.orders.filter(function(o){return o.clientId===clientId&&['Delivered','Cancelled'].indexOf(o.status)<0;});
@@ -3282,6 +3284,7 @@ function renderEstimatorBody(){
   app(actions,[
     mkBtn('Reset to defaults',function(){_estData={};renderEstimatorBody();},'btn btn-sm'),
     mkBtn('Clear all',function(){
+      if(!confirm('Clear all entered values?'))return;
       Object.keys(_estData).forEach(function(c){cols.forEach(function(colDef){_estData[c][colDef.id]=0;});});
       renderEstimatorBody();
     },'btn btn-sm'),
