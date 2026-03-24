@@ -1203,10 +1203,10 @@ function openOrderModal(id){
     deliveryInp.style.cssText='flex:1;background:#fff;max-width:180px';
     app(bottomRow,[delLabel,deliveryInp]);
 
-    // Hidden file input
+    // Hidden file input for upload
     var fileInp=mk('input');fileInp.type='file';fileInp.accept='image/*';fileInp.style.display='none';
-    fileInp.className='order-item-ref';
-    fileInp._base64=refImage||'';
+    // Separate hidden input to store base64 reliably as a value
+    var b64Inp=mk('input');b64Inp.type='hidden';b64Inp.className='order-item-ref';b64Inp.value=refImage||'';
 
     // Row 3: delivery + image thumbnail inline
     var row3=mk('div');row3.style.cssText='display:flex;align-items:flex-start;gap:10px;margin-top:6px';
@@ -1236,14 +1236,14 @@ function openOrderModal(id){
     clearBtn.style.cssText='display:'+(refImage?'flex':'none')+';align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#FCA5A5;border:none;cursor:pointer;font-size:10px;color:#991B1B;flex-shrink:0;padding:0';
     clearBtn.onclick=function(e){
       e.stopPropagation();
-      fileInp._base64='';
+      b64Inp.value='';
       tImg.src='';tImg.style.display='none';
       tPlus.style.display='block';
       thumb.style.borderColor='#b0d4c8';
       clearBtn.style.display='none';
     };
 
-    app(row3,[thumb,fileInp,notesInp,clearBtn]);
+    app(row3,[thumb,fileInp,b64Inp,notesInp,clearBtn]);
 
     // Compress + store as base64
     fileInp.onchange=function(){
@@ -1260,7 +1260,7 @@ function openOrderModal(id){
           canvas.getContext('2d').drawImage(img2,0,0,w,h);
           var quality=file.size>2*1024*1024?0.5:file.size>1*1024*1024?0.6:0.75;
           var b64=canvas.toDataURL('image/jpeg',quality);
-          fileInp._base64=b64;
+          b64Inp.value=b64;
           tImg.src=b64;tImg.style.display='block';
           tPlus.style.display='none';
           thumb.style.borderColor='#2D6B5E';
@@ -1334,7 +1334,7 @@ function openOrderModal(id){
         var notesEl=row.querySelector('.order-item-notes');
         var itemNotes=notesEl?(notesEl.value||'').trim():'';
         var refEl=row.querySelector('.order-item-ref');
-        var refImage=refEl?refEl._base64||'':'';
+        var refImage=refEl?refEl.value||'':'';
         if(name)items.push({name:name,qty:qty,delivery:delivery,amount:itemAmt,itemNotes:itemNotes,refImage:refImage});
       });
       if(!items.length){alert('Add at least one item.');return;}
