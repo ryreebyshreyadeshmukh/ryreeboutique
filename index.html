@@ -315,7 +315,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[]};
+var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -325,7 +325,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig'];
+  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -1057,13 +1057,17 @@ function pgOrders(){
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
 
-    // Items detail: ref images + notes
-    var itemsWithDetail=(o.items||[]).filter(function(it){return it.refImage||it.itemNotes||it.amount;});
+    // Items detail: merge images from DB.orderImages into items
+    var itemsDisplay=(o.items||[]).map(function(it,idx2){
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+      return Object.assign({},it,{refImage:imgDoc?imgDoc.base64:it.refImage||''});
+    });
+    var itemsWithDetail=itemsDisplay.filter(function(it){return it.refImage||it.itemNotes||it.amount;});
     if(itemsWithDetail.length>0){
       var detailSec=mk('div');detailSec.style.cssText='background:#f9fffe;border-top:1px solid #e6f0ee;padding:10px 16px';
       var dtitle=mk('div');dtitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';dtitle.textContent='Item details';
       detailSec.appendChild(dtitle);
-      itemsWithDetail.forEach(function(it){
+      itemsWithDetail.forEach(function(it,idx2){
         var itRow=mk('div');itRow.style.cssText='display:flex;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;align-items:flex-start';
         if(it.refImage){
           var thumb=mk('img');thumb.src=it.refImage;
@@ -1261,7 +1265,11 @@ function openOrderModal(id){
     itemsWrap.appendChild(row);
   }
 
-  existingItems.forEach(function(it){addItemRow(it.name,it.qty,it.delivery,it.refImage||'',it.itemNotes||'',it.amount||'');});
+  existingItems.forEach(function(it,idx2){
+    var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+    var refImg=imgDoc?imgDoc.base64:it.refImage||'';
+    addItemRow(it.name,it.qty,it.delivery,refImg,it.itemNotes||'',it.amount||'');
+  });
 
   function recalcOrderTotal(){
     var total=0;
@@ -1326,10 +1334,26 @@ function openOrderModal(id){
       // item field for backward compat = first item name
       var itemLabel=items.map(function(i){return i.qty>1?i.qty+'x '+i.name:i.name;}).join(', ');
       var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
+      var orderId=id||uid();
+      // Strip images from main doc to avoid Firestore 1MB limit
+      var itemsForDB=items.map(function(it){
+        return {name:it.name,qty:it.qty,delivery:it.delivery,amount:it.amount,itemNotes:it.itemNotes,refImage:''};
+      });
+      // Save images separately in orderImages collection
+      items.forEach(function(it,idx2){
+        if(it.refImage){
+          db.collection('orderImages').doc(orderId+'_'+idx2).set({
+            orderId:orderId,itemIndex:idx2,base64:it.refImage
+          });
+        } else {
+          // Remove image if cleared
+          db.collection('orderImages').doc(orderId+'_'+idx2).delete().catch(function(){});
+        }
+      });
       dbSave('orders',{
-        id:id||uid(),
+        id:orderId,
         clientId:clientId,
-        items:items,
+        items:itemsForDB,
         item:itemLabel,
         amount:document.getElementById('m-amount').value,
         advance:document.getElementById('m-advance').value,
@@ -3537,7 +3561,11 @@ function printOrderSheet(orderId){
   var meas=cl&&cl.measurements?cl.measurements:{};
 
   // Build items HTML with images
-  var itemsHtml=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]).map(function(it){
+  var itemsForPrint=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]).map(function(it,idx2){
+    var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+    return Object.assign({},it,{refImage:imgDoc?imgDoc.base64:it.refImage||''});
+  });
+  var itemsHtml=itemsForPrint.map(function(it){
     var imgHtml=it.refImage
       ?'<img src="'+it.refImage+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;flex-shrink:0"/>'
       :'<div style="width:120px;height:120px;border-radius:6px;border:2px dashed #e0e0e0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;flex-shrink:0">No image</div>';
