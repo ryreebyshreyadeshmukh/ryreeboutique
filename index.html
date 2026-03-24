@@ -1327,7 +1327,13 @@ function openOrderModal(id){
         var name=row.querySelector('.order-item-name').value.trim();
         var qty=Number(row.querySelector('.order-item-qty').value||1);
         var delivery=row.querySelector('.order-item-delivery').value;
-        if(name)items.push({name:name,qty:qty,delivery:delivery});
+        var amtEl=row.querySelector('.order-item-amount');
+        var itemAmt=amtEl?Number(amtEl.value||0):0;
+        var notesEl=row.querySelector('.order-item-notes');
+        var itemNotes=notesEl?(notesEl.value||'').trim():'';
+        var refEl=row.querySelector('.order-item-ref');
+        var refImage=refEl?refEl._base64||'':'';
+        if(name)items.push({name:name,qty:qty,delivery:delivery,amount:itemAmt,itemNotes:itemNotes,refImage:refImage});
       });
       if(!items.length){alert('Add at least one item.');return;}
 
