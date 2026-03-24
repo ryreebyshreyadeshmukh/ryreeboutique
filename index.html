@@ -1150,6 +1150,16 @@ function openOrderModal(id){
   var itemsWrap=mk('div');itemsWrap.id='order-items-wrap';
   var existingItems=o&&o.items?o.items:(o&&o.item?[{name:o.item,qty:1}]:[{name:'',qty:1}]);
 
+  function recalcOrderTotal(){
+    var total=0;
+    itemsWrap.querySelectorAll('.order-item-amount').forEach(function(inp){
+      total+=Number(inp.value||0);
+    });
+    var amtEl=document.getElementById('m-amount');
+    if(amtEl)amtEl.value=total>0?total:'';
+  }
+
+
   function addItemRow(name,qty,delivery,refImage,itemNotes,amount){
     var row=mk('div');row.className='order-item-row';
     row.style.cssText='background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:10px 12px;margin-bottom:8px';
@@ -1271,21 +1281,13 @@ function openOrderModal(id){
     addItemRow(it.name,it.qty,it.delivery,refImg,it.itemNotes||'',it.amount||'');
   });
 
-  function recalcOrderTotal(){
-    var total=0;
-    itemsWrap.querySelectorAll('.order-item-amount').forEach(function(inp){
-      total+=Number(inp.value||0);
-    });
-    var amtEl=document.getElementById('m-amount');
-    if(amtEl)amtEl.value=total>0?total:'';
-  }
 
   // Datalist combining clothing + services
   var datalist=mk('datalist');datalist.id='order-item-list';
   DB.clothing.forEach(function(c){var op=mk('option');op.value=c.name;datalist.appendChild(op);});
   DB.services.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
 
-  var addItemBtn=mkBtn('+ Add another item',function(){addItemRow('',1);},'btn btn-xs');
+  var addItemBtn=mkBtn('+ Add another item',function(){addItemRow('',1,'','','','');},'btn btn-xs');
   addItemBtn.style.marginTop='4px';
 
   // Column labels
