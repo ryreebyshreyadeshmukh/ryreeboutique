@@ -1009,7 +1009,7 @@ function pgOrders(){
     var av=mkAvatar(cl?cl.name:'?',28);
     var nameSpan=mk('span');nameSpan.style.cssText='font-weight:600;font-size:13px';nameSpan.textContent=cl?cl.name:'?';
     var itemSpan=mk('div');itemSpan.style.cssText='font-size:11px;color:#888;margin-top:1px';
-    itemSpan.textContent=o.item+(o.delivery?' · By '+o.delivery:'')+(assignedStaff?' · '+assignedStaff.name:'');
+    itemSpan.textContent=(o.orderNo?o.orderNo+' · ':'')+o.item+(o.delivery?' · By '+o.delivery:'')+(assignedStaff?' · '+assignedStaff.name:'');
     var nameDiv=mk('div');app(nameDiv,[nameSpan,itemSpan]);
     var clientCell=mkRow('display:flex;align-items:center;gap:8px');app(clientCell,[av,nameDiv]);
     clientDiv.appendChild(clientCell);
@@ -1335,6 +1335,15 @@ function openOrderModal(id){
       var itemLabel=items.map(function(i){return i.qty>1?i.qty+'x '+i.name:i.name;}).join(', ');
       var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
       var orderId=id||uid();
+      // Generate short order number if new order
+      var orderNo=existing?existing.orderNo:(function(){
+        var now=new Date();
+        var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        var mon=months[now.getMonth()];
+        var yr=String(now.getFullYear()).slice(-2);
+        var seq=String(DB.orders.length+1).padStart(3,'0');
+        return 'RY-'+mon+yr+'-'+seq;
+      })();
       // Strip images from main doc to avoid Firestore 1MB limit
       var itemsForDB=items.map(function(it){
         return {name:it.name,qty:it.qty,delivery:it.delivery,amount:it.amount,itemNotes:it.itemNotes,refImage:''};
@@ -1361,7 +1370,8 @@ function openOrderModal(id){
         notes:document.getElementById('m-notes').value,
         payments:existing?existing.payments||[]:existing&&Number(existing.advance||0)>0?[{id:uid(),amount:Number(existing.advance),mode:'Cash',date:new Date().toISOString().split('T')[0],note:'Advance'}]:[],
         status:existing?existing.status:'Pending',
-        created:existing?existing.created:Date.now()
+        created:existing?existing.created:Date.now(),
+        orderNo:orderNo
       });
       closeModal();
     },'btn btn-primary')])
@@ -3611,7 +3621,7 @@ function printOrderSheet(orderId){
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #2D6B5E;margin-bottom:16px">'
     +'<div>'
     +'<div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:2px">RYREE BY SHREYA DESHMUKH</div>'
-    +'<div style="font-size:22px;font-weight:800;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'
+    +'<div style="font-size:22px;font-weight:800;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'+(o.orderNo?'<div style="font-size:12px;color:#888;margin-top:2px;font-weight:600">Order #'+o.orderNo+'</div>':'')
     +(cl&&cl.phone?'<div style="font-size:13px;color:#888;margin-top:2px">'+cl.phone+'</div>':'')
     +'</div>'
     +'<div style="text-align:right">'
