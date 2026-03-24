@@ -791,7 +791,16 @@ function pgClients(){
         var ch=mk('div');ch.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
         var cn=mk('span');cn.style.fontWeight='600';cn.textContent=cloth.name;
         var eb=mkBtn('Edit',function(){openTakeMeas(cl.id,cid);},'btn btn-xs');
-        app(ch,[cn,eb]);card.appendChild(ch);
+        var db2=mk('button','btn-danger');db2.textContent='Del';db2.style.cssText='padding:3px 8px;font-size:11px';
+        db2.setAttribute('data-cid',cid);
+        db2.onclick=function(){
+          var clothName=cloth?cloth.name:cid;
+          if(!confirm('Delete all '+clothName+' measurements for '+cl.name+'?'))return;
+          var updatedMeas=Object.assign({},cl.measurements||{});
+          delete updatedMeas[this.getAttribute('data-cid')];
+          dbSave('clients',Object.assign({},cl,{measurements:updatedMeas}));
+        };
+        app(ch,[cn,eb,db2]);card.appendChild(ch);
         var vd=mk('div');vd.style.cssText='display:grid;gap:7px';
         Object.keys(vals).forEach(function(k){
           var row=mk('div','meas-row');
