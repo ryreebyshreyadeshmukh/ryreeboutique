@@ -1049,13 +1049,16 @@ function pgOrders(){
     delBtn.onclick=function(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
-    app(acts,[collectBtn,editBtn,delBtn]);
+    var printBtn=mkBtn('Print',function(){printOrderSheet(o.id);},'btn btn-xs');
+    var waBtn=mkBtn('WhatsApp',function(){whatsappOrder(o.id);},'btn btn-xs');
+    waBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+    app(acts,[collectBtn,waBtn,printBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
 
     // Items detail: ref images + notes
-    var itemsWithDetail=(o.items||[]).filter(function(it){return it.refImage||it.itemNotes;});
+    var itemsWithDetail=(o.items||[]).filter(function(it){return it.refImage||it.itemNotes||it.amount;});
     if(itemsWithDetail.length>0){
       var detailSec=mk('div');detailSec.style.cssText='background:#f9fffe;border-top:1px solid #e6f0ee;padding:10px 16px';
       var dtitle=mk('div');dtitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';dtitle.textContent='Item details';
@@ -1064,7 +1067,7 @@ function pgOrders(){
         var itRow=mk('div');itRow.style.cssText='display:flex;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;align-items:flex-start';
         if(it.refImage){
           var thumb=mk('img');thumb.src=it.refImage;
-          thumb.style.cssText='width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8;flex-shrink:0;cursor:pointer';
+          thumb.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e8e8e8;flex-shrink:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)';
           thumb.title='Click to view full image';
           thumb.onclick=(function(url){return function(){
             var modal=mk('div');modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
@@ -3523,6 +3526,126 @@ function printEstimate(){
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
 }
+
+// ── PRINT ORDER SHEET ─────────────────────────────────────────────────────
+function printOrderSheet(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+  var balance=Number(o.amount||0)-paid;
+  var meas=cl&&cl.measurements?cl.measurements:{};
+
+  // Build items HTML with images
+  var itemsHtml=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]).map(function(it){
+    var imgHtml=it.refImage
+      ?'<img src="'+it.refImage+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;flex-shrink:0"/>'
+      :'<div style="width:120px;height:120px;border-radius:6px;border:2px dashed #e0e0e0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;flex-shrink:0">No image</div>';
+    return '<div style="display:flex;gap:14px;padding:14px;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:10px;background:#fafafa;align-items:flex-start">'
+      +imgHtml
+      +'<div style="flex:1">'
+      +'<div style="font-size:16px;font-weight:700;color:#2D6B5E;margin-bottom:4px">'+it.name+(it.qty>1?' (x'+it.qty+')':'')+'</div>'
+      +(it.amount?'<div style="font-size:13px;color:#555;margin-bottom:4px">Amount: <b>&#8377;'+Number(it.amount).toLocaleString('en-IN')+'</b></div>':'')
+      +(it.delivery?'<div style="font-size:12px;color:#888;margin-bottom:6px">Deliver by: '+it.delivery+'</div>':'')
+      +(it.itemNotes?'<div style="font-size:12px;color:#555;background:#fff;padding:8px;border-radius:6px;border:1px solid #e8e8e8;white-space:pre-wrap">'+it.itemNotes+'</div>':'')
+      +'</div></div>';
+  }).join('');
+
+  // Measurements section
+  var measHtml='';
+  if(cl&&Object.keys(meas).length>0){
+    measHtml='<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">'
+      +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:10px">MEASUREMENTS</div>'
+      +Object.keys(meas).map(function(clothId){
+        var cloth=DB.clothing.find(function(c){return c.id===clothId;});
+        var vals=meas[clothId]||{};
+        var filled=Object.keys(vals).filter(function(k){return vals[k]!==''&&vals[k]!==null;});
+        if(!filled.length)return '';
+        return '<div style="margin-bottom:12px">'
+          +'<div style="font-size:12px;font-weight:700;color:#2D6B5E;margin-bottom:6px">'+(cloth?cloth.name:'')+'</div>'
+          +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">'
+          +filled.map(function(k){
+            var mi=DB.measitems.find(function(m){return m.name===k;});
+            var unit=mi&&mi.unit?mi.unit:'';
+            return '<div style="font-size:11px;padding:4px 8px;background:#f9f9f9;border-radius:4px">'
+              +'<span style="color:#888">'+k+':</span> <b>'+vals[k]+(unit?' '+unit:'')+'</b></div>';
+          }).join('')
+          +'</div></div>';
+      }).join('')
+      +'</div>';
+  }
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Order Sheet</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:20px;color:#333}'
+    +'@media print{body{padding:10px}.no-print{display:none}}</style></head><body>'
+    +'<div class="no-print" style="margin-bottom:16px"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px">Print / Save PDF</button></div>'
+    // Header
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #2D6B5E;margin-bottom:16px">'
+    +'<div>'
+    +'<div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:2px">RYREE BY SHREYA DESHMUKH</div>'
+    +'<div style="font-size:22px;font-weight:800;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'
+    +(cl&&cl.phone?'<div style="font-size:13px;color:#888;margin-top:2px">'+cl.phone+'</div>':'')
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.06em">ORDER DATE</div>'
+    +'<div style="font-size:14px;font-weight:700">'+today+'</div>'
+    +'<div style="margin-top:6px;background:#e6f0ee;padding:6px 12px;border-radius:6px;text-align:center">'
+    +'<div style="font-size:10px;color:#2D6B5E;font-weight:700">STATUS</div>'
+    +'<div style="font-size:14px;font-weight:800;color:#2D6B5E">'+(o.status||'Pending')+'</div>'
+    +'</div></div></div>'
+    // Payment summary
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'
+    +'<div style="padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #e8e8e8"><div style="font-size:10px;color:#888;font-weight:700">TOTAL AMOUNT</div><div style="font-size:18px;font-weight:800">&#8377;'+Number(o.amount||0).toLocaleString('en-IN')+'</div></div>'
+    +'<div style="padding:10px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC"><div style="font-size:10px;color:#166534;font-weight:700">PAID</div><div style="font-size:18px;font-weight:800;color:#166534">&#8377;'+paid.toLocaleString('en-IN')+'</div></div>'
+    +'<div style="padding:10px;background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-radius:8px;border:1px solid '+(balance>0?'#FCA5A5':'#86EFAC')+'"><div style="font-size:10px;color:'+(balance>0?'#991B1B':'#166534')+';font-weight:700">BALANCE</div><div style="font-size:18px;font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">&#8377;'+balance.toLocaleString('en-IN')+'</div></div>'
+    +'</div>'
+    // Items
+    +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:8px">ORDER ITEMS</div>'
+    +itemsHtml
+    // Notes
+    +(o.notes?'<div style="margin-top:12px;padding:10px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a"><div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+o.notes+'</div></div>':'')
+    +measHtml
+    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#aaa">Ryree by Shreya Deshmukh</div>'
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(win){win.document.write(html);win.document.close();}
+  else alert('Allow popups to print.');
+}
+
+// ── WHATSAPP SHARE ORDER ──────────────────────────────────────────────────
+function whatsappOrder(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+  var balance=Number(o.amount||0)-paid;
+  var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]);
+  var lines=[
+    '*Order Summary — Ryree by Shreya Deshmukh*',
+    '',
+    '*Client:* '+(cl?cl.name:'—'),
+    '*Status:* '+(o.status||'Pending'),
+    '',
+    '*Items:*',
+  ];
+  items.forEach(function(it){
+    var line='• '+it.name+(it.qty>1?' x'+it.qty:'')+(it.amount?' — ₹'+Number(it.amount).toLocaleString('en-IN'):'')+(it.delivery?' (by '+it.delivery+')':'');
+    lines.push(line);
+    if(it.itemNotes)lines.push('  _'+it.itemNotes+'_');
+  });
+  lines.push('');
+  lines.push('*Total:* ₹'+Number(o.amount||0).toLocaleString('en-IN'));
+  lines.push('*Paid:* ₹'+paid.toLocaleString('en-IN'));
+  if(balance>0)lines.push('*Balance due:* ₹'+balance.toLocaleString('en-IN'));
+  if(o.notes)lines.push('','*Notes:* '+o.notes);
+  lines.push('','_Ryree by Shreya Deshmukh_');
+
+  var text=encodeURIComponent(lines.join('\n'));
+  var phone=cl&&cl.phone?cl.phone.replace(/\D/g,''):'';
+  var url=phone?'https://wa.me/91'+phone+'?text='+text:'https://wa.me/?text='+text;
+  window.open(url,'_blank');
+}
+
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
