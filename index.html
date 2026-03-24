@@ -1054,6 +1054,41 @@ function pgOrders(){
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
 
+    // Items detail: ref images + notes
+    var itemsWithDetail=(o.items||[]).filter(function(it){return it.refImage||it.itemNotes;});
+    if(itemsWithDetail.length>0){
+      var detailSec=mk('div');detailSec.style.cssText='background:#f9fffe;border-top:1px solid #e6f0ee;padding:10px 16px';
+      var dtitle=mk('div');dtitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';dtitle.textContent='Item details';
+      detailSec.appendChild(dtitle);
+      itemsWithDetail.forEach(function(it){
+        var itRow=mk('div');itRow.style.cssText='display:flex;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;align-items:flex-start';
+        if(it.refImage){
+          var thumb=mk('img');thumb.src=it.refImage;
+          thumb.style.cssText='width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8;flex-shrink:0;cursor:pointer';
+          thumb.title='Click to view full image';
+          thumb.onclick=(function(url){return function(){
+            var modal=mk('div');modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+            var bigImg=mk('img');bigImg.src=url;bigImg.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain';
+            modal.appendChild(bigImg);
+            modal.onclick=function(){document.body.removeChild(modal);};
+            document.body.appendChild(modal);
+          };})(it.refImage);
+          itRow.appendChild(thumb);
+        }
+        var itInfo=mk('div');itInfo.style.cssText='flex:1;min-width:0';
+        var itName=mk('div');itName.style.cssText='font-size:12px;font-weight:600;color:#333;margin-bottom:3px';
+        itName.textContent=it.name+(it.qty>1?' (x'+it.qty+')':'');
+        itInfo.appendChild(itName);
+        if(it.itemNotes){
+          var itN=mk('div');itN.style.cssText='font-size:11px;color:#666;line-height:1.5;white-space:pre-wrap';itN.textContent=it.itemNotes;
+          itInfo.appendChild(itN);
+        }
+        itRow.appendChild(itInfo);
+        detailSec.appendChild(itRow);
+      });
+      card.appendChild(detailSec);
+    }
+
     // Payment history (if any)
     if(payments.length>0){
       var payHistory=mk('div');payHistory.style.cssText='background:#fafafa;border-top:1px solid #f0f0f0;padding:10px 16px';
@@ -1108,7 +1143,7 @@ function openOrderModal(id){
   var itemsWrap=mk('div');itemsWrap.id='order-items-wrap';
   var existingItems=o&&o.items?o.items:(o&&o.item?[{name:o.item,qty:1}]:[{name:'',qty:1}]);
 
-  function addItemRow(name,qty,delivery){
+  function addItemRow(name,qty,delivery,refImage,itemNotes){
     var row=mk('div');row.className='order-item-row';
     row.style.cssText='background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:10px 12px;margin-bottom:8px';
 
@@ -1144,11 +1179,78 @@ function openOrderModal(id){
     deliveryInp.style.cssText='flex:1;background:#fff;max-width:180px';
     app(bottomRow,[delLabel,deliveryInp]);
 
-    app(row,[topRow,bottomRow]);
+    // Hidden file input
+    var fileInp=mk('input');fileInp.type='file';fileInp.accept='image/*';fileInp.style.display='none';
+    fileInp.className='order-item-ref';
+    fileInp._base64=refImage||'';
+
+    // Row 3: delivery + image thumbnail inline
+    var row3=mk('div');row3.style.cssText='display:flex;align-items:center;gap:10px;margin-top:6px';
+
+    // Thumbnail (small, inline with delivery date)
+    var thumb=mk('div');
+    thumb.style.cssText='width:40px;height:40px;border-radius:6px;border:1.5px dashed #b0d4c8;background:#f9fffe;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative';
+    thumb.title='Add reference image';
+    var tImg=mk('img');tImg.style.cssText='width:100%;height:100%;object-fit:cover;display:'+(refImage?'block':'none');
+    if(refImage)tImg.src=refImage;
+    var tPlus=mk('span');tPlus.style.cssText='font-size:18px;color:#b0cec6;line-height:1;display:'+(refImage?'none':'block');tPlus.textContent='+';
+    thumb.appendChild(tImg);thumb.appendChild(tPlus);
+    thumb.onclick=function(){fileInp.click();};
+
+    // Notes input inline
+    var notesInp=mk('input','form-input');
+    notesInp.placeholder='Item notes (optional)...';
+    notesInp.value=itemNotes||'';
+    notesInp.className='order-item-notes';
+    notesInp.style.cssText='flex:1;background:#fff;font-size:12px';
+
+    // Clear image button (only shown when image set)
+    var clearBtn=mk('button');
+    clearBtn.textContent='x';
+    clearBtn.title='Remove image';
+    clearBtn.style.cssText='display:'+(refImage?'flex':'none')+';align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#FCA5A5;border:none;cursor:pointer;font-size:10px;color:#991B1B;flex-shrink:0;padding:0';
+    clearBtn.onclick=function(e){
+      e.stopPropagation();
+      fileInp._base64='';
+      tImg.src='';tImg.style.display='none';
+      tPlus.style.display='block';
+      thumb.style.borderColor='#b0d4c8';
+      clearBtn.style.display='none';
+    };
+
+    app(row3,[thumb,fileInp,notesInp,clearBtn]);
+
+    // Compress + store as base64
+    fileInp.onchange=function(){
+      var file=this.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var img2=new Image();
+        img2.onload=function(){
+          var canvas=document.createElement('canvas');
+          var MAX=600;var w=img2.width,h=img2.height;
+          if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+          else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+          canvas.width=w;canvas.height=h;
+          canvas.getContext('2d').drawImage(img2,0,0,w,h);
+          var quality=file.size>2*1024*1024?0.5:file.size>1*1024*1024?0.6:0.75;
+          var b64=canvas.toDataURL('image/jpeg',quality);
+          fileInp._base64=b64;
+          tImg.src=b64;tImg.style.display='block';
+          tPlus.style.display='none';
+          thumb.style.borderColor='#2D6B5E';
+          clearBtn.style.display='flex';
+        };
+        img2.src=e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    app(row,[topRow,bottomRow,row3]);
     itemsWrap.appendChild(row);
   }
 
-  existingItems.forEach(function(it){addItemRow(it.name,it.qty,it.delivery);});
+  existingItems.forEach(function(it){addItemRow(it.name,it.qty,it.delivery,it.refImage||'',it.itemNotes||'');});
 
   // Datalist combining clothing + services
   var datalist=mk('datalist');datalist.id='order-item-list';
