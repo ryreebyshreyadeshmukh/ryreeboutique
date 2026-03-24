@@ -1276,8 +1276,11 @@ function openOrderModal(id){
   }
 
   existingItems.forEach(function(it,idx2){
-    var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
-    var refImg=imgDoc?imgDoc.base64:it.refImage||'';
+    var refImg='';
+    if(o){
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+      refImg=imgDoc?imgDoc.base64:it.refImage||'';
+    }
     addItemRow(it.name,it.qty,it.delivery,refImg,it.itemNotes||'',it.amount||'');
   });
 
