@@ -1325,7 +1325,7 @@ function openOrderModal(id){
       // Collect items with individual delivery dates
       var itemRows=document.querySelectorAll('.order-item-row');
       var items=[];
-      itemRows.forEach(function(row){
+      itemRows.forEach(function(row,rowIdx){
         var name=row.querySelector('.order-item-name').value.trim();
         var qty=Number(row.querySelector('.order-item-qty').value||1);
         var delivery=row.querySelector('.order-item-delivery').value;
@@ -1335,8 +1335,10 @@ function openOrderModal(id){
         var itemNotes=notesEl?(notesEl.value||'').trim():'';
         var refEl=row.querySelector('.order-item-ref');
         var refImage=refEl?refEl.value||'':'';
+
         if(name)items.push({name:name,qty:qty,delivery:delivery,amount:itemAmt,itemNotes:itemNotes,refImage:refImage});
       });
+
       if(!items.length){alert('Add at least one item.');return;}
 
       // item field for backward compat = first item name
@@ -1344,14 +1346,15 @@ function openOrderModal(id){
       var existing=id?DB.orders.find(function(x){return x.id===id;}):null;
       var orderId=id||uid();
       // Generate short order number if new order
-      var orderNo=existing?existing.orderNo:(function(){
+      var orderNo=existing?existing.orderNo:'';
+      if(!orderNo){
         var now=new Date();
         var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
         var mon=months[now.getMonth()];
         var yr=String(now.getFullYear()).slice(-2);
         var seq=String(DB.orders.length+1).padStart(3,'0');
-        return 'RY-'+mon+yr+'-'+seq;
-      })();
+        orderNo='RY-'+mon+yr+'-'+seq;
+      }
       // Strip images from main doc to avoid Firestore 1MB limit
       var itemsForDB=items.map(function(it){
         return {name:it.name,qty:it.qty,delivery:it.delivery,amount:it.amount,itemNotes:it.itemNotes,refImage:''};
@@ -1379,7 +1382,7 @@ function openOrderModal(id){
         payments:existing?existing.payments||[]:existing&&Number(existing.advance||0)>0?[{id:uid(),amount:Number(existing.advance),mode:'Cash',date:new Date().toISOString().split('T')[0],note:'Advance'}]:[],
         status:existing?existing.status:'Pending',
         created:existing?existing.created:Date.now(),
-        orderNo:orderNo
+        orderNo:orderNo||''
       });
       closeModal();
     },'btn btn-primary')])
