@@ -233,7 +233,11 @@ firebase.initializeApp({
 var db=firebase.firestore();
 
 var DEFAULT_PW='ryree2024';
-function getPw(){return localStorage.getItem('ryree_pw')||DEFAULT_PW;}
+function getPw(){
+  // Try DB.settings first (Firebase), then localStorage, then default
+  var s=DB.settings&&DB.settings.find(function(x){return x.id==='config';});
+  return (s&&s.password)||localStorage.getItem('ryree_pw')||DEFAULT_PW;
+}
 function isLoggedIn(){return sessionStorage.getItem('ryree_auth')==='1';}
 
 document.getElementById('login-btn').onclick=doLogin;
@@ -247,7 +251,15 @@ document.querySelectorAll('.nav-item').forEach(function(el){
 
 function doLogin(){
   var pw=document.getElementById('login-pw').value;
-  if(pw===getPw()){
+  var loginBtn=document.getElementById('login-btn');
+  loginBtn.disabled=true;loginBtn.textContent='Checking...';
+  // Fetch password from Firebase first for accuracy
+  db.collection('settings').doc('config').get().then(function(doc){
+    var correctPw=(doc.exists&&doc.data().password)?doc.data().password:getPw();
+    // Sync to localStorage
+    if(doc.exists&&doc.data().password)localStorage.setItem('ryree_pw',doc.data().password);
+    loginBtn.disabled=false;loginBtn.textContent='Sign in';
+    if(pw===correctPw){
     sessionStorage.setItem('ryree_auth','1');
     document.getElementById('login-pw').classList.remove('error');
     document.getElementById('login-err').textContent='';
@@ -297,11 +309,31 @@ function saveNewPw(){
   if(!nw||nw.length<4){err.textContent='Must be at least 4 characters.';return;}
   if(nw!==cf){err.textContent='Passwords do not match.';return;}
   localStorage.setItem('ryree_pw',nw);
-  closeModal();alert('Password changed!');
+  // Save to Firebase so all devices get the same password
+  db.collection('settings').doc('config').set({password:nw},{merge:true})
+    .then(function(){
+      if(DB.settings){
+        var s=DB.settings.find(function(x){return x.id==='config';});
+        if(s)s.password=nw;else DB.settings.push({id:'config',password:nw});
+      }
+      closeModal();alert('Password changed on all devices!');
+    })
+    .catch(function(){closeModal();alert('Password changed on this device only.');});
 }
 function showApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
+  // Sync Firebase password to localStorage for offline use
+  db.collection('settings').doc('config').get().then(function(doc){
+    if(doc.exists&&doc.data().password){
+      localStorage.setItem('ryree_pw',doc.data().password);
+      if(DB.settings){
+        var s=DB.settings.find(function(x){return x.id==='config';});
+        if(s)s.password=doc.data().password;
+        else DB.settings.push({id:'config',password:doc.data().password});
+      }
+    }
+  });
   document.getElementById('export-btn').addEventListener('click',exportAllData);
   // Set sidebar date
   var dateEl=document.getElementById('sidebar-date');
@@ -315,7 +347,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -325,7 +357,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
