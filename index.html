@@ -155,6 +155,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-quotations" data-page="quotations">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none"/><path d="M11.5 10.5l1 1 1.5-1.5" stroke="#2D6B5E" stroke-width="1" fill="none" stroke-linecap="round"/></svg>Quotations
     </div>
+    <div class="nav-item" id="nav-custompieces" data-page="custompieces">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5 6.5 5z" stroke-linecap="round" stroke-linejoin="round"/></svg>Custom Pieces
+    </div>
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
@@ -336,7 +339,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={settings:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],custompieces:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -346,7 +349,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','custompieces','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -581,7 +584,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,custompieces:pgCustomPieces,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -831,6 +834,22 @@ function pgClients(){
         });
         card.appendChild(vd);mc.appendChild(card);
       });
+    }
+    // Custom pieces for this client
+    var cpForClient=DB.custompieces.filter(function(p){return p.clientId===cl.id;});
+    if(cpForClient.length>0){
+      var cpSec=mk('div');cpSec.style.marginBottom='16px';
+      cpSec.appendChild(mk('div','section-title','Custom Pieces ('+cpForClient.length+')'));
+      var cpGrid=mk('div');cpGrid.style.cssText='display:flex;flex-wrap:wrap;gap:8px';
+      cpForClient.forEach(function(p){
+        var tag=mk('div');tag.style.cssText='background:#e6f0ee;border:1px solid #b8d5ce;border-radius:8px;padding:8px 12px;cursor:pointer';
+        var pname=mk('div');pname.style.cssText='font-weight:600;color:#2D6B5E;font-size:13px';pname.textContent=p.name;
+        var pmeta=mk('div');pmeta.style.cssText='font-size:11px;color:#888;margin-top:2px';
+        pmeta.textContent=(p.category||'')+(p.price?' · ₹'+Number(p.price).toLocaleString('en-IN'):'')+' · '+(p.status||'Draft');
+        app(tag,[pname,pmeta]);tag.onclick=function(){nav('custompieces');};
+        cpGrid.appendChild(tag);
+      });
+      cpSec.appendChild(cpGrid);two.appendChild(cpSec);
     }
     var oc=mk('div');
     oc.appendChild(mk('div','section-title','Orders ('+orders.length+')'));
@@ -1168,7 +1187,7 @@ function pgOrders(){
   return wrap;
 }
 
-function openOrderModal(id){
+function openOrderModal(id,importedPiece){
   var o=id?DB.orders.find(function(x){return x.id===id;}):null;
   var clOpts=[{value:'',label:'Select client...'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name};}));
 
@@ -1184,6 +1203,18 @@ function openOrderModal(id){
   // Items rows container
   var itemsWrap=mk('div');itemsWrap.id='order-items-wrap';
   var existingItems=o&&o.items?o.items:(o&&o.item?[{name:o.item,qty:1}]:[{name:'',qty:1}]);
+  if(importedPiece&&!o){
+    existingItems=[{name:importedPiece.name,qty:1,delivery:'',amount:importedPiece.price||'',itemNotes:importedPiece.notes||'',refImage:importedPiece.images||[]}];
+  }
+  if(importedPiece&&!o){
+    existingItems=[{
+      name:importedPiece.name,qty:1,
+      delivery:'',
+      amount:importedPiece.price||'',
+      itemNotes:importedPiece.notes||'',
+      refImage:importedPiece.images||[]
+    }];
+  }
 
   function recalcOrderTotal(){
     var total=0;
@@ -2480,13 +2511,13 @@ function pgQuotations(){
   return wrap;
 }
 
-function openQuotationModal(id){
+function openQuotationModal(id,importedPiece){
   var q=id?DB.quotations.find(function(x){return x.id===id;}):null;
   var clientOpts=[{value:'',label:'— Walk-in / new client —'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};}));
 
   // Build services section
   var servicesWrap=mk('div');servicesWrap.id='quot-services';
-  var existingServices=q?q.services:[{name:'',price:''}];
+  var existingServices=q?q.services:(importedPiece?[{name:importedPiece.name,price:importedPiece.price||''}]:[{name:'',price:''}]);
 
   function renderServiceRows(){
     servicesWrap.innerHTML='';
@@ -2562,6 +2593,7 @@ function openQuotationModal(id){
   var validStr=validDate.toISOString().split('T')[0];
 
   // Terms
+  var quotNotesVal=importedPiece?importedPiece.notes||'':q?q.notes||'':'';
   var termsArea=mk('textarea','form-input');termsArea.id='quot-terms';termsArea.rows=4;
   termsArea.value=q?(q.terms||DEFAULT_TERMS.join('\n')):(DEFAULT_TERMS.join('\n'));
 
@@ -3762,6 +3794,274 @@ function whatsappOrder(orderId){
   var phone=cl&&cl.phone?cl.phone.replace(/\D/g,''):'';
   var url=phone?'https://wa.me/91'+phone+'?text='+text:'https://wa.me/?text='+text;
   window.open(url,'_blank');
+}
+
+
+// ── CUSTOM PIECES ─────────────────────────────────────────────────────────
+var CP_STATUSES = ['Draft','Ready','Ordered'];
+var CP_CATEGORIES = ['Bridal','Party Wear','Casual','Festive','Western','Other'];
+
+function pgCustomPieces(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Custom Pieces','Bespoke designs — link to orders & quotations',
+    mkBtn('+ New Piece',function(){openCustomPieceModal();},'btn btn-primary')));
+
+  // Stats
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  var total=DB.custompieces.length;
+  var draft=DB.custompieces.filter(function(p){return p.status==='Draft';}).length;
+  var ready=DB.custompieces.filter(function(p){return p.status==='Ready';}).length;
+  app(stats,[sc('Total pieces',total),sc('Draft',draft,'#B45309','#FFFBEB'),sc('Ready',ready,'#166534','#F0FDF4')]);
+  wrap.appendChild(stats);
+
+  // Search
+  wrap.appendChild(mkSearchBar('cp-search','Search by name, client or category...',function(q){
+    document.querySelectorAll('.cp-card').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
+
+  if(!DB.custompieces.length){
+    var empty=mk('div','card');
+    var msg=mk('div');msg.style.cssText='text-align:center;padding:20px';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No custom pieces yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888';s.textContent='Create custom designs here and import them into orders or quotations.';
+    app(msg,[t,s]);app(empty,[msg]);wrap.appendChild(empty);
+    return wrap;
+  }
+
+  // Grid of cards
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px';
+
+  DB.custompieces.slice().sort(function(a,b){return (b.created||0)-(a.created||0);}).forEach(function(piece){
+    var cl=piece.clientId?DB.clients.find(function(x){return x.id===piece.clientId;}):null;
+    var imgs=Array.isArray(piece.images)?piece.images.filter(Boolean):[];
+
+    var card=mk('div','card');card.className='card cp-card';
+    card.setAttribute('data-search',(piece.name+' '+(piece.category||'')+' '+(cl?cl.name:'')+' '+(piece.status||'')).toLowerCase());
+    card.style.padding='0';card.style.overflow='hidden';
+
+    // Image strip at top
+    if(imgs.length>0){
+      var imgStrip=mk('div');imgStrip.style.cssText='display:flex;gap:2px;height:100px;overflow:hidden;border-radius:10px 10px 0 0';
+      var shown=imgs.slice(0,3);
+      shown.forEach(function(src,i){
+        var imgEl=mk('img');imgEl.src=src;
+        imgEl.style.cssText='flex:1;object-fit:cover;cursor:pointer;min-width:0';
+        imgEl.onclick=(function(url){return function(){
+          var modal=mk('div');modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+          var big=mk('img');big.src=url;big.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain';
+          modal.appendChild(big);modal.onclick=function(){document.body.removeChild(modal);};
+          document.body.appendChild(modal);
+        };})(src);
+        if(imgs.length>3&&i===2){
+          var overlay=mk('div');overlay.style.cssText='position:relative;flex:1;min-width:0';
+          imgEl.style.cssText='width:100%;height:100%;object-fit:cover';
+          var badge=mk('div');badge.style.cssText='position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700';
+          badge.textContent='+'+( imgs.length-2);
+          overlay.appendChild(imgEl);overlay.appendChild(badge);
+          imgStrip.appendChild(overlay);
+        } else {
+          imgStrip.appendChild(imgEl);
+        }
+      });
+      card.appendChild(imgStrip);
+    } else {
+      var noImg=mk('div');noImg.style.cssText='height:60px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;border-radius:10px 10px 0 0';
+      noImg.textContent='No images';card.appendChild(noImg);
+    }
+
+    // Card body
+    var body=mk('div');body.style.padding='12px 14px';
+
+    // Header row: name + status badge
+    var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px';
+    var nameEl=mk('div');nameEl.style.cssText='font-size:14px;font-weight:700;color:#2D6B5E;flex:1;margin-right:8px';nameEl.textContent=piece.name;
+    var statusColors={Draft:'#FEF3C7|#92400E',Ready:'#D1FAE5|#065F46',Ordered:'#DBEAFE|#1E40AF'};
+    var sc2=statusColors[piece.status]||'#F3F4F6|#374151';
+    var stBadge=mk('span');stBadge.style.cssText='font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+sc2.split('|')[0]+';color:'+sc2.split('|')[1]+';white-space:nowrap';
+    stBadge.textContent=piece.status||'Draft';
+    app(hdr,[nameEl,stBadge]);body.appendChild(hdr);
+
+    // Meta row: category + price + delivery
+    var meta=mk('div');meta.style.cssText='font-size:12px;color:#888;margin-bottom:6px;display:flex;gap:12px;flex-wrap:wrap';
+    if(piece.category){var cat=mk('span');cat.textContent='📁 '+piece.category;meta.appendChild(cat);}
+    if(piece.price){var pr=mk('span');pr.style.color='#2D6B5E';pr.style.fontWeight='600';pr.textContent='₹'+Number(piece.price).toLocaleString('en-IN');meta.appendChild(pr);}
+    if(piece.deliveryDays){var dd=mk('span');dd.textContent='⏱ '+piece.deliveryDays+' days';meta.appendChild(dd);}
+    body.appendChild(meta);
+
+    // Client tag
+    if(cl){
+      var clTag=mk('div');clTag.style.cssText='font-size:11px;color:#2D6B5E;background:#e6f0ee;padding:3px 8px;border-radius:12px;display:inline-block;margin-bottom:8px;cursor:pointer';
+      clTag.textContent='👤 '+cl.name;
+      clTag.onclick=function(){selClient=cl.id;nav('clients');};
+      body.appendChild(clTag);
+    }
+
+    // Notes preview
+    if(piece.notes){
+      var notesEl=mk('div');notesEl.style.cssText='font-size:11px;color:#666;margin-bottom:8px;line-height:1.4;white-space:pre-wrap;max-height:40px;overflow:hidden';
+      notesEl.textContent=piece.notes;body.appendChild(notesEl);
+    }
+
+    // Action buttons
+    var acts=mk('div');acts.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+
+    // Import to Order
+    var toOrder=mkBtn('+ Order',function(){importPieceToOrder(piece.id);},'btn btn-primary btn-xs');
+    // Import to Quotation
+    var toQuot=mkBtn('+ Quote',function(){importPieceToQuotation(piece.id);},'btn btn-xs');toQuot.style.cssText+='color:#166534;border-color:#86EFAC';
+    // Edit
+    var editBtn=mkBtn('Edit',function(){openCustomPieceModal(piece.id);},'btn btn-xs');
+    // Delete
+    var delBtn=mk('button','btn-danger');delBtn.textContent='Del';delBtn.style.padding='3px 8px';
+    delBtn.setAttribute('data-pid',piece.id);
+    delBtn.onclick=function(){
+      if(!confirm('Delete "'+piece.name+'"?'))return;
+      dbDel('custompieces',this.getAttribute('data-pid'));
+    };
+    app(acts,[toOrder,toQuot,editBtn,delBtn]);
+    body.appendChild(acts);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+function openCustomPieceModal(id){
+  var piece=id?DB.custompieces.find(function(x){return x.id===id;}):null;
+  var existingImgs=piece&&Array.isArray(piece.images)?piece.images:[];
+  while(existingImgs.length<5)existingImgs.push('');
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',(id?'Edit':'New')+' Custom Piece'));
+
+  // Name + Category row
+  var nameInp=mkInput('cp-name','text','e.g. Bridal Lehenga Set',piece?piece.name:'');
+  var catSel=mkSelect('cp-cat',CP_CATEGORIES.map(function(c){return {value:c,label:c};}),piece?piece.category||'':'');
+
+  // Price + Delivery row
+  var priceInp=mkInput('cp-price','number','Suggested price (₹)',piece?piece.price||'':'');
+  var delivInp=mkInput('cp-deliv','number','Delivery days (e.g. 30)',piece?piece.deliveryDays||'':'');
+
+  // Status
+  var statusSel=mkSelect('cp-status',CP_STATUSES.map(function(s){return {value:s,label:s};}),piece?piece.status||'Draft':'Draft');
+
+  // Client link
+  var clientSel=mkClientSelect('cp-client',piece?piece.clientId||'':'');
+
+  // Notes
+  var notesTA=mk('textarea','form-input');notesTA.id='cp-notes';notesTA.rows=3;
+  notesTA.placeholder='Description, materials, special instructions...';
+  if(piece)notesTA.value=piece.notes||'';
+
+  // Images (5 slots) - same pattern as order items
+  var imgSection=mk('div');imgSection.style.cssText='margin-bottom:12px';
+  var imgLabel2=mk('div','form-label','Reference images (up to 5)');
+  var imgStrip2=mk('div');imgStrip2.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:6px';
+  var b64Container2=mk('div');b64Container2.style.display='none';
+
+  function makeCPImgSlot(slotIdx){
+    var b64Inp2=mk('input');b64Inp2.type='hidden';b64Inp2.className='cp-img-slot';
+    b64Inp2.setAttribute('data-slot',slotIdx);b64Inp2.value=existingImgs[slotIdx]||'';
+    b64Container2.appendChild(b64Inp2);
+
+    var slot=mk('div');slot.style.cssText='position:relative;width:70px;height:70px;flex-shrink:0';
+    var thumb2=mk('div');
+    var hasImg=!!existingImgs[slotIdx];
+    thumb2.style.cssText='width:70px;height:70px;border-radius:8px;border:2px dashed '+(hasImg?'#2D6B5E':'#b0d4c8')+';background:'+(hasImg?'#fff':'#f9fffe')+';display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden';
+    var tImg2=mk('img');tImg2.style.cssText='width:100%;height:100%;object-fit:cover;display:'+(hasImg?'block':'none');
+    if(hasImg)tImg2.src=existingImgs[slotIdx];
+    var tPlus2=mk('span');tPlus2.style.cssText='font-size:24px;color:#b0cec6;display:'+(hasImg?'none':'block');tPlus2.textContent='+';
+    thumb2.appendChild(tImg2);thumb2.appendChild(tPlus2);
+
+    var delBadge2=mk('div');
+    delBadge2.style.cssText='position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:#EF4444;border-radius:50%;display:'+(hasImg?'flex':'none')+';align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:11px;font-weight:700;z-index:1';
+    delBadge2.textContent='x';
+    delBadge2.onclick=function(e){
+      e.stopPropagation();b64Inp2.value='';
+      tImg2.src='';tImg2.style.display='none';tPlus2.style.display='block';
+      thumb2.style.borderColor='#b0d4c8';thumb2.style.background='#f9fffe';
+      delBadge2.style.display='none';
+    };
+
+    var fi2=mk('input');fi2.type='file';fi2.accept='image/*';fi2.style.display='none';
+    thumb2.onclick=function(){fi2.click();};
+    fi2.onchange=function(){
+      var file=this.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var img2=new Image();
+        img2.onload=function(){
+          var canvas=document.createElement('canvas');
+          var MAX=600;var w=img2.width,h=img2.height;
+          if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+          canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img2,0,0,w,h);
+          var quality=file.size>2*1024*1024?0.5:file.size>1*1024*1024?0.6:0.75;
+          var b64=canvas.toDataURL('image/jpeg',quality);
+          b64Inp2.value=b64;tImg2.src=b64;tImg2.style.display='block';
+          tPlus2.style.display='none';thumb2.style.borderColor='#2D6B5E';
+          thumb2.style.background='#fff';delBadge2.style.display='flex';
+        };
+        img2.src=e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    slot.appendChild(thumb2);slot.appendChild(delBadge2);slot.appendChild(fi2);
+    imgStrip2.appendChild(slot);
+  }
+
+  for(var s=0;s<5;s++)makeCPImgSlot(s);
+  app(imgSection,[imgLabel2,imgStrip2,b64Container2]);
+
+  app(wrap,[
+    app(mk('div','form-row'),[mkFg('Name *',nameInp),mkFg('Category',catSel)]),
+    app(mk('div','form-row'),[mkFg('Suggested price (₹)',priceInp),mkFg('Delivery days',delivInp)]),
+    app(mk('div','form-row'),[mkFg('Status',statusSel),mkFg('Client (optional)',clientSel)]),
+    imgSection,
+    mkFg('Notes / description',notesTA),
+    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Create',function(){
+      var name=document.getElementById('cp-name').value.trim();
+      if(!name){alert('Enter a name.');return;}
+      var imgs=Array.from(document.querySelectorAll('.cp-img-slot')).map(function(el){return el.value||'';});
+      dbSave('custompieces',{
+        id:id||uid(),
+        name:name,
+        category:document.getElementById('cp-cat').value,
+        price:document.getElementById('cp-price').value,
+        deliveryDays:document.getElementById('cp-deliv').value,
+        status:document.getElementById('cp-status').value,
+        clientId:document.getElementById('cp-client').value||'',
+        notes:document.getElementById('cp-notes').value,
+        images:imgs,
+        created:piece?piece.created:Date.now()
+      });
+      closeModal();
+    },'btn btn-primary')])
+  ]);
+  showM(wrap);
+  setTimeout(function(){document.getElementById('cp-name').focus();},50);
+}
+
+function importPieceToOrder(pieceId){
+  var piece=DB.custompieces.find(function(x){return x.id===pieceId;});
+  if(!piece)return;
+  // Store piece for pre-filling in the order modal
+  window._importPiece=piece;
+  nav('orders');
+  setTimeout(function(){openOrderModal(null,piece);},300);
+}
+
+function importPieceToQuotation(pieceId){
+  var piece=DB.custompieces.find(function(x){return x.id===pieceId;});
+  if(!piece)return;
+  window._importPiece=piece;
+  nav('quotations');
+  setTimeout(function(){openQuotationModal(null,piece);},300);
 }
 
 
