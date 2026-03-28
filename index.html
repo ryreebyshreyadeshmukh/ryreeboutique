@@ -1081,9 +1081,11 @@ function pgOrders(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
     var printBtn=mkBtn('Print',function(){printOrderSheet(o.id);},'btn btn-xs');
+    var workBtn=mkBtn('Work Order',function(){printWorkOrder(o.id);},'btn btn-xs');
+    workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
     var quotBtn=mkBtn('Quotation',function(){printOrderQuotation(o.id);},'btn btn-xs');
     quotBtn.style.cssText+='color:#1E40AF;border-color:#BFDBFE';
-    app(acts,[collectBtn,quotBtn,printBtn,editBtn,delBtn]);
+    app(acts,[collectBtn,quotBtn,printBtn,workBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -3639,8 +3641,18 @@ function printEstimate(){
   else alert('Allow popups to print.');
 }
 
-// ── PRINT ORDER SHEET ─────────────────────────────────────────────────────
+// ── PRINT ORDER SHEET (FULL - FOR CLIENT) ────────────────────────────────
 function printOrderSheet(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  _doPrintOrder(orderId,false);
+}
+
+// ── PRINT WORK ORDER (INTERNAL - FOR TAILOR) ─────────────────────────────
+function printWorkOrder(orderId){
+  _doPrintOrder(orderId,true);
+}
+
+function _doPrintOrder(orderId,internal){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
@@ -3648,130 +3660,104 @@ function printOrderSheet(orderId){
   var balance=Number(o.amount||0)-paid;
   var meas=cl&&cl.measurements?cl.measurements:{};
 
-  // Build items HTML with images
-  var itemsForPrint=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]).map(function(it,idx2){
+  // Merge images
+  var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]);
+  var itemsDisplay=items.map(function(it,idx2){
     var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
     var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
-    return Object.assign({},it,{refImage:imgs});
+    return Object.assign({},it,{images:imgs.filter(Boolean)});
   });
-  var itemsHtml=itemsForPrint.map(function(it){
-    var itImgs=Array.isArray(it.refImage)?it.refImage:[it.refImage||''];
-    var filledPrintImgs=itImgs.filter(function(b){return !!b;});
-    var imgHtml=filledPrintImgs.length>0
-      ?'<div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">'+filledPrintImgs.map(function(src){return '<img src="'+src+'" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')+'</div>'
-      :'<div style="width:100px;height:100px;border-radius:6px;border:2px dashed #e0e0e0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;flex-shrink:0">No image</div>';
-    return '<div style="display:flex;gap:14px;padding:14px;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:10px;background:#fafafa;align-items:flex-start">'
-      +imgHtml
-      +'<div style="flex:1">'
-      +'<div style="font-size:16px;font-weight:700;color:#2D6B5E;margin-bottom:4px">'+it.name+(it.qty>1?' (x'+it.qty+')':'')+'</div>'
-      +(it.amount?'<div style="font-size:13px;color:#555;margin-bottom:4px">Amount: <b>&#8377;'+Number(it.amount).toLocaleString('en-IN')+'</b></div>':'')
-      +(it.delivery?'<div style="font-size:12px;color:#888;margin-bottom:6px">Deliver by: '+it.delivery+'</div>':'')
-      +(it.itemNotes?'<div style="font-size:12px;color:#555;background:#fff;padding:8px;border-radius:6px;border:1px solid #e8e8e8;white-space:pre-wrap">'+it.itemNotes+'</div>':'')
-      +'</div></div>';
+
+  // Items rows
+  var itemsHtml=itemsDisplay.map(function(it,i){
+    var imgHtml='';
+    if(it.images&&it.images.length>0){
+      imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +it.images.map(function(src){return '<img src="'+src+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+        +'</div>';
+    }
+    return '<div style="display:flex;gap:16px;padding:14px;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:10px;background:#fafafa;align-items:flex-start">'
+      // Left: images
+      +(it.images&&it.images.length>0?'<div style="display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;max-width:180px">'+it.images.map(function(src){return '<img src="'+src+'" style="width:82px;height:82px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')+'</div>':'')
+      // Middle: info
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:16px;font-weight:700;color:#2D6B5E">'+(i+1)+'. '+it.name+(it.qty>1?' (x'+it.qty+')':'')+'</div>'
+        +(it.delivery?'<div style="font-size:12px;color:#888;margin-top:3px">Deliver by: '+it.delivery+'</div>':'')
+        +(it.itemNotes?'<div style="font-size:12px;color:#555;margin-top:6px;padding:8px;background:#fff;border-radius:5px;border:1px solid #e8e8e8;white-space:pre-wrap">'+it.itemNotes+'</div>':'')
+      +'</div>'
+      // Right: amount (hidden for internal)
+      +(!internal&&it.amount?'<div style="flex-shrink:0;text-align:right"><div style="font-size:11px;color:#aaa;font-weight:600;letter-spacing:.04em">AMOUNT</div><div style="font-size:18px;font-weight:800;color:#2D6B5E">\u20b9'+Number(it.amount).toLocaleString('en-IN')+'</div></div>':'')
+      +'</div>';
   }).join('');
 
-  // Measurements section
+  // Measurements
   var measHtml='';
   if(cl&&Object.keys(meas).length>0){
-    measHtml='<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">'
-      +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:10px">MEASUREMENTS</div>'
-      +Object.keys(meas).map(function(clothId){
-        var cloth=DB.clothing.find(function(c){return c.id===clothId;});
-        var vals=meas[clothId]||{};
-        var filled=Object.keys(vals).filter(function(k){return vals[k]!==''&&vals[k]!==null;});
-        if(!filled.length)return '';
-        return '<div style="margin-bottom:12px">'
-          +'<div style="font-size:12px;font-weight:700;color:#2D6B5E;margin-bottom:6px">'+(cloth?cloth.name:'')+'</div>'
-          +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">'
-          +filled.map(function(k){
-            var mi=DB.measitems.find(function(m){return m.name===k;});
-            var unit=mi&&mi.unit?mi.unit:'';
-            return '<div style="font-size:11px;padding:4px 8px;background:#f9f9f9;border-radius:4px">'
-              +'<span style="color:#888">'+k+':</span> <b>'+vals[k]+(unit?' '+unit:'')+'</b></div>';
-          }).join('')
-          +'</div></div>';
-      }).join('')
+    var measRows=Object.keys(meas).map(function(clothId){
+      var cloth=DB.clothing.find(function(c){return c.id===clothId;});
+      var vals=meas[clothId]||{};
+      var filled=Object.keys(vals).filter(function(k){return vals[k]!==''&&vals[k]!==null&&vals[k]!==undefined;});
+      if(!filled.length)return '';
+      return '<div style="margin-bottom:16px">'
+        +'<div style="font-size:13px;font-weight:700;color:#2D6B5E;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e6f0ee">'+(cloth?cloth.name:'')+'</div>'
+        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">'
+        +filled.map(function(k){
+          var mi=DB.measitems.find(function(m){return m.name===k;});
+          var unit=mi&&mi.unit?mi.unit:'';
+          return '<div style="font-size:12px;padding:5px 8px;background:#f9f9f9;border-radius:4px;display:flex;justify-content:space-between">'
+            +'<span style="color:#888">'+k+'</span><strong>'+vals[k]+(unit?' '+unit:'')+'</strong></div>';
+        }).join('')
+        +'</div></div>';
+    }).join('');
+    if(measRows.trim()){
+      measHtml='<div style="margin-top:20px;padding-top:16px;border-top:2px dashed #e0e0e0">'
+        +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:12px">MEASUREMENTS</div>'
+        +measRows+'</div>';
+    }
+  }
+
+  // Payment summary (full only)
+  var payHtml='';
+  if(!internal){
+    payHtml='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'
+      +'<div style="padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #e8e8e8;text-align:center"><div style="font-size:9px;color:#888;font-weight:700;letter-spacing:.05em">TOTAL</div><div style="font-size:18px;font-weight:800">\u20b9'+Number(o.amount||0).toLocaleString('en-IN')+'</div></div>'
+      +'<div style="padding:10px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC;text-align:center"><div style="font-size:9px;color:#166534;font-weight:700;letter-spacing:.05em">COLLECTED</div><div style="font-size:18px;font-weight:800;color:#166534">\u20b9'+paid.toLocaleString('en-IN')+'</div></div>'
+      +'<div style="padding:10px;background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-radius:8px;border:1px solid '+(balance>0?'#FCA5A5':'#86EFAC')+';text-align:center"><div style="font-size:9px;color:'+(balance>0?'#991B1B':'#166534')+';font-weight:700;letter-spacing:.05em">BALANCE</div><div style="font-size:18px;font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">\u20b9'+balance.toLocaleString('en-IN')+'</div></div>'
       +'</div>';
   }
 
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Order Sheet</title>'
-    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:20px;color:#333}'
-    +'@media print{body{padding:10px}.no-print{display:none}}</style></head><body>'
-    +'<div class="no-print" style="margin-bottom:16px"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px">Print / Save PDF</button></div>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+(internal?'Work Order':'Order Sheet')+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:24px;color:#333;font-size:13px}@media print{.no-print{display:none}body{padding:14px}}</style></head><body>'
+    +'<div class="no-print" style="margin-bottom:14px">'
+      +'<button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
     // Header
-    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #2D6B5E;margin-bottom:16px">'
-    +'<div>'
-    +'<div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;margin-bottom:2px">RYREE BY SHREYA DESHMUKH</div>'
-    +'<div style="font-size:22px;font-weight:800;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'+(o.orderNo?'<div style="font-size:12px;color:#888;margin-top:2px;font-weight:600">Order #'+o.orderNo+'</div>':'')
-    +(cl&&cl.phone?'<div style="font-size:13px;color:#888;margin-top:2px">'+cl.phone+'</div>':'')
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2D6B5E;padding-bottom:14px;margin-bottom:16px">'
+      +'<div>'
+        +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.1em;margin-bottom:3px">RYREE BY SHREYA DESHMUKH</div>'
+        +'<div style="font-size:22px;font-weight:900;color:#2D6B5E">'+(internal?'WORK ORDER':'ORDER SHEET')+'</div>'
+        +(o.orderNo?'<div style="font-size:12px;color:#888;margin-top:3px">'+o.orderNo+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:20px;font-weight:700;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'
+        +(!internal&&cl&&cl.phone?'<div style="font-size:12px;color:#888;margin-top:2px">'+cl.phone+'</div>':'')
+        +'<div style="font-size:11px;color:#aaa;margin-top:4px">'+today+'</div>'
+        +'<div style="margin-top:6px;display:inline-block;background:#e6f0ee;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;color:#2D6B5E">'+(o.status||'Pending')+'</div>'
+      +'</div>'
     +'</div>'
-    +'<div style="text-align:right">'
-    +'<div style="font-size:10px;color:#aaa;font-weight:700;letter-spacing:.06em">ORDER DATE</div>'
-    +'<div style="font-size:14px;font-weight:700">'+today+'</div>'
-    +'<div style="margin-top:6px;background:#e6f0ee;padding:6px 12px;border-radius:6px;text-align:center">'
-    +'<div style="font-size:10px;color:#2D6B5E;font-weight:700">STATUS</div>'
-    +'<div style="font-size:14px;font-weight:800;color:#2D6B5E">'+(o.status||'Pending')+'</div>'
-    +'</div></div></div>'
-    // Payment summary
-    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">'
-    +'<div style="padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #e8e8e8"><div style="font-size:10px;color:#888;font-weight:700">TOTAL AMOUNT</div><div style="font-size:18px;font-weight:800">&#8377;'+Number(o.amount||0).toLocaleString('en-IN')+'</div></div>'
-    +'<div style="padding:10px;background:#F0FDF4;border-radius:8px;border:1px solid #86EFAC"><div style="font-size:10px;color:#166534;font-weight:700">PAID</div><div style="font-size:18px;font-weight:800;color:#166534">&#8377;'+paid.toLocaleString('en-IN')+'</div></div>'
-    +'<div style="padding:10px;background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-radius:8px;border:1px solid '+(balance>0?'#FCA5A5':'#86EFAC')+'"><div style="font-size:10px;color:'+(balance>0?'#991B1B':'#166534')+';font-weight:700">BALANCE</div><div style="font-size:18px;font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">&#8377;'+balance.toLocaleString('en-IN')+'</div></div>'
-    +'</div>'
-    // Items
-    +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:8px">ORDER ITEMS</div>'
+    +payHtml
+    +'<div style="font-size:11px;font-weight:700;color:#999;letter-spacing:.06em;margin-bottom:10px">ORDER ITEMS</div>'
     +itemsHtml
-    // Notes
-    +(o.notes?'<div style="margin-top:12px;padding:10px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a"><div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+o.notes+'</div></div>':'')
+    +(o.notes?'<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a"><div style="font-size:9px;font-weight:700;color:#92400e;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+o.notes+'</div></div>':'')
     +measHtml
-    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#aaa">Ryree by Shreya Deshmukh</div>'
+    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#ddd">Ryree by Shreya Deshmukh</div>'
     +'</body></html>';
 
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();}
   else alert('Allow popups to print.');
 }
-
-// ── WHATSAPP SHARE ORDER ──────────────────────────────────────────────────
-function whatsappOrder(orderId){
-  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
-  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
-  var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
-  var balance=Number(o.amount||0)-paid;
-  var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery}]);
-  var lines=[
-    '*Order Summary — Ryree by Shreya Deshmukh*',
-    '',
-    '*Client:* '+(cl?cl.name:'—'),
-    '*Status:* '+(o.status||'Pending'),
-    '',
-    '*Items:*',
-  ];
-  items.forEach(function(it){
-    var line='• '+it.name+(it.qty>1?' x'+it.qty:'')+(it.amount?' — ₹'+Number(it.amount).toLocaleString('en-IN'):'')+(it.delivery?' (by '+it.delivery+')':'');
-    lines.push(line);
-    if(it.itemNotes)lines.push('  _'+it.itemNotes+'_');
-  });
-  lines.push('');
-  lines.push('*Total:* ₹'+Number(o.amount||0).toLocaleString('en-IN'));
-  lines.push('*Paid:* ₹'+paid.toLocaleString('en-IN'));
-  if(balance>0)lines.push('*Balance due:* ₹'+balance.toLocaleString('en-IN'));
-  if(o.notes)lines.push('','*Notes:* '+o.notes);
-  lines.push('','_Ryree by Shreya Deshmukh_');
-
-  var text=encodeURIComponent(lines.join('\n'));
-  var phone=cl&&cl.phone?cl.phone.replace(/\D/g,''):'';
-  var url=phone?'https://wa.me/91'+phone+'?text='+text:'https://wa.me/?text='+text;
-  window.open(url,'_blank');
-}
-
-
-// ── CUSTOM PIECES ─────────────────────────────────────────────────────────
-var CP_STATUSES = ['Draft','Ready','Ordered'];
-var CP_CATEGORIES = ['Bridal','Party Wear','Casual','Festive','Western','Other'];
-
-
-
 
 
 
