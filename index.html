@@ -3644,7 +3644,32 @@ function printEstimate(){
 // ── PRINT ORDER SHEET (FULL - FOR CLIENT) ────────────────────────────────
 function printOrderSheet(orderId){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
-  _doPrintOrder(orderId,false);
+  // Ask for optional discount before printing
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Print Order Sheet'));
+  wrap.appendChild(mk('div','modal-sub','Optionally apply a discount before printing.'));
+
+  var discTypeRow=mk('div');discTypeRow.style.cssText='display:flex;gap:8px;align-items:center';
+  var pctBtn=mk('button');pctBtn.textContent='%';pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;background:#2D6B5E;color:#fff;cursor:pointer;font-weight:600';
+  var flatBtn=mk('button');flatBtn.textContent='₹';flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;background:#fff;cursor:pointer;font-weight:600;color:#555';
+  var discInp=mkInput('ps-disc','number','0 (no discount)');discInp.style.flex='1';discInp.min='0';discInp.value='0';
+  var discType='pct';
+  pctBtn.onclick=function(e){e.preventDefault();discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';};
+  flatBtn.onclick=function(e){e.preventDefault();discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';};
+  app(discTypeRow,[pctBtn,flatBtn,discInp]);
+
+  app(wrap,[
+    mkFg('Discount (optional)',discTypeRow),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Print',function(){
+        var discVal=Number(document.getElementById('ps-disc').value||0);
+        closeModal();
+        _doPrintOrder(orderId,false,discType,discVal);
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
 }
 
 // ── PRINT WORK ORDER (INTERNAL - FOR TAILOR) ─────────────────────────────
@@ -3652,12 +3677,16 @@ function printWorkOrder(orderId){
   _doPrintOrder(orderId,true);
 }
 
-function _doPrintOrder(orderId,internal){
+function _doPrintOrder(orderId,internal,discType,discVal){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
-  var balance=Number(o.amount||0)-paid;
+  discType=discType||'pct';discVal=Number(discVal||0);
+  var subtotal=Number(o.amount||0);
+  var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
+  var total=subtotal-discAmt;
+  var balance=total-paid;
   var meas=cl&&cl.measurements?cl.measurements:{};
 
   // Merge images
@@ -3754,9 +3783,17 @@ function _doPrintOrder(orderId,internal){
       ?'<div style="display:flex;justify-content:flex-end;margin:16px 0">'
         +'<table style="width:290px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;border-collapse:collapse">'
           +'<tr style="background:#f9f9f9"><td style="padding:9px 14px;color:#888;font-size:13px">Subtotal</td>'
-            +'<td style="padding:9px 14px;text-align:right;font-size:14px;font-weight:700">₹'+Number(o.amount||0).toLocaleString('en-IN')+'</td></tr>'
+            +'<td style="padding:9px 14px;text-align:right;font-size:14px;font-weight:700">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+          +(discVal>0
+            ?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td>'
+              +'<td style="padding:9px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>'
+            :'')
+          +(discVal>0
+            ?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;font-weight:600;font-size:13px">Total</td>'
+              +'<td style="padding:9px 14px;text-align:right;font-size:15px;font-weight:700;color:#2D6B5E">₹'+total.toLocaleString('en-IN')+'</td></tr>'
+            :'')
           +(paid>0
-            ?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Collected</td>'
+            ?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#888;font-size:13px">Collected</td>'
               +'<td style="padding:9px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- ₹'+paid.toLocaleString('en-IN')+'</td></tr>'
             :'')
           +'<tr style="background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #2D6B5E">'
