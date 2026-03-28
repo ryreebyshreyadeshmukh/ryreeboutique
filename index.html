@@ -233,10 +233,18 @@ firebase.initializeApp({
 var db=firebase.firestore();
 
 var DEFAULT_PW='ryree2024';
+var _cachedPw=null;
 function getPw(){
-  // Try DB.settings first (Firebase), then localStorage, then default
-  var s=DB.settings&&DB.settings.find(function(x){return x.id==='config';});
-  return (s&&s.password)||localStorage.getItem('ryree_pw')||DEFAULT_PW;
+  return _cachedPw||localStorage.getItem('ryree_pw')||DEFAULT_PW;
+}
+function loadPasswordFromFirebase(cb){
+  db.collection('settings').doc('config').get().then(function(doc){
+    if(doc.exists&&doc.data().password){
+      _cachedPw=doc.data().password;
+      localStorage.setItem('ryree_pw',doc.data().password);
+    }
+    if(cb)cb();
+  }).catch(function(){if(cb)cb();});
 }
 function isLoggedIn(){return sessionStorage.getItem('ryree_auth')==='1';}
 
@@ -253,21 +261,7 @@ function doLogin(){
   var pw=document.getElementById('login-pw').value;
   var loginBtn=document.getElementById('login-btn');
   loginBtn.disabled=true;loginBtn.textContent='Checking...';
-  db.collection('settings').doc('config').get().then(function(doc){
-    var correctPw=(doc.exists&&doc.data().password)?doc.data().password:getPw();
-    if(doc.exists&&doc.data().password)localStorage.setItem('ryree_pw',doc.data().password);
-    loginBtn.disabled=false;loginBtn.textContent='Sign in';
-    if(pw===correctPw){
-      sessionStorage.setItem('ryree_auth','1');
-      document.getElementById('login-pw').classList.remove('error');
-      document.getElementById('login-err').textContent='';
-      showApp();
-    }else{
-      document.getElementById('login-pw').classList.add('error');
-      document.getElementById('login-err').textContent='Incorrect password. Try again.';
-      document.getElementById('login-pw').value='';
-    }
-  }).catch(function(){
+  loadPasswordFromFirebase(function(){
     loginBtn.disabled=false;loginBtn.textContent='Sign in';
     if(pw===getPw()){
       sessionStorage.setItem('ryree_auth','1');
@@ -320,31 +314,15 @@ function saveNewPw(){
   if(!nw||nw.length<4){err.textContent='Must be at least 4 characters.';return;}
   if(nw!==cf){err.textContent='Passwords do not match.';return;}
   localStorage.setItem('ryree_pw',nw);
-  // Save to Firebase so all devices get the same password
+  _cachedPw=nw;
   db.collection('settings').doc('config').set({password:nw},{merge:true})
-    .then(function(){
-      if(DB.settings){
-        var s=DB.settings.find(function(x){return x.id==='config';});
-        if(s)s.password=nw;else DB.settings.push({id:'config',password:nw});
-      }
-      closeModal();alert('Password changed on all devices!');
-    })
-    .catch(function(){closeModal();alert('Password changed on this device only.');});
+    .then(function(){closeModal();alert('Password changed! All devices will use the new password.');})
+    .catch(function(){closeModal();alert('Saved locally. Will sync when online.');});
 }
 function showApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
-  // Sync Firebase password to localStorage for offline use
-  db.collection('settings').doc('config').get().then(function(doc){
-    if(doc.exists&&doc.data().password){
-      localStorage.setItem('ryree_pw',doc.data().password);
-      if(DB.settings){
-        var s=DB.settings.find(function(x){return x.id==='config';});
-        if(s)s.password=doc.data().password;
-        else DB.settings.push({id:'config',password:doc.data().password});
-      }
-    }
-  });
+  // Password already loaded via loadPasswordFromFirebase at login
   document.getElementById('export-btn').addEventListener('click',exportAllData);
   // Set sidebar date
   var dateEl=document.getElementById('sidebar-date');
