@@ -253,22 +253,33 @@ function doLogin(){
   var pw=document.getElementById('login-pw').value;
   var loginBtn=document.getElementById('login-btn');
   loginBtn.disabled=true;loginBtn.textContent='Checking...';
-  // Fetch password from Firebase first for accuracy
   db.collection('settings').doc('config').get().then(function(doc){
     var correctPw=(doc.exists&&doc.data().password)?doc.data().password:getPw();
-    // Sync to localStorage
     if(doc.exists&&doc.data().password)localStorage.setItem('ryree_pw',doc.data().password);
     loginBtn.disabled=false;loginBtn.textContent='Sign in';
     if(pw===correctPw){
-    sessionStorage.setItem('ryree_auth','1');
-    document.getElementById('login-pw').classList.remove('error');
-    document.getElementById('login-err').textContent='';
-    showApp();
-  }else{
-    document.getElementById('login-pw').classList.add('error');
-    document.getElementById('login-err').textContent='Incorrect password.';
-    document.getElementById('login-pw').value='';
-  }
+      sessionStorage.setItem('ryree_auth','1');
+      document.getElementById('login-pw').classList.remove('error');
+      document.getElementById('login-err').textContent='';
+      showApp();
+    }else{
+      document.getElementById('login-pw').classList.add('error');
+      document.getElementById('login-err').textContent='Incorrect password. Try again.';
+      document.getElementById('login-pw').value='';
+    }
+  }).catch(function(){
+    loginBtn.disabled=false;loginBtn.textContent='Sign in';
+    if(pw===getPw()){
+      sessionStorage.setItem('ryree_auth','1');
+      document.getElementById('login-pw').classList.remove('error');
+      document.getElementById('login-err').textContent='';
+      showApp();
+    }else{
+      document.getElementById('login-pw').classList.add('error');
+      document.getElementById('login-err').textContent='Incorrect password. Try again.';
+      document.getElementById('login-pw').value='';
+    }
+  });
 }
 function doLogout(){
   if(!confirm('Sign out?'))return;
