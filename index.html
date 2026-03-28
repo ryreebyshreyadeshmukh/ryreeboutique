@@ -3779,24 +3779,89 @@ var CP_CATEGORIES = ['Bridal','Party Wear','Casual','Festive','Western','Other']
 function printOrderQuotation(orderId){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+
+  // Build a modal to collect: discount type/amount + service name for Quotations module
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Generate Quotation'));
+  wrap.appendChild(mk('div','modal-sub','Set discount and choose a service name. This quotation will also be saved in the Quotations module.'));
+
+  // Service name dropdown from DB.services
+  var svcOpts=[{value:'',label:'— Select service / package —'}]
+    .concat(DB.services.map(function(s){return {value:s.name,label:s.name};}))
+    .concat([{value:'__custom__',label:'Type custom name...'}]);
+  var svcSel=mkSelect('oq-svc',svcOpts,'');
+  var customNameInp=mkInput('oq-custom-name','text','Enter service name...');
+  customNameInp.style.display='none';
+  svcSel.onchange=function(){
+    customNameInp.style.display=this.value==='__custom__'?'block':'none';
+  };
+
+  // Discount type
+  var discTypeRow=mk('div');discTypeRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:4px';
+  var discLabel=mk('div','form-label','Discount');discLabel.style.margin='0';
+  var pctBtn=mk('button');pctBtn.textContent='%';pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;background:#2D6B5E;color:#fff;cursor:pointer;font-weight:600';
+  var flatBtn=mk('button');flatBtn.textContent='₹';flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;background:#fff;cursor:pointer;font-weight:600;color:#555';
+  var discInp=mkInput('oq-disc','number','0');discInp.style.cssText='flex:1';discInp.min='0';
+  var discType='pct';
+  pctBtn.onclick=function(e){e.preventDefault();discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';};
+  flatBtn.onclick=function(e){e.preventDefault();discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';};
+  app(discTypeRow,[pctBtn,flatBtn,discInp]);
+
+  // Notes override
+  var notesInp=mk('textarea','form-input');notesInp.id='oq-notes';notesInp.rows=2;
+  notesInp.placeholder='Additional notes for this quotation...';
+  notesInp.value=o.notes||'';
+
+  app(wrap,[
+    mkFg('Service / Package name *',svcSel),
+    (function(){var fg=mk('div','form-group');app(fg,[discLabel,discTypeRow]);return fg;})(),
+    customNameInp,
+    mkFg('Notes',notesInp),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Generate & Save',function(){
+        var svcName=document.getElementById('oq-svc').value;
+        if(svcName==='__custom__') svcName=(document.getElementById('oq-custom-name').value||'').trim();
+        if(!svcName){alert('Select or enter a service name.');return;}
+        var discVal=Number(document.getElementById('oq-disc').value||0);
+        var notes=document.getElementById('oq-notes').value;
+        closeModal();
+        // Generate PDF
+        generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes);
+        // Auto-save to Quotations module
+        saveOrderAsQuotation(orderId,svcName,discType,discVal,notes);
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
+}
+
+function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var validTill=new Date(Date.now()+15*24*60*60*1000).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}]);
 
-  // Merge images from orderImages
+  // Merge images
   var itemsWithImgs=items.map(function(it,idx2){
     var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
     var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
     return Object.assign({},it,{images:imgs.filter(Boolean)});
   });
 
+  var subtotal=Number(o.amount||0);
+  var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
+  var total=subtotal-discAmt;
+  var advance=Number(o.advance||0);
+  var balance=total-advance;
+
   var itemsHtml=itemsWithImgs.map(function(it,i){
     var imgHtml='';
     if(it.images&&it.images.length>0){
-      imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
-        +it.images.map(function(src){
-          return '<img src="'+src+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';
-        }).join('')+'</div>';
+      imgHtml='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">'
+        +it.images.map(function(src){return '<img src="'+src+'" style="width:70px;height:70px;object-fit:cover;border-radius:5px;border:1px solid #e0e0e0"/>';}).join('')
+        +'</div>';
     }
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
@@ -3810,22 +3875,16 @@ function printOrderQuotation(orderId){
       +'</tr>';
   }).join('');
 
-  var total=Number(o.amount||0);
-  var advance=Number(o.advance||0);
-
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation</title>'
-    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#333;padding:28px;font-size:13px}'
-    +'table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}'
-    +'@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
-    // Print button
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation - '+(cl?cl.name:'')+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#333;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
     +'<div class="no-print"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
     +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">Close</button></div>'
-    // Header
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:20px">'
       +'<div>'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.1em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'
-        +'<div style="font-size:26px;font-weight:900;color:#2D6B5E;letter-spacing:-0.5px">QUOTATION</div>'
-        +(o.orderNo?'<div style="font-size:12px;color:#888;margin-top:4px">Ref: '+o.orderNo+'</div>':'')
+        +'<div style="font-size:26px;font-weight:900;color:#2D6B5E">QUOTATION</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:3px">'+svcName+'</div>'
+        +(o.orderNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Ref: '+o.orderNo+'</div>':'')
       +'</div>'
       +'<div style="text-align:right">'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em">DATE</div>'
@@ -3834,49 +3893,72 @@ function printOrderQuotation(orderId){
         +'<div style="font-size:14px;font-weight:700;color:#B45309">'+validTill+'</div>'
       +'</div>'
     +'</div>'
-    // Client info
     +'<div style="background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:14px 16px;margin-bottom:20px">'
-      +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em;margin-bottom:6px">PREPARED FOR</div>'
+      +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em;margin-bottom:4px">PREPARED FOR</div>'
       +'<div style="font-size:18px;font-weight:700;color:#2D6B5E">'+(cl?cl.name:'Client')+'</div>'
       +(cl&&cl.phone?'<div style="font-size:12px;color:#888;margin-top:2px">'+cl.phone+'</div>':'')
     +'</div>'
-    // Items table
-    +'<table style="margin-bottom:20px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+    +'<table style="margin-bottom:16px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
       +'<thead><tr style="background:#2D6B5E;color:#fff">'
         +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
-        +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.05em;width:60px">QTY</th>'
-        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;letter-spacing:.05em;width:110px">DELIVERY BY</th>'
-        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;letter-spacing:.05em;width:110px">AMOUNT</th>'
+        +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:60px">QTY</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">DELIVERY BY</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">AMOUNT</th>'
       +'</tr></thead>'
       +'<tbody>'+itemsHtml+'</tbody>'
     +'</table>'
-    // Totals
     +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
-      +'<table style="width:280px">'
-        +'<tr><td style="padding:6px 12px;color:#888;font-size:13px">Total Amount</td>'
-          +'<td style="padding:6px 12px;text-align:right;font-size:15px;font-weight:700">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
-        +(advance>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:6px 12px;color:#888;font-size:13px">Advance Paid</td>'
-          +'<td style="padding:6px 12px;text-align:right;font-size:13px;color:#166534">(\u20b9'+advance.toLocaleString('en-IN')+')</td></tr>':'')
-        +(advance>0?'<tr style="background:#f9fffe;border-top:2px solid #2D6B5E"><td style="padding:8px 12px;font-weight:700;font-size:13px">Balance Due</td>'
-          +'<td style="padding:8px 12px;text-align:right;font-size:16px;font-weight:800;color:#991B1B">\u20b9'+(total-advance).toLocaleString('en-IN')+'</td></tr>':'')
+      +'<table style="width:300px">'
+        +'<tr><td style="padding:6px 12px;color:#888">Subtotal</td><td style="padding:6px 12px;text-align:right;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+        +(discVal>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:6px 12px;color:#166534">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td><td style="padding:6px 12px;text-align:right;color:#166534">-\u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>':'')
+        +'<tr style="background:#f9fffe;border-top:2px solid #2D6B5E"><td style="padding:8px 12px;font-weight:700">Total</td><td style="padding:8px 12px;text-align:right;font-size:16px;font-weight:800;color:#2D6B5E">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
+        +(advance>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:6px 12px;color:#888">Advance Paid</td><td style="padding:6px 12px;text-align:right;color:#166534">-\u20b9'+advance.toLocaleString('en-IN')+'</td></tr>':'')
+        +(advance>0?'<tr style="background:#FEF2F2"><td style="padding:6px 12px;font-weight:700;color:#991B1B">Balance Due</td><td style="padding:6px 12px;text-align:right;font-weight:800;color:#991B1B">\u20b9'+balance.toLocaleString('en-IN')+'</td></tr>':'')
       +'</table>'
     +'</div>'
-    // Notes
-    +(o.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:20px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+o.notes+'</div></div>':'')
-    // T&C
-    +'<div style="border-top:1px solid #e8e8e8;padding-top:14px;font-size:11px;color:#aaa">'
+    +(notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+notes+'</div></div>':'')
+    +'<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
       +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
       +'<div>1. This quotation is valid for 15 days from the date of issue.</div>'
       +'<div>2. Cancellations before 48 hours of the day of service will forfeit the advance.</div>'
       +'<div>3. Prices are subject to change based on fabric and material availability.</div>'
     +'</div>'
-    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
+    +'<div style="margin-top:16px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
     +'</body></html>';
 
   var win=window.open('','_blank');
   if(win){win.document.write(html);win.document.close();}
-  else alert('Allow popups to generate the quotation PDF.');
+  else alert('Allow popups to generate PDF.');
 }
+
+function saveOrderAsQuotation(orderId,svcName,discType,discVal,notes){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var subtotal=Number(o.amount||0);
+  var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
+  var total=subtotal-discAmt;
+  var today=new Date().toISOString().split('T')[0];
+  var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
+
+  var quot={
+    id:uid(),
+    clientId:o.clientId,
+    clientName:DB.clients.find(function(x){return x.id===o.clientId;})?DB.clients.find(function(x){return x.id===o.clientId;}).name:'',
+    date:today,
+    validTill:validTill,
+    services:[{name:svcName,price:String(total)}],
+    travelCharges:'',
+    total:total,
+    notes:notes||o.notes||'',
+    terms:'Cancellations before 48 hours of the day of service will forfeit the advance.',
+    status:'Pending',
+    linkedOrderId:orderId,
+    linkedOrderNo:o.orderNo||'',
+    created:Date.now()
+  };
+  dbSave('quotations',quot);
+  alert('Quotation saved! Check the Quotations module to track it.');
+}
+
 
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
