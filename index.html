@@ -2703,46 +2703,121 @@ function sendQuotationWhatsApp(id){
 
 function printQuotation(id){
   var q=DB.quotations.find(function(x){return x.id===id;});if(!q)return;
-  // If linked to an order, use the better order-based quotation format
+  var cl=DB.clients.find(function(x){return x.id===q.clientId;});
+  var today=q.date||new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var validTill=q.validTill?new Date(q.validTill).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+  // If linked to order - use order items; otherwise use services list
+  var itemsHtml='';
+  var subtotal=0;
+
   if(q.linkedOrderId){
-    generateOrderQuotationPDF(q.linkedOrderId,
-      (q.services&&q.services[0])?q.services[0].name:'Bespoke Designing',
-      'flat',0,q.notes||'');
-    return;
+    var o=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
+    if(o){
+      var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
+      subtotal=Number(o.amount||0);
+      itemsHtml=items.map(function(it,idx2){
+        var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+        var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
+        imgs=imgs.filter(Boolean);
+        var imgHtml=imgs.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+imgs.map(function(src){return '<img src="'+src+'" style="width:140px;height:140px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')+'</div>':'';
+        return '<tr style="border-bottom:1px solid #f0f0f0">'
+          +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
+            +'<div style="font-weight:600">'+(idx2+1)+'. '+it.name+'</div>'
+            +(it.itemNotes?'<div style="font-size:11px;color:#888;margin-top:3px">'+it.itemNotes+'</div>':'')
+            +imgHtml
+          +'</td>'
+          +'<td style="padding:10px 12px;text-align:center;font-size:13px;vertical-align:top">'+it.qty+'</td>'
+          +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top;color:#888">'+(it.delivery||'—')+'</td>'
+          +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(it.amount?'₹'+Number(it.amount).toLocaleString('en-IN'):'—')+'</td>'
+          +'</tr>';
+      }).join('');
+      itemsHtml='<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px">'
+        +'<thead><tr style="background:#2D6B5E;color:#fff">'
+          +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
+          +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:55px">QTY</th>'
+          +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">DELIVERY BY</th>'
+          +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">AMOUNT</th>'
+        +'</tr></thead><tbody>'+itemsHtml+'</tbody></table>';
+    }
+  } else {
+    // Standalone quotation - services list
+    var svcs=q.services||[];
+    subtotal=svcs.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+    var svcRows=svcs.map(function(s,i){
+      return '<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:10px 12px;font-size:13px;vertical-align:top"><div style="font-weight:600">'+(i+1)+'. '+s.name+'</div></td>'
+        +'<td style="padding:10px 12px;text-align:center;font-size:13px;vertical-align:top">1</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top;color:#888">—</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(s.price?'₹'+Number(s.price).toLocaleString('en-IN'):'—')+'</td>'
+        +'</tr>';
+    }).join('');
+    if(Number(q.travelCharge||0)>0){
+      svcRows+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 12px;font-size:13px;color:#888">Travel / extra charges</td><td></td><td></td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;color:#888">₹'+Number(q.travelCharge).toLocaleString('en-IN')+'</td></tr>';
+    }
+    itemsHtml='<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px">'
+      +'<thead><tr style="background:#2D6B5E;color:#fff">'
+        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">SERVICE / PACKAGE</th>'
+        +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:55px">QTY</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">DATE</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">AMOUNT</th>'
+      +'</tr></thead><tbody>'+svcRows+'</tbody></table>';
   }
-  var total=q.services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
-  var svcRows=q.services.map(function(s){return '<tr><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0">'+s.name+'</td><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#2D6B5E">'+rupee(s.price||0)+'</td></tr>';}).join('');
-  if(Number(q.travelCharge||0)>0)svcRows+='<tr><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;color:#888">Travel / extra charges</td><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#888">'+rupee(q.travelCharge)+'</td></tr>';
-  var termsHtml=q.terms?q.terms.split('\n').filter(function(t){return t.trim();}).map(function(t,i){return '<div style="font-size:12px;color:#555;margin-bottom:4px">'+(i+1)+'. '+t.trim()+'</div>';}).join(''):'';
-  var serviceDateHtml=q.serviceDate?'<div style="background:#e6f0ee;border-radius:6px;padding:8px 12px;font-size:12px;color:#2D6B5E;margin-bottom:12px"><strong>Service date & time:</strong> '+new Date(q.serviceDate).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div>':'';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate"><meta http-equiv="pragma" content="no-cache"><meta http-equiv="expires" content="0"><title>Quotation - '+q.clientName+'</title>'+
-    '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;padding:30px;color:#1a1a1a}@media print{body{padding:15px}}</style></head><body>'+
-    '<div style="max-width:560px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden">'+
-    '<div style="background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start">'+
-    '<div><div style="color:#C9A84C;font-size:20px;font-weight:800;letter-spacing:.05em">RYREE</div><div style="color:rgba(201,168,76,.7);font-size:11px;margin-top:2px">by Shreya Deshmukh · Beauty & Styling</div></div>'+
-    '<div style="text-align:right;color:rgba(201,168,76,.85);font-size:12px"><div style="font-size:15px;font-weight:700;margin-bottom:2px">QUOTATION</div><div>Date: '+q.date+'</div><div>Valid till: '+(q.validTill||'—')+'</div></div></div>'+
-    '<div style="padding:20px 24px">'+
-    '<div style="margin-bottom:16px"><div style="font-size:18px;font-weight:700">'+q.clientName+'</div>'+
-    (q.clientPhone?'<div style="font-size:12px;color:#888;margin-top:2px">'+q.clientPhone+'</div>':'')+
-    '</div>'+serviceDateHtml+
-    '<table style="width:100%;border-collapse:collapse;border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:16px">'+
-    '<thead><tr style="background:#fafafa"><th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Service / Package</th>'+
-    '<th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em">Amount</th></tr></thead>'+
-    '<tbody>'+svcRows+'</tbody>'+
-    '<tfoot><tr style="background:#e6f0ee"><td style="padding:12px 16px;font-weight:700;font-size:15px">Total</td>'+
-    '<td style="padding:12px 16px;text-align:right;font-weight:800;font-size:17px;color:#2D6B5E">'+rupee(total)+'</td></tr></tfoot></table>'+
-    (q.notes?'<div style="background:#fafafa;border-left:3px solid #C9A84C;padding:10px 14px;font-size:13px;color:#555;margin-bottom:16px;border-radius:0 6px 6px 0"><strong>Notes:</strong> '+q.notes+'</div>':'')+
-    (termsHtml?'<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Terms & Conditions</div>'+termsHtml+'</div>':'')+
-    '</div>'+
-    '<div style="background:#f9f9f9;padding:12px 24px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #f0f0f0">'+
-    'Ryree by Shreya Deshmukh · This quotation is valid till '+(q.validTill||'—')+'</div></div></body></html>';
+
+  // Totals
+  var totalAfterDisc=subtotal;
+  var totalsHtml='<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
+    +'<table style="width:290px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;border-collapse:collapse">'
+      +'<tr style="background:#f9f9f9"><td style="padding:9px 14px;color:#888;font-size:13px">Subtotal</td>'
+        +'<td style="padding:9px 14px;text-align:right;font-size:14px;font-weight:700">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+      +'<tr style="background:#f0fdf4;border-top:2px solid #2D6B5E"><td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td>'
+        +'<td style="padding:10px 14px;text-align:right;font-size:17px;font-weight:900;color:#2D6B5E">₹'+totalAfterDisc.toLocaleString('en-IN')+'</td></tr>'
+    +'</table></div>';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation - '+(cl?cl.name:q.clientName||'')+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#333;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
+    +'<div class="no-print"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+    +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button></div>'
+    // Header
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:20px">'
+      +'<div>'
+        +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.1em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'
+        +'<div style="font-size:26px;font-weight:900;color:#2D6B5E">QUOTATION</div>'
+        +(q.services&&q.services[0]?'<div style="font-size:12px;color:#888;margin-top:3px">'+q.services[0].name+'</div>':'')
+        +(q.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Ref: '+q.linkedOrderNo+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em">DATE</div>'
+        +'<div style="font-size:14px;font-weight:700;margin-bottom:8px">'+today+'</div>'
+        +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em">VALID TILL</div>'
+        +'<div style="font-size:14px;font-weight:700;color:#B45309">'+validTill+'</div>'
+      +'</div>'
+    +'</div>'
+    // Client
+    +'<div style="background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:14px 16px;margin-bottom:20px">'
+      +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em;margin-bottom:4px">PREPARED FOR</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#2D6B5E">'+(cl?cl.name:q.clientName||'Client')+'</div>'
+      +((cl&&cl.phone)||q.clientPhone?'<div style="font-size:12px;color:#888;margin-top:2px">'+((cl&&cl.phone)||q.clientPhone)+'</div>':'')
+    +'</div>'
+    +itemsHtml
+    +totalsHtml
+    +(q.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+q.notes+'</div></div>':'')
+    +'<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
+      +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
+      +'<div>1. This quotation is valid for 15 days from the date of issue.</div>'
+      +'<div>2. Cancellations before 48 hours of the day of service will forfeit the advance.</div>'
+      +'<div>3. Prices are subject to change based on fabric and material availability.</div>'
+    +'</div>'
+    +'<div style="margin-top:16px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
+    +'</body></html>';
+
   var win=window.open('','_blank');
   if(win){
     win.document.open();
     win.document.write(html);
     win.document.close();
-    win.document.title='Quotation - '+q.clientName;
-    setTimeout(function(){win.print();},500);
+    win.document.title='Quotation - '+(cl?cl.name:q.clientName||'');
   }
   else alert('Allow popups to print.');
 }
