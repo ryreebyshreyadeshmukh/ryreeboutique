@@ -2629,36 +2629,66 @@ function saveQuotation(id){
 
 function viewQuotation(id){
   var q=DB.quotations.find(function(x){return x.id===id;});if(!q)return;
-  var total=q.services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+  var cl=DB.clients.find(function(x){return x.id===q.clientId;});
+  var svcs=q.services||[];
+  var total=svcs.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
   var wrap=mk('div');
+
+  // Header
+  wrap.appendChild(mk('div','modal-title','Quotation — '+(cl?cl.name:q.clientName||'')));
   var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #f0f0f0';
   var left=mk('div');
-  var nm=mk('div');nm.style.cssText='font-size:16px;font-weight:600';nm.textContent=q.clientName||'—';
-  var dt=mk('div');dt.style.cssText='font-size:12px;color:#888;margin-top:2px';dt.textContent='Quotation date: '+q.date+(q.validTill?' · Valid till: '+q.validTill:'');
+  var nm=mk('div');nm.style.cssText='font-size:16px;font-weight:600';nm.textContent=(cl?cl.name:q.clientName)||'—';
+  var dt=mk('div');dt.style.cssText='font-size:12px;color:#888;margin-top:2px';
+  dt.textContent='Date: '+q.date+(q.validTill?' · Valid till: '+q.validTill:'');
   app(left,[nm,dt]);
+  if(q.linkedOrderNo){var ref=mk('div');ref.style.cssText='font-size:11px;color:#aaa;margin-top:2px';ref.textContent='Order ref: '+q.linkedOrderNo;left.appendChild(ref);}
   var right=mk('div');right.style.textAlign='right';
-  var amt=mk('div');amt.style.cssText='font-size:20px;font-weight:700;color:#2D6B5E';amt.textContent=rupee(total);
-  right.appendChild(amt);
+  var amt=mk('div');amt.style.cssText='font-size:22px;font-weight:800;color:#2D6B5E';amt.textContent=rupee(total);
+  var statusBadge=mk('div');statusBadge.style.cssText='font-size:11px;font-weight:700;color:#888;margin-top:4px';statusBadge.textContent=q.status||'Pending';
+  app(right,[amt,statusBadge]);
   app(hdr,[left,right]);
+  wrap.appendChild(hdr);
 
-  var svcTitle=mk('div','section-title','Services');svcTitle.style.margin='0 0 8px';
-  var svcTable=mkTable(['Service / Package','Amount']);
-  q.services.forEach(function(s){
-    var tr=mk('tr');
-    var nameTd=mk('td');nameTd.textContent=s.name;
-    var priceTd=mk('td');priceTd.style.cssText='font-weight:600;color:#2D6B5E';priceTd.textContent=rupee(s.price||0);
-    app(tr,[nameTd,priceTd]);svcTable.appendChild(tr);
-  });
-  if(Number(q.travelCharge||0)>0){
-    var ttr=mk('tr');var ttd=mk('td');ttd.textContent='Travel / extra charges';var tpd=mk('td');tpd.style.cssText='font-weight:600;color:#888';tpd.textContent=rupee(q.travelCharge);app(ttr,[ttd,tpd]);svcTable.appendChild(ttr);
+  // Items/Services list
+  var itemsContainer=mk('div');itemsContainer.style.cssText='border:1px solid #f0f0f0;border-radius:8px;overflow:hidden;margin-bottom:12px';
+
+  if(q.linkedOrderId){
+    // Show order items
+    var o2=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
+    var orderItems=o2?o2.items||[{name:o2.item,qty:1,amount:o2.amount}]:svcs.map(function(s){return {name:s.name,qty:1,amount:s.price};});
+    orderItems.forEach(function(it,i){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;'+(i<orderItems.length-1?'border-bottom:1px solid #f0f0f0;':'')+'background:'+(i%2===0?'#fff':'#fafafa');
+      var left2=mk('div');
+      var iname=mk('div');iname.style.cssText='font-size:13px;font-weight:600;color:#333';iname.textContent=(i+1)+'. '+it.name+(it.qty>1?' (x'+it.qty+')':'');
+      left2.appendChild(iname);
+      if(it.itemNotes){var inotes=mk('div');inotes.style.cssText='font-size:11px;color:#888;margin-top:2px';inotes.textContent=it.itemNotes;left2.appendChild(inotes);}
+      var iprice=mk('div');iprice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;white-space:nowrap;margin-left:12px';iprice.textContent=it.amount?rupee(it.amount):'—';
+      app(row,[left2,iprice]);itemsContainer.appendChild(row);
+    });
+  } else {
+    // Show services
+    svcs.forEach(function(s,i){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;'+(i<svcs.length-1?'border-bottom:1px solid #f0f0f0;':'')+'background:'+(i%2===0?'#fff':'#fafafa');
+      var sname=mk('div');sname.style.cssText='font-size:13px;color:#333';sname.textContent=s.name||'—';
+      var sprice=mk('div');sprice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';sprice.textContent=rupee(s.price||0);
+      app(row,[sname,sprice]);itemsContainer.appendChild(row);
+    });
+    if(Number(q.travelCharge||0)>0){
+      var trow=mk('div');trow.style.cssText='display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid #f0f0f0;background:#fafafa';
+      var tn=mk('div');tn.style.cssText='font-size:13px;color:#888';tn.textContent='Travel / extra charges';
+      var tp=mk('div');tp.style.cssText='font-size:13px;font-weight:600;color:#888';tp.textContent=rupee(q.travelCharge);
+      app(trow,[tn,tp]);itemsContainer.appendChild(trow);
+    }
   }
-  var totalRow=mk('tr');totalRow.style.cssText='background:#f9f9f9;font-weight:700';
-  var t1=mk('td');t1.textContent='Total';var t2=mk('td');t2.style.cssText='font-weight:700;color:#2D6B5E;font-size:15px';t2.textContent=rupee(total);
-  app(totalRow,[t1,t2]);svcTable.appendChild(totalRow);
+  // Total row
+  var totalRow=mk('div');totalRow.style.cssText='display:flex;justify-content:space-between;padding:12px 14px;background:#e6f0ee;border-top:2px solid #2D6B5E';
+  var tl=mk('div');tl.style.cssText='font-size:14px;font-weight:700';tl.textContent='Total';
+  var tr2=mk('div');tr2.style.cssText='font-size:16px;font-weight:800;color:#2D6B5E';tr2.textContent=rupee(total);
+  app(totalRow,[tl,tr2]);itemsContainer.appendChild(totalRow);
+  wrap.appendChild(itemsContainer);
 
-  app(wrap,[mk('div','modal-title','Quotation — '+q.clientName),hdr,svcTitle,mk('div','card-p0',[svcTable])]);
-  if(q.serviceDate){var sd=mk('div');sd.style.cssText='margin-top:12px;padding:10px 14px;background:#e6f0ee;border-radius:8px;font-size:13px;color:#2D6B5E';sd.textContent='Service date: '+new Date(q.serviceDate).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});wrap.appendChild(sd);}
-  if(q.notes){var nn=mk('div');nn.style.cssText='margin-top:10px;padding:10px 14px;background:#fafafa;border-radius:8px;font-size:13px;color:#555';nn.textContent='Notes: '+q.notes;wrap.appendChild(nn);}
+  if(q.notes){var nn=mk('div');nn.style.cssText='padding:10px 14px;background:#fffbeb;border-radius:8px;font-size:13px;color:#555;border:1px solid #fde68a;margin-bottom:10px';nn.textContent='Notes: '+q.notes;wrap.appendChild(nn);}
   wrap.appendChild(mkActions([
     mkBtn('Edit',function(){closeModal();setTimeout(function(){openQuotationModal(id);},100);},'btn'),
     mkBtn('WhatsApp',function(){sendQuotationWhatsApp(id);},'btn btn-primary'),
