@@ -2460,7 +2460,7 @@ function pgQuotations(){
 
     var acts=mkRow('display:flex;gap:5px');
     var viewBtn=mkBtn('View',function(){viewQuotation(q.id);},'btn btn-xs');
-    var waBtn=mkBtn('WhatsApp',function(){sendQuotationWhatsApp(q.id);},'btn btn-xs btn-primary');waBtn.style.fontSize='11px';
+    var editBtn=mkBtn('Edit',function(){openQuotationModal(q.id);},'btn btn-xs');
     var printBtn=mkBtn('Print',function(){printQuotation(q.id);},'btn btn-xs');
     var delBtn=mk('button','btn-danger','Del');delBtn.setAttribute('data-qid',q.id);
     delBtn.onclick=function(){if(confirm('Delete quotation?'))dbDel('quotations',this.getAttribute('data-qid'));};
