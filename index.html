@@ -336,7 +336,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={settings:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],tctemplates:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -346,7 +346,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','tctemplates','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -2565,8 +2565,25 @@ function openQuotationModal(id){
   var validStr=validDate.toISOString().split('T')[0];
 
   // Terms
-  var termsArea=mk('textarea','form-input');termsArea.id='quot-terms';termsArea.rows=4;
+  // T&C template picker
+  var tcWrap=mk('div');tcWrap.style.cssText='margin-bottom:4px';
+  var tcPickLabel=mk('div','form-label','Terms & Conditions');
+  var tcRow=mk('div');tcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  var tcTemplOpts=[{value:'',label:'— Load from template —'}]
+    .concat(DB.tctemplates.map(function(t){return {value:t.id,label:t.name};}));
+  var tcSel=mkSelect('quot-tc-sel',tcTemplOpts,'');
+  tcSel.style.flex='1';
+  var tcLoadBtn=mkBtn('Load',function(){
+    var tid=document.getElementById('quot-tc-sel').value;
+    if(!tid)return;
+    var tmpl=DB.tctemplates.find(function(t){return t.id===tid;});
+    if(tmpl)document.getElementById('quot-terms').value=tmpl.terms;
+  },'btn btn-xs');
+  app(tcRow,[tcSel,tcLoadBtn]);
+  var termsArea=mk('textarea','form-input');termsArea.id='quot-terms';termsArea.rows=5;
   termsArea.value=q?(q.terms||DEFAULT_TERMS.join('\n')):(DEFAULT_TERMS.join('\n'));
+  termsArea.placeholder='Enter terms & conditions...';
+  app(tcWrap,[tcPickLabel,tcRow,termsArea]);
 
   var clientSel=mkClientSelect('quot-client',q?(q.clientId||''):'');
   var clientNameInp=mkInput('quot-client-name','text','Client name (if not in list)',q?(q.clientName||''):'');
@@ -3534,6 +3551,39 @@ function pgEstimator(){
   wrap.appendChild(body);
   setTimeout(function(){renderEstimatorBody();},0);
   return wrap;
+}
+
+
+// ── T&C TEMPLATES ─────────────────────────────────────────────────────────
+function openTCTemplateModal(id){
+  var t=id?DB.tctemplates.find(function(x){return x.id===id;}):null;
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',(id?'Edit':'New')+' T&C Template'));
+  var nameInp=mkInput('tct-name','text','e.g. Bridal Package, Custom Stitching...',t?t.name:'');
+  var termsTA=mk('textarea','form-input');termsTA.id='tct-terms';termsTA.rows=8;
+  termsTA.placeholder='Enter terms & conditions (one per line)...';
+  termsTA.value=t?t.terms:DEFAULT_TERMS.join('\n');
+  app(wrap,[
+    mkFg('Template name *',nameInp),
+    mkFg('Terms & Conditions',termsTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(id?'Save':'Create',function(){
+        var name=document.getElementById('tct-name').value.trim();
+        if(!name){alert('Enter a template name.');return;}
+        dbSave('tctemplates',{
+          id:id||uid(),
+          name:name,
+          terms:document.getElementById('tct-terms').value.trim(),
+          created:t?t.created:Date.now()
+        });
+        closeModal();
+        nav('settings');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
+  setTimeout(function(){document.getElementById('tct-name').focus();},50);
 }
 
 function renderEstimatorBody(){
