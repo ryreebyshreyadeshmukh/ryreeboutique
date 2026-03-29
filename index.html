@@ -2851,11 +2851,12 @@ function printQuotation(id){
     +totalsHtml
     +(q.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+q.notes+'</div></div>':'')
     +(function(){
-      var tcLines=(terms||[
+      var tcSrc=q.terms||[
         'This quotation is valid for 15 days from the date of issue.',
         'Cancellations before 48 hours of the day of service will forfeit the advance.',
         'Prices are subject to change based on fabric and material availability.'
-      ].join('\n')).split('\n').filter(function(l){return l.trim();});
+      ].join('\n');
+      var tcLines=tcSrc.split('\n').filter(function(l){return l.trim();});
       return '<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
         +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
         +tcLines.map(function(l,i){return '<div>'+(i+1)+'. '+l.trim()+'</div>';}).join('')
@@ -4195,11 +4196,12 @@ function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms)
     +'</div>'
     +(notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+notes+'</div></div>':'')
     +(function(){
-      var tcLines=(terms||[
+      var tcSrc=q.terms||[
         'This quotation is valid for 15 days from the date of issue.',
         'Cancellations before 48 hours of the day of service will forfeit the advance.',
         'Prices are subject to change based on fabric and material availability.'
-      ].join('\n')).split('\n').filter(function(l){return l.trim();});
+      ].join('\n');
+      var tcLines=tcSrc.split('\n').filter(function(l){return l.trim();});
       return '<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
         +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
         +tcLines.map(function(l,i){return '<div>'+(i+1)+'. '+l.trim()+'</div>';}).join('')
