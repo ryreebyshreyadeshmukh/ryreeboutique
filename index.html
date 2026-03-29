@@ -189,6 +189,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-measitems" data-page="measitems">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M2 4h4M2 12h4M10 4h4M10 12h4" stroke-linecap="round"/></svg>Measurement Items
     </div>
+    <div class="nav-item" id="nav-tctemplates" data-page="tctemplates">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4" stroke-linecap="round"/><path d="M9 11l1 1 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>T&amp;C Templates
+    </div>
     <div class="nav-item" id="nav-estsettings" data-page="estsettings">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
     </div>
@@ -581,7 +584,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -3556,42 +3559,6 @@ function pgEstimator(){
   wrap.appendChild(body);
   setTimeout(function(){renderEstimatorBody();},0);
 
-  // ── T&C TEMPLATES SECTION ─────────────────────────────────────────
-  var tcSec=mk('div');tcSec.style.cssText='margin-top:32px';
-  var tcHdr=mk('div');tcHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:14px';
-  var tcTitle=mk('div','section-title','Terms & Conditions Templates');tcTitle.style.margin='0';
-  var tcAddBtn=mkBtn('+ Add Template',function(){openTCTemplateModal();},'btn btn-primary btn-sm');
-  app(tcHdr,[tcTitle,tcAddBtn]);
-  tcSec.appendChild(tcHdr);
-  var tcList=mk('div');
-  if(!DB.tctemplates.length){
-    var tcEmpty=mk('div');tcEmpty.style.cssText='color:#aaa;font-size:13px;padding:12px;background:#fafafa;border-radius:8px;text-align:center';
-    tcEmpty.textContent='No templates yet. Click "+ Add Template" to create your first.';
-    tcList.appendChild(tcEmpty);
-  } else {
-    DB.tctemplates.forEach(function(t){
-      var card=mk('div','card');card.style.cssText='padding:12px 16px;margin-bottom:10px';
-      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:12px';
-      var info=mk('div');info.style.flex='1';
-      var tname=mk('div');tname.style.cssText='font-size:14px;font-weight:700;color:#2D6B5E;margin-bottom:6px';tname.textContent=t.name;
-      var tterms=mk('div');tterms.style.cssText='font-size:12px;color:#666;white-space:pre-wrap;line-height:1.5';tterms.textContent=t.terms;
-      app(info,[tname,tterms]);
-      var btns=mk('div');btns.style.cssText='display:flex;gap:6px;flex-shrink:0';
-      var editBtn=mkBtn('Edit',function(){openTCTemplateModal(t.id);},'btn btn-xs');
-      var delBtn=mk('button','btn-danger');delBtn.textContent='Del';delBtn.style.padding='3px 8px';
-      delBtn.setAttribute('data-tid',t.id);
-      delBtn.onclick=function(){
-        if(!confirm('Delete "'+t.name+'"?'))return;
-        dbDel('tctemplates',this.getAttribute('data-tid'));
-        nav('settings');
-      };
-      app(btns,[editBtn,delBtn]);
-      app(row,[info,btns]);card.appendChild(row);
-      tcList.appendChild(card);
-    });
-  }
-  tcSec.appendChild(tcList);
-  wrap.appendChild(tcSec);
   return wrap;
 }
 
@@ -3620,7 +3587,7 @@ function openTCTemplateModal(id){
           created:t?t.created:Date.now()
         });
         closeModal();
-        nav('settings');
+        nav('tctemplates');
       },'btn btn-primary')
     ])
   ]);
@@ -4248,6 +4215,45 @@ function saveOrderAsQuotation(orderId,svcName,discType,discVal,notes,terms){
 }
 
 
+
+
+// ── T&C TEMPLATES PAGE ───────────────────────────────────────────────────
+function pgTCTemplates(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('T&C Templates','Reusable Terms & Conditions for quotations',
+    mkBtn('+ New Template',function(){openTCTemplateModal();},'btn btn-primary')));
+
+  if(!DB.tctemplates.length){
+    var empty=mk('div','card');
+    var msg=mk('div');msg.style.cssText='text-align:center;padding:24px';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No templates yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888';s.textContent='Create templates for Bridal, Custom Stitching, Alterations etc. and load them into any quotation.';
+    app(msg,[t,s]);app(empty,[msg]);wrap.appendChild(empty);
+    return wrap;
+  }
+
+  DB.tctemplates.slice().sort(function(a,b){return (a.created||0)-(b.created||0);}).forEach(function(t){
+    var card=mk('div','card');card.style.cssText='padding:16px;margin-bottom:12px';
+    var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px';
+    var tname=mk('div');tname.style.cssText='font-size:15px;font-weight:700;color:#2D6B5E';tname.textContent=t.name;
+    var btns=mk('div');btns.style.cssText='display:flex;gap:6px;flex-shrink:0';
+    var editBtn=mkBtn('Edit',function(){openTCTemplateModal(t.id);},'btn btn-xs');
+    var delBtn=mk('button','btn-danger');delBtn.textContent='Del';delBtn.style.padding='3px 8px';
+    delBtn.setAttribute('data-tid',t.id);
+    delBtn.onclick=function(){
+      if(!confirm('Delete "'+t.name+'"?'))return;
+      dbDel('tctemplates',this.getAttribute('data-tid'));
+    };
+    app(btns,[editBtn,delBtn]);
+    app(hdr,[tname,btns]);
+    var tterms=mk('div');tterms.style.cssText='font-size:12px;color:#555;white-space:pre-wrap;line-height:1.7;background:#f9f9f9;padding:10px 14px;border-radius:6px;border:1px solid #f0f0f0';
+    tterms.textContent=t.terms;
+    app(card,[hdr,tterms]);
+    wrap.appendChild(card);
+  });
+
+  return wrap;
+}
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
