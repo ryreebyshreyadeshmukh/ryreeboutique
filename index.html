@@ -2703,6 +2703,13 @@ function sendQuotationWhatsApp(id){
 
 function printQuotation(id){
   var q=DB.quotations.find(function(x){return x.id===id;});if(!q)return;
+  // If linked to an order, use the better order-based quotation format
+  if(q.linkedOrderId){
+    generateOrderQuotationPDF(q.linkedOrderId,
+      (q.services&&q.services[0])?q.services[0].name:'Bespoke Designing',
+      'flat',0,q.notes||'');
+    return;
+  }
   var total=q.services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
   var svcRows=q.services.map(function(s){return '<tr><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0">'+s.name+'</td><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#2D6B5E">'+rupee(s.price||0)+'</td></tr>';}).join('');
   if(Number(q.travelCharge||0)>0)svcRows+='<tr><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;color:#888">Travel / extra charges</td><td style="padding:9px 16px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;color:#888">'+rupee(q.travelCharge)+'</td></tr>';
@@ -2730,7 +2737,13 @@ function printQuotation(id){
     '<div style="background:#f9f9f9;padding:12px 24px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #f0f0f0">'+
     'Ryree by Shreya Deshmukh · This quotation is valid till '+(q.validTill||'—')+'</div></div></body></html>';
   var win=window.open('','_blank');
-  if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
+  if(win){
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.document.title='Quotation - '+q.clientName;
+    setTimeout(function(){win.print();},500);
+  }
   else alert('Allow popups to print.');
 }
 
