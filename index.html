@@ -3092,20 +3092,17 @@ function renderTaskBoard(){
   var today=new Date().toISOString().split('T')[0];
 
   var filtered=DB.tasks.filter(function(t){
-    if(_taskFilter==='todo') return t.status==='todo';
-    if(_taskFilter==='inprogress') return t.status==='inprogress';
+    if(_taskFilter==='__all__') return t.status!=='done';
+    if(_taskFilter==='__unassigned__') return !t.assignedTo&&t.status!=='done';
     if(_taskFilter==='done') return t.status==='done';
-    if(_taskFilter==='overdue') return t.dueDate&&t.dueDate<today&&t.status!=='done';
-    if(_taskFilter==='mine') return !t.assignedTo;
-    return true;
+    if(_taskFilter==='bystaff') return t.status!=='done';
+    // Staff ID — filter to that person's active tasks
+    return t.assignedTo===_taskFilter&&t.status!=='done';
   }).sort(function(a,b){
-    // Sort: overdue first, then by due date, then by created
-    var aOver=a.dueDate&&a.dueDate<today&&a.status!=='done';
-    var bOver=b.dueDate&&b.dueDate<today&&b.status!=='done';
-    if(aOver&&!bOver)return -1;
-    if(!aOver&&bOver)return 1;
-    if(a.dueDate&&b.dueDate)return a.dueDate.localeCompare(b.dueDate);
-    return (b.created||0)-(a.created||0);
+    var pOrder={high:0,medium:1,low:2};
+    var pd=(pOrder[a.priority]||1)-(pOrder[b.priority]||1);
+    if(pd!==0)return pd;
+    return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
   });
 
   if(!filtered.length){
@@ -3113,7 +3110,53 @@ function renderTaskBoard(){
     empty.textContent='No tasks found.';board.appendChild(empty);return;
   }
 
-  // Simple flat list — grouped by assignee if bystaff filter
+  // Staff ID selected — show their tasks by priority
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'){
+    board.style.gridTemplateColumns='1fr';
+    if(!filtered.length){
+      var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
+      emp2.textContent='No active tasks.';board.appendChild(emp2);return;
+    }
+    var pGroups={high:[],medium:[],low:[]};
+    filtered.forEach(function(t){var p=t.priority||'medium';if(pGroups[p])pGroups[p].push(t);});
+    var pLabels={high:'High Priority',medium:'Medium Priority',low:'Low Priority'};
+    var pColors2={high:'#991B1B',medium:'#B45309',low:'#166534'};
+    var pBgs2={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+    ['high','medium','low'].forEach(function(p){
+      if(!pGroups[p].length)return;
+      var ph=mk('div');ph.style.cssText='font-size:11px;font-weight:700;color:'+pColors2[p]+';background:'+pBgs2[p]+';padding:4px 10px;border-radius:20px;display:inline-block;margin:10px 0 8px';
+      ph.textContent=pLabels[p]+' ('+pGroups[p].length+')';board.appendChild(ph);
+      var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-bottom:4px';
+      pGroups[p].forEach(function(t){grid.appendChild(buildTaskCard(t,today));});
+      board.appendChild(grid);
+    });
+    return;
+  }
+
+  // Staff ID selected — show their tasks by priority
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'){
+    board.style.gridTemplateColumns='1fr';
+    if(!filtered.length){
+      var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
+      emp2.textContent='No active tasks.';board.appendChild(emp2);return;
+    }
+    var pGroups={high:[],medium:[],low:[]};
+    filtered.forEach(function(t){var p=t.priority||'medium';if(pGroups[p])pGroups[p].push(t);});
+    var pLabels={high:'High Priority',medium:'Medium Priority',low:'Low Priority'};
+    var pColors2={high:'#991B1B',medium:'#B45309',low:'#166534'};
+    var pBgs2={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+    ['high','medium','low'].forEach(function(p){
+      if(!pGroups[p].length)return;
+      var ph=mk('div');ph.style.cssText='font-size:11px;font-weight:700;color:'+pColors2[p]+';background:'+pBgs2[p]+';padding:4px 10px;border-radius:20px;display:inline-block;margin:10px 0 8px';
+      ph.textContent=pLabels[p]+' ('+pGroups[p].length+')';board.appendChild(ph);
+      var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-bottom:4px';
+      pGroups[p].forEach(function(t){grid.appendChild(buildTaskCard(t,today));});
+      board.appendChild(grid);
+    });
+    return;
+  }
+
+  // Grouped by assignee (bystaff view)
   if(_taskFilter==='bystaff'){
     var groups={};
     filtered.forEach(function(t){
