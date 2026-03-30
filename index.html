@@ -1598,7 +1598,7 @@ function pgDashboard(){
 
       // Assignee header
       var grpHdr=mk('div');grpHdr.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 16px;background:#f9fffe;border-bottom:1px solid #e6f0ee;cursor:pointer';
-      grpHdr.onclick=function(){_taskFilter=key;nav('tasks');};
+      grpHdr.onclick=(function(k){return function(){_taskFilter=k;nav('tasks');};})(key);
       if(st){
         var av3=mkAvatar(st.name,24);av3.style.cssText='width:24px;height:24px;font-size:10px;display:inline-flex;flex-shrink:0';
         var sname2=mk('span');sname2.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';sname2.textContent=st.name;
@@ -3063,14 +3063,15 @@ function pgTasks(){
 
   staffInTasks.forEach(function(s){
     var isActive=_taskFilter===s.id;
-    var btn2=mkBtn(s.name+(s.count?' ('+s.count+')':''),function(){
-      _taskFilter=s.id;
-      // Update active state on all tabs
-      tabsDiv.querySelectorAll('button').forEach(function(b){
-        b.className=b.getAttribute('data-filter')===_taskFilter?'btn btn-primary btn-sm':'btn btn-sm';
-      });
-      renderTaskBoard();
-    },isActive?'btn btn-primary btn-sm':'btn btn-sm');
+    var btn2=mkBtn(s.name+(s.count?' ('+s.count+')':''),(function(sid){
+      return function(){
+        _taskFilter=sid;
+        tabsDiv.querySelectorAll('button').forEach(function(b){
+          b.className=b.getAttribute('data-filter')===_taskFilter?'btn btn-primary btn-sm':'btn btn-sm';
+        });
+        renderTaskBoard();
+      };
+    })(s.id),isActive?'btn btn-primary btn-sm':'btn btn-sm');
     btn2.setAttribute('data-filter',s.id);
     tabsDiv.appendChild(btn2);
   });
