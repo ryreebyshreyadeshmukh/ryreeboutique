@@ -4140,15 +4140,17 @@ function printOrderQuotation(orderId){
     mkActions([
       mkBtn('Cancel',closeModal),
       mkBtn('Generate & Save',function(){
+        // Read ALL values before closeModal removes DOM elements
         var svcName=document.getElementById('oq-svc').value;
-        if(svcName==='__custom__') svcName=(document.getElementById('oq-custom-name').value||'').trim();
+        if(svcName==='__custom__') svcName=((document.getElementById('oq-custom-name')||{}).value||'').trim();
         if(!svcName){alert('Select or enter a service name.');return;}
-        var discVal=Number(document.getElementById('oq-disc').value||0);
-        var notes=document.getElementById('oq-notes').value;
-        var terms=document.getElementById('oq-terms').value;
+        var discVal=Number((document.getElementById('oq-disc')||{}).value||0);
+        var notes=(document.getElementById('oq-notes')||{}).value||'';
+        var termsEl=document.getElementById('oq-terms');
+        var terms=termsEl?termsEl.value:'';
         closeModal();
-        generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms);
         saveOrderAsQuotation(orderId,svcName,discType,discVal,notes,terms);
+        generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms);
       },'btn btn-primary')
     ])
   ]);
