@@ -1083,12 +1083,12 @@ function pgOrders(){
     delBtn.onclick=function(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
-    var printBtn=mkBtn('Print',function(){printOrderSheet(o.id);},'btn btn-xs');
+    var invoiceBtn=mkBtn('Invoice',function(){printOrderInvoice(o.id);},'btn btn-xs');
     var workBtn=mkBtn('Work Order',function(){printWorkOrder(o.id);},'btn btn-xs');
     workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
     var quotBtn=mkBtn('Quotation',function(){printOrderQuotation(o.id);},'btn btn-xs');
     quotBtn.style.cssText+='color:#1E40AF;border-color:#BFDBFE';
-    app(acts,[collectBtn,quotBtn,printBtn,workBtn,editBtn,delBtn]);
+    app(acts,[collectBtn,quotBtn,invoiceBtn,workBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -4331,6 +4331,115 @@ function pgTCTemplates(){
 
   return wrap;
 }
+
+// ── PRINT ORDER INVOICE (NO BRANDING - CLIENT COPY) ──────────────────────
+function printOrderInvoice(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+  var total=Number(o.amount||0);
+  var balance=total-paid;
+
+  // Merge images from orderImages
+  var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}]);
+  var itemsDisplay=items.map(function(it,idx2){
+    var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
+    var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
+    return Object.assign({},it,{images:imgs.filter(Boolean)});
+  });
+
+  // Items rows
+  var itemsHtml=itemsDisplay.map(function(it,i){
+    var imgHtml='';
+    if(it.images&&it.images.length>0){
+      imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +it.images.map(function(src){
+          return '<img src="'+src+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8"/>';
+        }).join('')+'</div>';
+    }
+    return '<tr>'
+      +'<td style="padding:12px 14px;font-size:13px;border-bottom:1px solid #f0f0f0;vertical-align:top">'
+        +'<div style="font-weight:600">'+(i+1)+'. '+it.name+(it.qty>1?' &times;'+it.qty:'')+'</div>'
+        +(it.delivery?'<div style="font-size:11px;color:#999;margin-top:2px">Delivery by: '+it.delivery+'</div>':'')
+        +(it.itemNotes?'<div style="font-size:11px;color:#666;margin-top:4px;white-space:pre-wrap">'+it.itemNotes+'</div>':'')
+        +imgHtml
+      +'</td>'
+      +'<td style="padding:12px 14px;text-align:right;font-size:14px;font-weight:700;border-bottom:1px solid #f0f0f0;vertical-align:top;white-space:nowrap">'
+        +(it.amount?'\u20b9'+Number(it.amount).toLocaleString('en-IN'):'&mdash;')
+      +'</td>'
+    +'</tr>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>Invoice '+(o.orderNo||'')+'</title>'
+    +'<style>'
+      +'*{box-sizing:border-box;margin:0;padding:0}'
+      +'body{font-family:Arial,sans-serif;color:#222;padding:32px;font-size:13px}'
+      +'table{width:100%;border-collapse:collapse}'
+      +'.no-print{margin-bottom:16px}'
+      +'@media print{.no-print{display:none}body{padding:18px}}'
+    +'</style></head><body>'
+    // Buttons
+    +'<div class="no-print" style="margin-bottom:18px">'
+      +'<button onclick="window.print()" style="background:#222;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
+    // Header
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #222;margin-bottom:20px">'
+      +'<div>'
+        +'<div style="font-size:28px;font-weight:900;letter-spacing:-0.5px">INVOICE</div>'
+        +(o.orderNo?'<div style="font-size:13px;color:#666;margin-top:4px">No. '+o.orderNo+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em">DATE</div>'
+        +'<div style="font-size:14px;font-weight:700">'+today+'</div>'
+        +(o.delivery?'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em;margin-top:8px">DELIVERY</div>'
+          +'<div style="font-size:13px;font-weight:600">'+o.delivery+'</div>':'')
+      +'</div>'
+    +'</div>'
+    // Client
+    +'<div style="margin-bottom:20px">'
+      +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">BILL TO</div>'
+      +'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:'Client')+'</div>'
+      +(cl&&cl.phone?'<div style="font-size:13px;color:#666;margin-top:2px">'+cl.phone+'</div>':'')
+    +'</div>'
+    // Items table
+    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
+      +'<thead><tr style="background:#222;color:#fff">'
+        +'<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">DESCRIPTION</th>'
+        +'<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;letter-spacing:.05em;width:120px">AMOUNT</th>'
+      +'</tr></thead>'
+      +'<tbody>'+itemsHtml+'</tbody>'
+    +'</table>'
+    // Totals
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:24px">'
+      +'<table style="width:260px;border-collapse:collapse">'
+        +'<tr><td style="padding:7px 14px;color:#666;font-size:13px">Subtotal</td>'
+          +'<td style="padding:7px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
+        +(paid>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:7px 14px;color:#166534;font-size:13px">Paid</td>'
+          +'<td style="padding:7px 14px;text-align:right;font-size:13px;font-weight:600;color:#166534">- \u20b9'+paid.toLocaleString('en-IN')+'</td></tr>':'')
+        +'<tr style="border-top:2px solid #222;background:#f9f9f9">'
+          +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balance>0?'Balance Due':'Paid in Full')+'</td>'
+          +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balance>0?'#c0392b':'#166534')+'">'
+            +(balance>0?'\u20b9'+balance.toLocaleString('en-IN'):'&#10003;')
+          +'</td></tr>'
+      +'</table>'
+    +'</div>'
+    // Notes
+    +(o.notes?'<div style="padding:10px 14px;background:#f9f9f9;border-radius:6px;border:1px solid #e8e8e8;font-size:12px;color:#555">'
+      +'<span style="font-weight:700;color:#888">Notes: </span>'+o.notes+'</div>':'')
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(win){
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.document.title='Invoice '+(o.orderNo||'');
+  } else alert('Allow popups to generate the invoice.');
+}
+
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
