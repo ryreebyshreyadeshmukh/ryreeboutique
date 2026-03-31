@@ -4699,48 +4699,50 @@ function openCreateTasksFromOrder(orderId){
 function printTasksForAssignee(filterKey){
   var today=new Date().toISOString().split('T')[0];
   var printDate=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var sf=_taskStatusFilter||'active';
 
-  // Determine what to print based on current filter
+  // Filter tasks by status
+  function statusMatch(t){
+    return sf==='done'?t.status==='done':sf==='all'?true:t.status!=='done';
+  }
+
+  // Build sections based on assignee filter
   var sections=[];
 
   if(filterKey==='__all__'||filterKey==='bystaff'){
-    // Print all staff — one section per assignee
+    // One section per assignee
     var staffGroups={};
-    DB.tasks.filter(function(t){var sf=_taskStatusFilter||'active';return sf==='done'?t.status==='done':sf==='all'?true:t.status!=='done';}).forEach(function(t){
+    DB.tasks.filter(statusMatch).forEach(function(t){
       var key=t.assignedTo||'__unassigned__';
       if(!staffGroups[key])staffGroups[key]=[];
       staffGroups[key].push(t);
     });
-    var keys=Object.keys(staffGroups).sort(function(a,b){
+    Object.keys(staffGroups).sort(function(a,b){
       if(a==='__unassigned__')return 1;
       if(b==='__unassigned__')return -1;
       var sa=(DB.staff.find(function(x){return x.id===a;})||{}).name||'';
       var sb=(DB.staff.find(function(x){return x.id===b;})||{}).name||'';
       return sa.localeCompare(sb);
-    });
-    keys.forEach(function(key){
+    }).forEach(function(key){
       var st=key==='__unassigned__'?null:DB.staff.find(function(x){return x.id===key;});
-      sections.push({
-        name:st?st.name:'Unassigned',
-        tasks:staffGroups[key]
-      });
+      sections.push({name:st?st.name:'Unassigned',tasks:staffGroups[key]});
     });
   } else if(filterKey==='__unassigned__'){
     sections.push({
       name:'Unassigned Tasks',
-      tasks:DB.tasks.filter(function(t){return !t.assignedTo&&t.status!=='done';})
+      tasks:DB.tasks.filter(function(t){return !t.assignedTo&&statusMatch(t);})
     });
   } else {
     // Specific staff member
     var st=DB.staff.find(function(x){return x.id===filterKey;});
     sections.push({
       name:st?st.name:'Staff Member',
-      tasks:DB.tasks.filter(function(t){return t.assignedTo===filterKey&&t.status!=='done';})
+      tasks:DB.tasks.filter(function(t){return t.assignedTo===filterKey&&statusMatch(t);})
     });
   }
 
   if(!sections.length||sections.every(function(s){return !s.tasks.length;})){
-    alert('No active tasks to print.');return;
+    alert('No tasks to print for current selection.');return;
   }
 
   var pOrder={high:0,medium:1,low:2};
@@ -4752,58 +4754,54 @@ function printTasksForAssignee(filterKey){
     var sorted=sec.tasks.slice().sort(function(a,b){
       return (pOrder[a.priority]||1)-(pOrder[b.priority]||1);
     });
-
-    var rows=sorted.map(function(t,i){
-      var isOverdue=t.dueDate&&t.dueDate<today;
+    var rows=sorted.map(function(t){
+      var isOverdue=t.dueDate&&t.dueDate<today&&t.status!=='done';
       var o=t.orderId?DB.orders.find(function(x){return x.id===t.orderId;}):null;
       var cl=t.clientId?DB.clients.find(function(x){return x.id===t.clientId;}):null;
       var context=[];
       if(o)context.push('Order: '+(o.orderNo||o.item||''));
       if(cl&&!o)context.push(cl.name);
       return '<tr>'
-        +'<td style="padding:10px 12px;width:30px;text-align:center;border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:10px 12px;width:36px;text-align:center;border-bottom:1px solid #f0f0f0">'
           +'<div style="width:18px;height:18px;border:2px solid #ccc;border-radius:4px;display:inline-block"></div>'
         +'</td>'
         +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0">'
-          +'<div style="font-size:13px;font-weight:600;color:#1a1a1a">'+t.title+'</div>'
+          +'<div style="font-size:13px;font-weight:600">'+t.title+'</div>'
           +(context.length?'<div style="font-size:11px;color:#888;margin-top:2px">'+context.join(' · ')+'</div>':'')
         +'</td>'
-        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center">'
-          +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+pBgs[t.priority||'medium']+';color:'+pColors[t.priority||'medium']+'">'
-            +(t.priority||'MEDIUM').toUpperCase()
-          +'</span>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center;width:90px">'
+          +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+(pBgs[t.priority||'medium'])+';color:'+(pColors[t.priority||'medium'])+'">'+(t.priority||'MEDIUM').toUpperCase()+'</span>'
         +'</td>'
-        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">'
-          +(t.dueDate?'<span style="font-size:12px;font-weight:600;color:'+(isOverdue?'#c0392b':'#555')+'">'+(isOverdue?'⚠ ':'')+t.dueDate+'</span>':'\u2014')
+        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;width:100px">'
+          +(t.dueDate?'<span style="font-size:12px;font-weight:600;color:'+(isOverdue?'#c0392b':'#555')+'">'+(isOverdue?'⚠ ':'')+t.dueDate+'</span>':'—')
         +'</td>'
       +'</tr>';
     }).join('');
 
     return '<div style="margin-bottom:32px;page-break-inside:avoid">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#1a1a1a;border-radius:8px 8px 0 0;margin-bottom:0">'
-        +'<div style="font-size:15px;font-weight:800;color:#fff">'+sec.name+'</div>'
-        +'<div style="font-size:12px;color:#aaa">'+sorted.length+' task'+(sorted.length!==1?'s':'')+' · Printed: '+printDate+'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1a1a1a;border-radius:8px 8px 0 0">'
+        +'<div style="font-size:16px;font-weight:800;color:#fff">'+sec.name+'</div>'
+        +'<div style="font-size:12px;color:#aaa">'+sorted.length+' task'+(sorted.length!==1?'s':'')+' &nbsp;·&nbsp; '+printDate+'</div>'
       +'</div>'
       +'<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-top:none;border-radius:0 0 8px 8px;overflow:hidden">'
         +'<thead><tr style="background:#f9f9f9">'
-          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:center;width:40px">✓</th>'
+          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:center;width:36px">✓</th>'
           +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:left">TASK</th>'
           +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:center;width:90px">PRIORITY</th>'
           +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:right;width:100px">DUE DATE</th>'
         +'</tr></thead>'
         +'<tbody>'+rows+'</tbody>'
       +'</table>'
-      // Signature line
-      +'<div style="display:flex;justify-content:flex-end;margin-top:12px">'
+      +'<div style="display:flex;justify-content:flex-end;margin-top:14px">'
         +'<div style="text-align:center">'
           +'<div style="width:200px;border-top:1px solid #ccc;margin-bottom:4px"></div>'
-          +'<div style="font-size:11px;color:#aaa">Signature: '+sec.name+'</div>'
+          +'<div style="font-size:11px;color:#aaa">Received by: '+sec.name+'</div>'
         +'</div>'
       +'</div>'
     +'</div>';
   }
 
-  var bodyHtml=sections.map(buildSection).join('<div style="page-break-after:always"></div>');
+  var bodyHtml=sections.map(buildSection).filter(Boolean).join('<div style="page-break-after:always"></div>');
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
     +'<title>Task List</title>'
