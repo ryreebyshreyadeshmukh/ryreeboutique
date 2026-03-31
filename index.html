@@ -192,6 +192,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-tctemplates" data-page="tctemplates">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4" stroke-linecap="round"/><path d="M9 11l1 1 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>T&amp;C Templates
     </div>
+    <div class="nav-item" id="nav-tasktemplates" data-page="tasktemplates">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/><circle cx="13" cy="12" r="2.5"/><path d="M12 12h2M13 11v2" stroke-linecap="round"/></svg>Task Templates
+    </div>
     <div class="nav-item" id="nav-estsettings" data-page="estsettings">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
     </div>
@@ -339,7 +342,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={settings:[],tctemplates:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -349,7 +352,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','tctemplates','tasktemplates','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -584,7 +587,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -1088,7 +1091,9 @@ function pgOrders(){
     workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
     var quotBtn=mkBtn('Quotation',function(){printOrderQuotation(o.id);},'btn btn-xs');
     quotBtn.style.cssText+='color:#1E40AF;border-color:#BFDBFE';
-    app(acts,[collectBtn,quotBtn,invoiceBtn,workBtn,editBtn,delBtn]);
+    var createTasksBtn=mkBtn('+ Tasks',function(){openCreateTasksFromOrder(o.id);},'btn btn-xs');
+    createTasksBtn.style.cssText+='color:#065F46;border-color:#6EE7B7';
+    app(acts,[collectBtn,quotBtn,invoiceBtn,workBtn,createTasksBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -4438,6 +4443,263 @@ function printOrderInvoice(orderId){
     win.document.close();
     win.document.title='Invoice '+(o.orderNo||'');
   } else alert('Allow popups to generate the invoice.');
+}
+
+
+// ── TASK TEMPLATES PAGE ───────────────────────────────────────────────────
+function pgTaskTemplates(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Task Templates',
+    'Define standard tasks per clothing item. Used when creating tasks from an order.',
+    mkBtn('+ New Template',function(){openTaskTemplateModal();},'btn btn-primary')));
+
+  if(!DB.tasktemplates.length){
+    var empty=mk('div','card');
+    var msg=mk('div');msg.style.cssText='text-align:center;padding:24px';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';
+    t.textContent='No task templates yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888;max-width:400px;margin:0 auto';
+    s.textContent='Create a template for each clothing type (Blouse, Lehenga, Saree...) with a standard list of tasks.';
+    app(msg,[t,s]);app(empty,[msg]);wrap.appendChild(empty);
+    return wrap;
+  }
+
+  DB.tasktemplates.slice().sort(function(a,b){
+    return (a.clothingName||'').localeCompare(b.clothingName||'');
+  }).forEach(function(tmpl){
+    var card=mk('div','card');card.style.cssText='padding:16px;margin-bottom:12px';
+    var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+    var left=mk('div');
+    var name=mk('div');name.style.cssText='font-size:15px;font-weight:700;color:#2D6B5E';
+    name.textContent=tmpl.clothingName;
+    var cnt=mk('div');cnt.style.cssText='font-size:12px;color:#aaa;margin-top:2px';
+    cnt.textContent=(tmpl.tasks||[]).length+' standard tasks';
+    app(left,[name,cnt]);
+    var btns=mk('div');btns.style.cssText='display:flex;gap:6px';
+    var editBtn=mkBtn('Edit',function(){openTaskTemplateModal(tmpl.id);},'btn btn-xs');
+    var delBtn=mk('button','btn-danger');delBtn.textContent='Del';delBtn.style.padding='3px 8px';
+    delBtn.setAttribute('data-tid',tmpl.id);
+    delBtn.onclick=function(){
+      if(!confirm('Delete "'+tmpl.clothingName+'" template?'))return;
+      dbDel('tasktemplates',this.getAttribute('data-tid'));
+    };
+    app(btns,[editBtn,delBtn]);
+    app(hdr,[left,btns]);
+    card.appendChild(hdr);
+
+    // Task list
+    var taskList=mk('div');taskList.style.cssText='display:flex;flex-direction:column;gap:4px';
+    (tmpl.tasks||[]).forEach(function(task,i){
+      var row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f9f9f9;border-radius:6px';
+      var num=mk('span');num.style.cssText='font-size:11px;color:#aaa;font-weight:700;width:18px;flex-shrink:0';num.textContent=(i+1)+'.';
+      var tname=mk('span');tname.style.cssText='font-size:13px;color:#333;flex:1';tname.textContent=task.title;
+      var pri=mk('span');pri.style.cssText='font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;'
+        +(task.priority==='high'?'background:#FEF2F2;color:#991B1B':task.priority==='low'?'background:#F0FDF4;color:#166534':'background:#FFFBEB;color:#B45309');
+      pri.textContent=(task.priority||'medium').toUpperCase();
+      app(row,[num,tname,pri]);
+      taskList.appendChild(row);
+    });
+    card.appendChild(taskList);
+    wrap.appendChild(card);
+  });
+
+  return wrap;
+}
+
+function openTaskTemplateModal(id){
+  var tmpl=id?DB.tasktemplates.find(function(x){return x.id===id;}):null;
+  var tasks=tmpl?(tmpl.tasks||[]).map(function(t){return Object.assign({},t);}):[{title:'',priority:'medium'}];
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',(id?'Edit':'New')+' Task Template'));
+
+  // Clothing item name
+  var clothOpts=[{value:'',label:'— Select clothing item —'}]
+    .concat(DB.clothing.map(function(c){return {value:c.name,label:c.name};}))
+    .concat([{value:'__custom__',label:'Type custom name...'}]);
+  var clothSel=mkSelect('tt-cloth',clothOpts,tmpl?tmpl.clothingName:'');
+  var customInp=mkInput('tt-custom','text','Enter clothing item name...');
+  customInp.style.display=(tmpl&&!DB.clothing.find(function(c){return c.name===tmpl.clothingName;}))?'block':'none';
+  clothSel.onchange=function(){
+    customInp.style.display=this.value==='__custom__'?'block':'none';
+  };
+
+  // Tasks list
+  var tasksWrap=mk('div');tasksWrap.id='tt-tasks-wrap';
+  var priorityOpts=[{value:'high',label:'High'},{value:'medium',label:'Medium'},{value:'low',label:'Low'}];
+
+  function renderTaskRows(){
+    tasksWrap.innerHTML='';
+    tasks.forEach(function(task,i){
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:8px;align-items:center;margin-bottom:6px';
+      var titleInp=mk('input','form-input');
+      titleInp.placeholder='e.g. Cut & stitch';
+      titleInp.value=task.title||'';
+      titleInp.oninput=function(){tasks[i].title=this.value;};
+      var priSel=mkSelect('',priorityOpts,task.priority||'medium');
+      priSel.onchange=function(){tasks[i].priority=this.value;};
+      var delBtn=mk('button','btn-danger');delBtn.textContent='×';delBtn.style.padding='4px 8px';
+      delBtn.onclick=function(){tasks.splice(i,1);renderTaskRows();};
+      app(row,[titleInp,priSel,delBtn]);
+      tasksWrap.appendChild(row);
+    });
+  }
+  renderTaskRows();
+
+  var addTaskBtn=mkBtn('+ Add task',function(){
+    tasks.push({title:'',priority:'medium'});
+    renderTaskRows();
+  },'btn btn-xs');
+  addTaskBtn.style.marginTop='6px';
+
+  // Column headers
+  var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:8px;margin-bottom:4px';
+  ['Task name','Priority',''].forEach(function(h){
+    var l=mk('div');l.style.cssText='font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase';l.textContent=h;
+    colHdr.appendChild(l);
+  });
+
+  app(wrap,[
+    mkFg('Clothing item *',clothSel),
+    customInp,
+    mkFg('Standard tasks *',(function(){
+      var fg=mk('div');app(fg,[colHdr,tasksWrap,addTaskBtn]);return fg;
+    })()),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(id?'Save':'Create',function(){
+        var clothName=document.getElementById('tt-cloth').value;
+        if(clothName==='__custom__') clothName=(document.getElementById('tt-custom').value||'').trim();
+        if(!clothName){alert('Select or enter a clothing item.');return;}
+        var validTasks=tasks.filter(function(t){return t.title.trim();});
+        if(!validTasks.length){alert('Add at least one task.');return;}
+        dbSave('tasktemplates',{
+          id:id||uid(),
+          clothingName:clothName,
+          tasks:validTasks,
+          created:tmpl?tmpl.created:Date.now()
+        });
+        closeModal();
+        nav('tasktemplates');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
+}
+
+// ── CREATE TASKS FROM ORDER ───────────────────────────────────────────────
+function openCreateTasksFromOrder(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var items=o.items||[{name:o.item,qty:1,delivery:o.delivery}];
+
+  // Build task list from templates
+  var taskRows=[];
+  items.forEach(function(item){
+    var tmpl=DB.tasktemplates.find(function(t){
+      return t.clothingName.toLowerCase()===item.name.toLowerCase();
+    });
+    if(tmpl&&tmpl.tasks){
+      tmpl.tasks.forEach(function(task){
+        taskRows.push({
+          title:task.title+' — '+item.name+(cl?' ('+cl.name+')':''),
+          priority:task.priority||'medium',
+          dueDate:item.delivery||'',
+          orderId:orderId,
+          clientId:o.clientId||'',
+          checked:true,
+          itemName:item.name
+        });
+      });
+    }
+  });
+
+  if(!taskRows.length){
+    alert('No task templates found for items in this order.\n\nGo to Master → Task Templates to set up standard tasks for your clothing items.');
+    return;
+  }
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Create Tasks for Order'));
+  var sub=mk('div','modal-sub');
+  sub.textContent='Review and assign tasks for '+(cl?cl.name:'this order')+'. Uncheck any you don\'t need.';
+  wrap.appendChild(sub);
+
+  var staffOpts=[{value:'',label:'— Unassigned —'}]
+    .concat(DB.staff.map(function(s){return {value:s.id,label:s.name+(s.role?' ('+s.role+')':'')};}));
+
+  var rowEls=[];
+  var listWrap=mk('div');listWrap.style.cssText='max-height:400px;overflow-y:auto;margin-bottom:8px';
+
+  // Group by item
+  var byItem={};
+  taskRows.forEach(function(tr){
+    if(!byItem[tr.itemName])byItem[tr.itemName]=[];
+    byItem[tr.itemName].push(tr);
+  });
+
+  Object.keys(byItem).forEach(function(itemName){
+    var itemHdr=mk('div');itemHdr.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;background:#e6f0ee;padding:6px 12px;border-radius:6px;margin:10px 0 6px';
+    itemHdr.textContent=itemName;
+    listWrap.appendChild(itemHdr);
+
+    byItem[itemName].forEach(function(tr,i){
+      var rowWrap=mk('div');rowWrap.style.cssText='display:grid;grid-template-columns:auto 1fr 110px;gap:8px;align-items:center;padding:6px 4px;border-bottom:1px solid #f5f5f5';
+
+      var chk=mk('input');chk.type='checkbox';chk.checked=true;chk.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#2D6B5E';
+
+      var info=mk('div');
+      var tname=mk('div');tname.style.cssText='font-size:13px;font-weight:600';tname.textContent=tr.title.split(' — ')[0];
+      var pColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
+      var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+      var pri=mk('span');pri.style.cssText='font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;background:'+(pBgs[tr.priority]||'#f5f5f5')+';color:'+(pColors[tr.priority]||'#888');
+      pri.textContent=(tr.priority||'medium').toUpperCase();
+      app(tname,[pri]);info.appendChild(tname);
+      if(tr.dueDate){
+        var due=mk('div');due.style.cssText='font-size:11px;color:#aaa;margin-top:1px';due.textContent='Due: '+tr.dueDate;
+        info.appendChild(due);
+      }
+
+      var staffSel=mkSelect('',staffOpts,'');
+      staffSel.style.fontSize='12px';
+
+      app(rowWrap,[chk,info,staffSel]);
+      listWrap.appendChild(rowWrap);
+      rowEls.push({tr:tr,chk:chk,staffSel:staffSel});
+    });
+  });
+
+  wrap.appendChild(listWrap);
+
+  var countDiv=mk('div');countDiv.style.cssText='font-size:12px;color:#888;margin-bottom:12px';
+  countDiv.textContent=taskRows.length+' tasks ready to create';
+  wrap.appendChild(countDiv);
+
+  app(wrap,[mkActions([
+    mkBtn('Cancel',closeModal),
+    mkBtn('Create Selected Tasks',function(){
+      var created=0;
+      rowEls.forEach(function(el){
+        if(!el.chk.checked)return;
+        dbSave('tasks',{
+          id:uid(),
+          title:el.tr.title,
+          status:'todo',
+          priority:el.tr.priority||'medium',
+          dueDate:el.tr.dueDate||'',
+          assignedTo:el.staffSel.value||'',
+          orderId:el.tr.orderId,
+          clientId:el.tr.clientId,
+          created:Date.now()
+        });
+        created++;
+      });
+      closeModal();
+      alert(created+' task'+(created!==1?'s':'')+' created! View them in the Tasks module.');
+    },'btn btn-primary')
+  ])]);
+
+  showM(wrap);
 }
 
 
