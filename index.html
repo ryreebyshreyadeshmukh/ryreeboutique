@@ -3010,10 +3010,12 @@ function openServiceModal(id){
 
 
 // ── TASKS ─────────────────────────────────────────────────────────────────
-var _taskFilter = 'bystaff';
+var _taskFilter = '__all__';
+var _taskStatusFilter = 'active';
 
 function pgTasks(){
   _taskFilter = '__all__';
+  _taskStatusFilter = 'active';
   var wrap = mk('div');
   var today = new Date().toISOString().split('T')[0];
 
@@ -3115,7 +3117,7 @@ function renderTaskBoard(){
   }
 
   // Staff ID selected — show their tasks by priority
-  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'&&_taskFilter!=='__done__'){
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'){
     board.style.gridTemplateColumns='1fr';
     if(!filtered.length){
       var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
@@ -3138,7 +3140,7 @@ function renderTaskBoard(){
   }
 
   // Staff ID selected — show their tasks by priority
-  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'&&_taskFilter!=='__done__'){
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'){
     board.style.gridTemplateColumns='1fr';
     if(!filtered.length){
       var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
@@ -4704,7 +4706,7 @@ function printTasksForAssignee(filterKey){
   if(filterKey==='__all__'||filterKey==='bystaff'){
     // Print all staff — one section per assignee
     var staffGroups={};
-    DB.tasks.filter(function(t){return t.status!=='done';}).forEach(function(t){
+    DB.tasks.filter(function(t){var sf=_taskStatusFilter||'active';return sf==='done'?t.status==='done':sf==='all'?true:t.status!=='done';}).forEach(function(t){
       var key=t.assignedTo||'__unassigned__';
       if(!staffGroups[key])staffGroups[key]=[];
       staffGroups[key].push(t);
