@@ -3093,7 +3093,7 @@ function pgTasks(){
   var board = mk('div'); board.id='task-board';
   board.style.cssText = 'display:flex;flex-direction:column;gap:0';
   wrap.appendChild(board);
-  renderTaskBoard();
+  setTimeout(function(){renderTaskBoard();},0);
   return wrap;
 }
 
