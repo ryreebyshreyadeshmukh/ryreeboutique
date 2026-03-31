@@ -4703,6 +4703,137 @@ function openCreateTasksFromOrder(orderId){
 }
 
 
+// ── PRINT TASKS FOR ASSIGNEE ──────────────────────────────────────────────
+function printTasksForAssignee(filterKey){
+  var today=new Date().toISOString().split('T')[0];
+  var printDate=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+
+  // Determine what to print based on current filter
+  var sections=[];
+
+  if(filterKey==='__all__'||filterKey==='bystaff'){
+    // Print all staff — one section per assignee
+    var staffGroups={};
+    DB.tasks.filter(function(t){return t.status!=='done';}).forEach(function(t){
+      var key=t.assignedTo||'__unassigned__';
+      if(!staffGroups[key])staffGroups[key]=[];
+      staffGroups[key].push(t);
+    });
+    var keys=Object.keys(staffGroups).sort(function(a,b){
+      if(a==='__unassigned__')return 1;
+      if(b==='__unassigned__')return -1;
+      var sa=(DB.staff.find(function(x){return x.id===a;})||{}).name||'';
+      var sb=(DB.staff.find(function(x){return x.id===b;})||{}).name||'';
+      return sa.localeCompare(sb);
+    });
+    keys.forEach(function(key){
+      var st=key==='__unassigned__'?null:DB.staff.find(function(x){return x.id===key;});
+      sections.push({
+        name:st?st.name:'Unassigned',
+        tasks:staffGroups[key]
+      });
+    });
+  } else if(filterKey==='__unassigned__'){
+    sections.push({
+      name:'Unassigned Tasks',
+      tasks:DB.tasks.filter(function(t){return !t.assignedTo&&t.status!=='done';})
+    });
+  } else {
+    // Specific staff member
+    var st=DB.staff.find(function(x){return x.id===filterKey;});
+    sections.push({
+      name:st?st.name:'Staff Member',
+      tasks:DB.tasks.filter(function(t){return t.assignedTo===filterKey&&t.status!=='done';})
+    });
+  }
+
+  if(!sections.length||sections.every(function(s){return !s.tasks.length;})){
+    alert('No active tasks to print.');return;
+  }
+
+  var pOrder={high:0,medium:1,low:2};
+  var pColors={high:'#c0392b',medium:'#e67e22',low:'#27ae60'};
+  var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+
+  function buildSection(sec){
+    if(!sec.tasks.length)return '';
+    var sorted=sec.tasks.slice().sort(function(a,b){
+      return (pOrder[a.priority]||1)-(pOrder[b.priority]||1);
+    });
+
+    var rows=sorted.map(function(t,i){
+      var isOverdue=t.dueDate&&t.dueDate<today;
+      var o=t.orderId?DB.orders.find(function(x){return x.id===t.orderId;}):null;
+      var cl=t.clientId?DB.clients.find(function(x){return x.id===t.clientId;}):null;
+      var context=[];
+      if(o)context.push('Order: '+(o.orderNo||o.item||''));
+      if(cl&&!o)context.push(cl.name);
+      return '<tr>'
+        +'<td style="padding:10px 12px;width:30px;text-align:center;border-bottom:1px solid #f0f0f0">'
+          +'<div style="width:18px;height:18px;border:2px solid #ccc;border-radius:4px;display:inline-block"></div>'
+        +'</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0">'
+          +'<div style="font-size:13px;font-weight:600;color:#1a1a1a">'+t.title+'</div>'
+          +(context.length?'<div style="font-size:11px;color:#888;margin-top:2px">'+context.join(' · ')+'</div>':'')
+        +'</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center">'
+          +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+pBgs[t.priority||'medium']+';color:'+pColors[t.priority||'medium']+'">'
+            +(t.priority||'MEDIUM').toUpperCase()
+          +'</span>'
+        +'</td>'
+        +'<td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap">'
+          +(t.dueDate?'<span style="font-size:12px;font-weight:600;color:'+(isOverdue?'#c0392b':'#555')+'">'+(isOverdue?'⚠ ':'')+t.dueDate+'</span>':'\u2014')
+        +'</td>'
+      +'</tr>';
+    }).join('');
+
+    return '<div style="margin-bottom:32px;page-break-inside:avoid">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#1a1a1a;border-radius:8px 8px 0 0;margin-bottom:0">'
+        +'<div style="font-size:15px;font-weight:800;color:#fff">'+sec.name+'</div>'
+        +'<div style="font-size:12px;color:#aaa">'+sorted.length+' task'+(sorted.length!==1?'s':'')+' · Printed: '+printDate+'</div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-top:none;border-radius:0 0 8px 8px;overflow:hidden">'
+        +'<thead><tr style="background:#f9f9f9">'
+          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:center;width:40px">✓</th>'
+          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:left">TASK</th>'
+          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:center;width:90px">PRIORITY</th>'
+          +'<th style="padding:8px 12px;font-size:10px;font-weight:700;color:#aaa;text-align:right;width:100px">DUE DATE</th>'
+        +'</tr></thead>'
+        +'<tbody>'+rows+'</tbody>'
+      +'</table>'
+      // Signature line
+      +'<div style="display:flex;justify-content:flex-end;margin-top:12px">'
+        +'<div style="text-align:center">'
+          +'<div style="width:200px;border-top:1px solid #ccc;margin-bottom:4px"></div>'
+          +'<div style="font-size:11px;color:#aaa">Signature: '+sec.name+'</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }
+
+  var bodyHtml=sections.map(buildSection).join('<div style="page-break-after:always"></div>');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>Task List</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#222;padding:28px;font-size:13px}'
+    +'@media print{.no-print{display:none}body{padding:14px}}</style></head><body>'
+    +'<div class="no-print" style="margin-bottom:16px">'
+      +'<button onclick="window.print()" style="background:#1a1a1a;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
+    +bodyHtml
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(win){
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.document.title='Task List - '+printDate;
+  } else alert('Allow popups to print tasks.');
+}
+
+
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
