@@ -1634,10 +1634,7 @@ function pgDashboard(){
         var priBadge=mk('span','badge');
         priBadge.style.cssText='font-size:10px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pColors[t.priority]||'#888');
         priBadge.textContent=(t.priority||'medium').toUpperCase();
-        var doneBtn2=mk('button');doneBtn2.style.cssText='background:none;border:1px solid #e8e8e8;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px;color:#aaa';
-        doneBtn2.textContent='✓';doneBtn2.title='Mark done';
-        doneBtn2.onclick=function(e){e.stopPropagation();dbSave('tasks',Object.assign({},t,{status:'done',completedAt:today}));};
-        app(right,[priBadge,doneBtn2]);
+        app(right,[priBadge]);
         app(row,[left,right]);tc.appendChild(row);
       });
     });
@@ -3065,6 +3062,7 @@ function pgTasks(){
   if(unassignedCount>0) staffInTasks.push({id:'__unassigned__',name:'Unassigned',count:unassignedCount});
   // Add All
   staffInTasks.unshift({id:'__all__',name:'All',count:DB.tasks.filter(function(t){return t.status!=='done';}).length});
+  staffInTasks.push({id:'__done__',name:'Done',count:DB.tasks.filter(function(t){return t.status==='done';}).length});
 
   staffInTasks.forEach(function(s){
     var isActive=_taskFilter===s.id;
@@ -3099,6 +3097,7 @@ function renderTaskBoard(){
   var filtered=DB.tasks.filter(function(t){
     if(_taskFilter==='__all__') return t.status!=='done';
     if(_taskFilter==='__unassigned__') return !t.assignedTo&&t.status!=='done';
+    if(_taskFilter==='__done__') return t.status==='done';
     if(_taskFilter==='done') return t.status==='done';
     if(_taskFilter==='bystaff') return t.status!=='done';
     // Staff ID — filter to that person's active tasks
@@ -3116,7 +3115,7 @@ function renderTaskBoard(){
   }
 
   // Staff ID selected — show their tasks by priority
-  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'){
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'&&_taskFilter!=='__done__'){
     board.style.gridTemplateColumns='1fr';
     if(!filtered.length){
       var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
@@ -3139,7 +3138,7 @@ function renderTaskBoard(){
   }
 
   // Staff ID selected — show their tasks by priority
-  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'){
+  if(_taskFilter!=='bystaff'&&_taskFilter!=='__all__'&&_taskFilter!=='done'&&_taskFilter!=='__done__'){
     board.style.gridTemplateColumns='1fr';
     if(!filtered.length){
       var emp2=mk('div');emp2.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:14px';
@@ -3211,21 +3210,12 @@ function buildTaskCard(t, today){
   card.onmouseleave=function(){this.style.boxShadow='none';};
   card.onclick=function(){openTaskModal(t.id);};
 
-  // Title + done toggle in one row
-  var topRow=mk('div');topRow.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px';
+  // Title only
+  var topRow=mk('div');topRow.style.cssText='margin-bottom:6px';
   var title=mk('div');
-  title.style.cssText='font-size:13px;font-weight:600;flex:1;color:'+(t.status==='done'?'#aaa':'#1a1a1a')+(t.status==='done'?';text-decoration:line-through':'');
+  title.style.cssText='font-size:13px;font-weight:600;color:'+(t.status==='done'?'#aaa':'#1a1a1a')+(t.status==='done'?';text-decoration:line-through':'');
   title.textContent=t.title||'Untitled';
-  var doneBtn=mk('button');
-  doneBtn.style.cssText='background:none;border:1px solid '+(t.status==='done'?'#166534':'#e8e8e8')+';border-radius:50%;width:20px;height:20px;flex-shrink:0;cursor:pointer;font-size:11px;line-height:1;color:'+(t.status==='done'?'#166534':'#aaa');
-  doneBtn.textContent=t.status==='done'?'✓':'○';
-  doneBtn.title=t.status==='done'?'Mark undone':'Mark done';
-  doneBtn.onclick=function(e){
-    e.stopPropagation();
-    var newStatus=t.status==='done'?'todo':'done';
-    dbSave('tasks',Object.assign({},t,{status:newStatus,completedAt:newStatus==='done'?new Date().toISOString().split('T')[0]:null}));
-  };
-  app(topRow,[title,doneBtn]);
+  topRow.appendChild(title);
   card.appendChild(topRow);
 
   // Footer: assignee (prominent) + due date
