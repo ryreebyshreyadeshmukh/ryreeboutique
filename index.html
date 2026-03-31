@@ -3041,7 +3041,12 @@ function pgTasks(){
     sc('Overdue', overdue.length, overdue.length>0?'#991B1B':'#888', overdue.length>0?'#FEF2F2':'#fff')
   ]);
 
-  wrap.appendChild(mkPageHeader('Tasks', 'Manage and assign work', mkBtn('+ New Task', function(){openTaskModal();}, 'btn btn-primary')));
+  var hdrBtns=mk('div');hdrBtns.style.cssText='display:flex;gap:8px';
+  var newTaskBtn=mkBtn('+ New Task',function(){openTaskModal();},'btn btn-primary');
+  var printTasksBtn=mkBtn('Print Tasks',function(){printTasksForAssignee(_taskFilter);},'btn btn-xs');
+  printTasksBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E';
+  app(hdrBtns,[printTasksBtn,newTaskBtn]);
+  wrap.appendChild(mkPageHeader('Tasks','Manage and assign work',hdrBtns));
   wrap.appendChild(stats);
   wrap.appendChild(mkSearchBar('tasks-search','Search tasks...',function(q){
     document.querySelectorAll('.task-card-item').forEach(function(card){
@@ -3050,37 +3055,39 @@ function pgTasks(){
     });
   }));
   
-  // Staff filter tabs — one per assignee + Unassigned
-  var tabsDiv=mk('div');tabsDiv.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
+  // Filter row — Assignee dropdown + Status dropdown
+  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap';
 
-  // Build staff list from tasks + actual staff
-  var staffInTasks=[];
-  DB.staff.forEach(function(s){
-    var count=DB.tasks.filter(function(t){return t.assignedTo===s.id&&t.status!=='done';}).length;
-    staffInTasks.push({id:s.id,name:s.name,count:count});
-  });
-  // Add unassigned if any
-  var unassignedCount=DB.tasks.filter(function(t){return !t.assignedTo&&t.status!=='done';}).length;
-  if(unassignedCount>0) staffInTasks.push({id:'__unassigned__',name:'Unassigned',count:unassignedCount});
-  // Add All
-  staffInTasks.unshift({id:'__all__',name:'All',count:DB.tasks.filter(function(t){return t.status!=='done';}).length});
-  staffInTasks.push({id:'__done__',name:'Done',count:DB.tasks.filter(function(t){return t.status==='done';}).length});
+  // Assignee dropdown
+  var assigneeOpts=[{value:'__all__',label:'All assignees'}]
+    .concat(DB.staff.map(function(s){
+      var cnt=DB.tasks.filter(function(t){return t.assignedTo===s.id&&t.status!=='done';}).length;
+      return {value:s.id,label:s.name+(cnt?' ('+cnt+')':'')};
+    }));
+  var unassignedCnt=DB.tasks.filter(function(t){return !t.assignedTo&&t.status!=='done';}).length;
+  if(unassignedCnt>0)assigneeOpts.push({value:'__unassigned__',label:'Unassigned ('+unassignedCnt+')'});
 
-  staffInTasks.forEach(function(s){
-    var isActive=_taskFilter===s.id;
-    var btn2=mkBtn(s.name+(s.count?' ('+s.count+')':''),(function(sid){
-      return function(){
-        _taskFilter=sid;
-        tabsDiv.querySelectorAll('button').forEach(function(b){
-          b.className=b.getAttribute('data-filter')===_taskFilter?'btn btn-primary btn-sm':'btn btn-sm';
-        });
-        renderTaskBoard();
-      };
-    })(s.id),isActive?'btn btn-primary btn-sm':'btn btn-sm');
-    btn2.setAttribute('data-filter',s.id);
-    tabsDiv.appendChild(btn2);
-  });
-  wrap.appendChild(tabsDiv);
+  var aWrap=mk('div');aWrap.style.cssText='display:flex;align-items:center;gap:8px';
+  var aLabel=mk('label');aLabel.style.cssText='font-size:12px;font-weight:600;color:#888;white-space:nowrap';aLabel.textContent='Assignee:';
+  var aSel=mkSelect('task-assignee-sel',assigneeOpts,(_taskFilter==='__all__'||_taskFilter==='bystaff')?'__all__':_taskFilter);
+  aSel.style.cssText='font-size:13px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer;min-width:160px';
+  aSel.onchange=function(){_taskFilter=this.value;renderTaskBoard();};
+  app(aWrap,[aLabel,aSel]);
+
+  // Status dropdown
+  var sWrap=mk('div');sWrap.style.cssText='display:flex;align-items:center;gap:8px';
+  var sLabel=mk('label');sLabel.style.cssText='font-size:12px;font-weight:600;color:#888;white-space:nowrap';sLabel.textContent='Status:';
+  var sSel=mkSelect('task-status-sel',[
+    {value:'active',label:'Active'},
+    {value:'done',label:'Done'},
+    {value:'all',label:'All'}
+  ],_taskStatusFilter||'active');
+  sSel.style.cssText='font-size:13px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer;min-width:120px';
+  sSel.onchange=function(){_taskStatusFilter=this.value;renderTaskBoard();};
+  app(sWrap,[sLabel,sSel]);
+
+  app(filterRow,[aWrap,sWrap]);
+  wrap.appendChild(filterRow);
 
   // Kanban board
   var board = mk('div'); board.id='task-board';
