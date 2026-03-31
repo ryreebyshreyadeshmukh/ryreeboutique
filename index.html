@@ -3103,14 +3103,14 @@ function renderTaskBoard(){
   board.style.gridTemplateColumns='1fr';
   var today=new Date().toISOString().split('T')[0];
 
+  var sf=_taskStatusFilter||'active';
+  function statusOk(t){return sf==='done'?t.status==='done':sf==='all'?true:t.status!=='done';}
   var filtered=DB.tasks.filter(function(t){
-    if(_taskFilter==='__all__') return t.status!=='done';
-    if(_taskFilter==='__unassigned__') return !t.assignedTo&&t.status!=='done';
-    if(_taskFilter==='__done__') return t.status==='done';
-    if(_taskFilter==='done') return t.status==='done';
-    if(_taskFilter==='bystaff') return t.status!=='done';
-    // Staff ID — filter to that person's active tasks
-    return t.assignedTo===_taskFilter&&t.status!=='done';
+    if(!statusOk(t))return false;
+    if(_taskFilter==='__all__') return true;
+    if(_taskFilter==='__unassigned__') return !t.assignedTo;
+    if(_taskFilter==='bystaff') return true;
+    return t.assignedTo===_taskFilter;
   }).sort(function(a,b){
     var pOrder={high:0,medium:1,low:2};
     var pd=(pOrder[a.priority]||1)-(pOrder[b.priority]||1);
