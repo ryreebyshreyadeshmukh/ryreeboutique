@@ -3259,7 +3259,7 @@ function openTaskModal(id, defaultStatus, prefillOrderId, prefillStaffId){
     mkFg('Notes',notesTA),
     mkActions([
       mkBtn('Cancel',closeModal),
-      id?mkBtn('Delete',function(){if(confirm('Delete task?')){dbDel('tasks',id);closeModal();}},'btn-danger'):null,
+      id?mkBtn('Delete',function(){if(confirm('Permanently delete this task? This cannot be undone.')){dbDel('tasks',id);closeModal();}},'btn-danger'):null,
       mkBtn(id?'Save':'Create task',function(){
         var title=document.getElementById('tk-title').value.trim();
         if(!title){alert('Enter a task title.');return;}
