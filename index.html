@@ -1584,7 +1584,28 @@ function pgDashboard(){
     var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';tm.textContent=a.time||'';
     app(right,[dt,tm]);app(row,[left,right]);ac.appendChild(row);
   });
-  // Tasks section
+  // Two column layout
+  var col1=mk('div');app(col1,[mk('div','section-title','Recent orders'),oc]);
+  var col2=mk('div');app(col2,[mk('div','section-title','Upcoming appointments'),ac]);
+  var two=mk('div','two-col');app(two,[col1,col2]);
+
+  // Tasks section — Today's Work
+  var twSec=mk('div');twSec.style.cssText='margin-bottom:24px';
+  var twHdr=mk('div');twHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px';
+  var twTitle=mk('div','section-title','Today\'s Work');twTitle.style.margin='0';
+  var twRight=mk('div');twRight.style.cssText='display:flex;align-items:center;gap:8px';
+  var twAssigneeOpts=[{value:'__all__',label:'All assignees'}]
+    .concat(DB.staff.map(function(s){return {value:s.id,label:s.name};}));
+  var unassignedCnt2=DB.tasks.filter(function(t){return !t.assignedTo&&t.status!=='done';}).length;
+  if(unassignedCnt2>0)twAssigneeOpts.push({value:'__unassigned__',label:'Unassigned'});
+  var twSel=mkSelect('dash-assignee-sel',twAssigneeOpts,'__all__');
+  twSel.style.cssText='font-size:12px;padding:5px 10px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer';
+  twSel.onchange=function(){renderDashTodaysWork(this.value);};
+  var twViewBtn=mkBtn('View Tasks',function(){nav('tasks');},'btn btn-xs');
+  app(twRight,[twSel,twViewBtn]);
+  app(twHdr,[twTitle,twRight]);
+  var twBody=mk('div');twBody.id='dash-todays-work';
+  app(twSec,[twHdr,twBody]);
 
   // Birthday reminders
   var bdays=getBirthdayReminders();
@@ -1624,9 +1645,12 @@ function pgDashboard(){
 
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Dashboard',''));
-  wrap.appendChild(stats);wrap.appendChild(two);
-  wrap.appendChild(app(mk('div'),[(function(){var d=mk('div');d.style.marginTop='20px';d.appendChild(taskTitle);d.appendChild(tc);return d;})()]));
-  wrap.appendChild(bdaySection);wrap.appendChild(stockSection);
+  wrap.appendChild(stats);
+  wrap.appendChild(two);
+  wrap.appendChild(twSec);
+  wrap.appendChild(bdaySection);
+  wrap.appendChild(stockSection);
+  setTimeout(function(){renderDashTodaysWork('__all__');},0);
   return wrap;
 }
 
