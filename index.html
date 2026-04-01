@@ -977,33 +977,82 @@ function renderTakeModal(){
   var linked=(ac.measitemIds||[]).map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
   var existing=(cl.measurements&&cl.measurements[_mCloth])||{};
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title','Take Measurements - '+cl.name),
-    mk('div','modal-sub','Select clothing tab, fill values. Checkmark = already recorded.')]);
+
+  // Auto-save function — saves current field values silently
+  function autoSave(){
+    var cl2=DB.clients.find(function(x){return x.id===_mCli;});
+    if(!cl2)return;
+    var vals={};
+    document.querySelectorAll('.mf').forEach(function(inp){
+      if(inp.value.trim())vals[inp.getAttribute('data-name')]=inp.value.trim();
+    });
+    if(!Object.keys(vals).length)return;
+    var meas=JSON.parse(JSON.stringify(cl2.measurements||{}));
+    meas[_mCloth]=vals;
+    // Silent save - no reload, no notification
+    var updatedClient=Object.assign({},cl2,{measurements:meas});
+    DB.clients=DB.clients.map(function(c){return c.id===cl2.id?updatedClient:c;});
+    db.collection('clients').doc(cl2.id).set(updatedClient).catch(function(e){console.warn('Auto-save failed:',e);});
+    // Show subtle saved indicator
+    var ind=document.getElementById('meas-autosave-ind');
+    if(ind){ind.textContent='✓ Saved';ind.style.color='#166534';setTimeout(function(){if(ind)ind.textContent='Auto-saving...';ind.style.color='#aaa';},1500);}
+  }
+
+  // Header with auto-save indicator
+  var hdrRow=mk('div');hdrRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px';
+  var titleEl=mk('div','modal-title','Take Measurements — '+cl.name);titleEl.style.margin='0';
+  var saveInd=mk('div');saveInd.id='meas-autosave-ind';
+  saveInd.style.cssText='font-size:11px;color:#aaa;font-style:italic';
+  saveInd.textContent='Auto-saving...';
+  app(hdrRow,[titleEl,saveInd]);
+  wrap.appendChild(hdrRow);
+  wrap.appendChild(mk('div','modal-sub','Values save automatically as you type. Use tabs to switch clothing items.'));
+
   var tabs=mk('div');tabs.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px';
   DB.clothing.forEach(function(c){
     var done=cl.measurements&&cl.measurements[c.id]&&Object.keys(cl.measurements[c.id]).length>0;
     var tb=mk('button','cloth-tab'+(c.id===_mCloth?' active':''));
     tb.textContent=c.name+(done&&c.id!==_mCloth?' ✓':'')+(c.measitemIds&&c.measitemIds.length?'':' *');
     tb.setAttribute('data-cid',c.id);
-    tb.onclick=function(){_mCloth=this.getAttribute('data-cid');renderTakeModal();};
+    tb.onclick=function(){
+      autoSave(); // save current tab before switching
+      _mCloth=this.getAttribute('data-cid');
+      renderTakeModal();
+    };
     tabs.appendChild(tb);
   });
   wrap.appendChild(tabs);
+
   var fields=mk('div');
-  if(!linked.length){fields.appendChild(mk('div','warn-box','No fields linked to '+ac.name+'. Go to Clothing Items > Manage measurements.'));}
-  else{
+  if(!linked.length){
+    fields.appendChild(mk('div','warn-box','No fields linked to '+ac.name+'. Go to Clothing Items > Manage measurements.'));
+  } else {
     var grid=mk('div','meas-grid');
     linked.forEach(function(m){
       var inp=mkInput('mf-'+m.id,'text','—',existing[m.name]||'');
-      inp.className='form-input mf';inp.setAttribute('data-name',m.name);
+      inp.className='form-input mf';
+      inp.setAttribute('data-name',m.name);
+      // Auto-save on input with debounce
+      var _timer=null;
+      inp.oninput=function(){
+        clearTimeout(_timer);
+        var ind=document.getElementById('meas-autosave-ind');
+        if(ind){ind.textContent='Saving...';ind.style.color='#B45309';}
+        _timer=setTimeout(function(){autoSave();},800);
+      };
       grid.appendChild(mkFg(m.name+(m.unit?' ('+m.unit+')':''),inp));
     });
     fields.appendChild(grid);
   }
   wrap.appendChild(fields);
+
   wrap.appendChild(mkActions([
-    mkBtn('Close',closeModal),
+    mkBtn('Close',function(){
+      autoSave();
+      closeModal();
+    }),
     mkBtn('Save & next',function(){
+      autoSave();
       var cl2=DB.clients.find(function(x){return x.id===_mCli;});
       var vals={};
       document.querySelectorAll('.mf').forEach(function(inp){if(inp.value.trim())vals[inp.getAttribute('data-name')]=inp.value.trim();});
@@ -1015,7 +1064,8 @@ function renderTakeModal(){
       if(next){_mCloth=next;renderTakeModal();}else closeModal();
     },'btn btn-primary')
   ]));
-  showM(wrap);
+
+  showM(wrap,true); // true = disable outside-click
 }
 
 function printCard(clientId){
@@ -2406,9 +2456,11 @@ function whatsappBirthday(clientId){
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
-function showM(contentEl){
+function showM(contentEl,noOutsideClose){
   var ov=mk('div','modal-overlay');var modal=mk('div','modal');modal.appendChild(contentEl);ov.appendChild(modal);
-  ov.onclick=function(e){if(e.target===ov)closeModal();};
+  if(!noOutsideClose){
+    ov.onclick=function(e){if(e.target===ov)closeModal();};
+  }
   var root=document.getElementById('modal-root');root.innerHTML='';root.appendChild(ov);
 }
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
