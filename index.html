@@ -1046,6 +1046,21 @@ function pgOrders(){
     var av=mkAvatar(cl?cl.name:'?',28);
     var nameSpan=mk('span');nameSpan.style.cssText='font-weight:600;font-size:13px';nameSpan.textContent=cl?cl.name:'?';
     var itemSpan=mk('div');itemSpan.style.cssText='font-size:11px;color:#888;margin-top:1px';
+    // Task progress for this order
+    var orderTasks=DB.tasks.filter(function(t){return t.orderId===o.id;});
+    var doneTasks=orderTasks.filter(function(t){return t.status==='done';});
+    var progressHtml='';
+    if(orderTasks.length>0){
+      var pct=Math.round((doneTasks.length/orderTasks.length)*100);
+      var progressEl=mk('div');progressEl.style.cssText='margin-top:3px;display:flex;align-items:center;gap:6px';
+      var bar=mk('div');bar.style.cssText='flex:1;height:4px;background:#e8e8e8;border-radius:2px;max-width:120px';
+      var fill=mk('div');fill.style.cssText='height:100%;border-radius:2px;background:'+(pct===100?'#166534':'#2D6B5E')+';width:'+pct+'%';
+      bar.appendChild(fill);
+      var pLabel=mk('span');pLabel.style.cssText='font-size:10px;color:#888;white-space:nowrap';
+      pLabel.textContent=doneTasks.length+'/'+orderTasks.length+' tasks';
+      app(progressEl,[bar,pLabel]);
+      nameDiv.appendChild(progressEl);
+    }
     itemSpan.textContent=(o.orderNo?o.orderNo+' · ':'')+o.item+(o.delivery?' · By '+o.delivery:'')+(assignedStaff?' · '+assignedStaff.name:'');
     var nameDiv=mk('div');app(nameDiv,[nameSpan,itemSpan]);
     var clientCell=mkRow('display:flex;align-items:center;gap:8px');app(clientCell,[av,nameDiv]);
@@ -1570,89 +1585,6 @@ function pgDashboard(){
     app(right,[dt,tm]);app(row,[left,right]);ac.appendChild(row);
   });
   // Tasks section
-  // Group active tasks by assignee
-  var activeTasks=DB.tasks.filter(function(t){return t.status!=='done';});
-  var pOrder={high:0,medium:1,low:2};
-
-  var tc=mk('div');
-  if(!activeTasks.length){
-    tc.appendChild(mk('div','empty','No pending tasks.'));
-  } else {
-    // Build assignee groups
-    var assigneeGroups={};
-    activeTasks.forEach(function(t){
-      var key=t.assignedTo||'__unassigned__';
-      if(!assigneeGroups[key])assigneeGroups[key]=[];
-      assigneeGroups[key].push(t);
-    });
-
-    // Sort group keys: staff first (alphabetically), unassigned last
-    var groupKeys=Object.keys(assigneeGroups).sort(function(a,b){
-      if(a==='__unassigned__')return 1;
-      if(b==='__unassigned__')return -1;
-      var sa=DB.staff.find(function(x){return x.id===a;})||{name:''};
-      var sb=DB.staff.find(function(x){return x.id===b;})||{name:''};
-      return sa.name.localeCompare(sb.name);
-    });
-
-    groupKeys.forEach(function(key){
-      var tasks=assigneeGroups[key].sort(function(a,b){
-        return (pOrder[a.priority]||1)-(pOrder[b.priority]||1);
-      });
-      var st=key==='__unassigned__'?null:DB.staff.find(function(x){return x.id===key;});
-
-      // Assignee header
-      var grpHdr=mk('div');grpHdr.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 16px;background:#f9fffe;border-bottom:1px solid #e6f0ee;cursor:pointer';
-      grpHdr.onclick=(function(k){return function(){_taskFilter=k;nav('tasks');};})(key);
-      if(st){
-        var av3=mkAvatar(st.name,24);av3.style.cssText='width:24px;height:24px;font-size:10px;display:inline-flex;flex-shrink:0';
-        var sname2=mk('span');sname2.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';sname2.textContent=st.name;
-        var scnt2=mk('span');scnt2.style.cssText='font-size:11px;color:#aaa;margin-left:4px';scnt2.textContent=tasks.length+' task'+(tasks.length!==1?'s':'');
-        app(grpHdr,[av3,sname2,scnt2]);
-      } else {
-        var uname2=mk('span');uname2.style.cssText='font-size:13px;font-weight:700;color:#888';uname2.textContent='Unassigned';
-        var ucnt2=mk('span');ucnt2.style.cssText='font-size:11px;color:#aaa;margin-left:4px';ucnt2.textContent=tasks.length+' task'+(tasks.length!==1?'s':'');
-        app(grpHdr,[uname2,ucnt2]);
-      }
-      tc.appendChild(grpHdr);
-
-      // Task rows
-      tasks.forEach(function(t){
-        var isOverdue=t.dueDate&&t.dueDate<today&&t.status!=='done';
-        var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 16px 9px 32px;border-bottom:1px solid #f5f5f5;cursor:pointer;background:#fff';
-        row.onclick=function(){nav('tasks');};
-
-        var left=mk('div');left.style.flex='1';
-        var title2=mk('div');title2.style.cssText='font-size:13px;font-weight:600;color:'+(isOverdue?'#991B1B':'#1a1a1a');title2.textContent=t.title;
-        var due=mk('div');due.style.cssText='font-size:11px;color:'+(isOverdue?'#991B1B':'#aaa');
-        due.textContent=t.dueDate?(isOverdue?'⚠ Overdue: ':'Due: ')+t.dueDate:'';
-        app(left,[title2,due]);
-
-        var right=mk('div');right.style.cssText='display:flex;align-items:center;gap:8px';
-        var pColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
-        var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
-        var priBadge=mk('span','badge');
-        priBadge.style.cssText='font-size:10px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pColors[t.priority]||'#888');
-        priBadge.textContent=(t.priority||'medium').toUpperCase();
-        app(right,[priBadge]);
-        app(row,[left,right]);tc.appendChild(row);
-      });
-    });
-  }
-
-  var taskTitle=mk('div');taskTitle.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-  var tl=mk('div','section-title','Pending tasks');tl.style.margin='0';
-  var tlBtn=mkBtn('View all',function(){nav('tasks');},'btn btn-xs');
-  app(taskTitle,[tl,tlBtn]);
-
-  var col1=mk('div');app(col1,[mk('div','section-title','Recent orders'),oc]);
-  var col2=mk('div');app(col2,[mk('div','section-title','Upcoming appointments'),ac]);
-  var two=mk('div','two-col');app(two,[col1,col2]);
-
-  var taskTitle=mk('div');taskTitle.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-  var tl=mk('div','section-title','Pending tasks');tl.style.margin='0';
-  var tlBtn=mkBtn('View all',function(){nav('tasks');},'btn btn-xs');
-  app(taskTitle,[tl,tlBtn]);
 
   // Birthday reminders
   var bdays=getBirthdayReminders();
@@ -4862,6 +4794,219 @@ function printTasksForAssignee(filterKey){
   } else alert('Allow popups to print tasks.');
 }
 
+
+// ── TODAY'S WORK VIEW ─────────────────────────────────────────────────────
+function renderTodaysWork(){
+  var wrap=document.getElementById('todays-work-wrap');
+  if(!wrap)return;
+  wrap.innerHTML='';
+
+  var today=new Date().toISOString().split('T')[0];
+  var weekEnd=new Date(Date.now()+7*24*60*60*1000).toISOString().split('T')[0];
+
+  // Filter tasks by assignee
+  var sf=_taskStatusFilter||'active';
+  var tasks=DB.tasks.filter(function(t){
+    if(t.status==='done')return false;
+    if(_taskFilter==='__all__') return true;
+    if(_taskFilter==='__unassigned__') return !t.assignedTo;
+    if(_taskFilter==='bystaff') return true;
+    return t.assignedTo===_taskFilter;
+  });
+
+  if(!tasks.length)return;
+
+  // Categorise
+  var overdue=tasks.filter(function(t){return t.dueDate&&t.dueDate<today;})
+    .sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
+  var dueToday=tasks.filter(function(t){return t.dueDate===today;});
+  var thisWeek=tasks.filter(function(t){return t.dueDate&&t.dueDate>today&&t.dueDate<=weekEnd;})
+    .sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
+
+  if(!overdue.length&&!dueToday.length&&!thisWeek.length)return;
+
+  // Get assignee name for heading
+  var assigneeName='';
+  if(_taskFilter!=='__all__'&&_taskFilter!=='bystaff'){
+    if(_taskFilter==='__unassigned__'){assigneeName='Unassigned';}
+    else{var st=DB.staff.find(function(x){return x.id===_taskFilter;});assigneeName=st?st.name:'';}
+  }
+
+  // Section header
+  var hdr=mk('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
+  var htitle=mk('div');htitle.style.cssText='font-size:13px;font-weight:700;color:#1a1a1a';
+  htitle.textContent='Today\'s Work'+(assigneeName?' — '+assigneeName:'');
+  var hdate=mk('div');hdate.style.cssText='font-size:11px;color:#aaa';
+  hdate.textContent=new Date().toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});
+  app(hdr,[htitle,hdate]);
+  wrap.appendChild(hdr);
+
+  // Grid of 3 columns
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px';
+
+  function buildCol(label,color,bg,border,taskList){
+    var col=mk('div');col.style.cssText='background:'+bg+';border:1px solid '+border+';border-radius:10px;overflow:hidden';
+
+    // Column header
+    var colHdr=mk('div');colHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:'+bg+';border-bottom:1px solid '+border;
+    var colLabel=mk('div');colLabel.style.cssText='font-size:11px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:.06em';
+    colLabel.textContent=label;
+    var colCount=mk('div');colCount.style.cssText='font-size:12px;font-weight:700;color:'+color+';background:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center';
+    colCount.textContent=taskList.length;
+    app(colHdr,[colLabel,colCount]);
+    col.appendChild(colHdr);
+
+    if(!taskList.length){
+      var empty=mk('div');empty.style.cssText='padding:16px 12px;font-size:12px;color:'+color+';opacity:.5;text-align:center';
+      empty.textContent='All clear ✓';
+      col.appendChild(empty);
+    } else {
+      taskList.forEach(function(t){
+        var row=mk('div');row.style.cssText='padding:10px 12px;border-bottom:1px solid '+border+';cursor:pointer';
+        row.onclick=function(){openTaskModal(t.id);};
+
+        var tname=mk('div');tname.style.cssText='font-size:12px;font-weight:600;color:#1a1a1a;margin-bottom:3px';
+        tname.textContent=t.title;
+
+        var meta=mk('div');meta.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+
+        // Due date
+        if(t.dueDate){
+          var daysOff=Math.round((new Date(t.dueDate)-new Date(today))/(1000*60*60*24));
+          var dueEl=mk('span');dueEl.style.cssText='font-size:10px;color:'+color+';font-weight:600';
+          dueEl.textContent=daysOff<0?Math.abs(daysOff)+'d overdue':daysOff===0?'Today':'Due '+t.dueDate;
+          meta.appendChild(dueEl);
+        }
+
+        // Priority badge
+        var pColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
+        var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+        var pri=mk('span');pri.style.cssText='font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pColors[t.priority]||'#888');
+        pri.textContent=(t.priority||'med').toUpperCase();
+        meta.appendChild(pri);
+
+        // Order link
+        if(t.orderId){
+          var o=DB.orders.find(function(x){return x.id===t.orderId;});
+          if(o){var oTag=mk('span');oTag.style.cssText='font-size:10px;color:#2D6B5E;background:#e6f0ee;padding:1px 6px;border-radius:8px';oTag.textContent=o.orderNo||'Order';meta.appendChild(oTag);}
+        }
+
+        // Mark done button
+        var doneBtn=mk('button');doneBtn.style.cssText='margin-left:auto;background:none;border:1px solid '+border+';border-radius:6px;padding:2px 8px;font-size:10px;color:'+color+';cursor:pointer;white-space:nowrap';
+        doneBtn.textContent='Mark Done';
+        doneBtn.onclick=function(e){
+          e.stopPropagation();
+          if(confirm('Mark "'+t.title+'" as done?')){
+            dbSave('tasks',Object.assign({},t,{status:'done',completedAt:today}));
+          }
+        };
+        meta.appendChild(doneBtn);
+
+        app(row,[tname,meta]);
+        col.appendChild(row);
+      });
+    }
+    return col;
+  }
+
+  app(grid,[
+    buildCol('Overdue','#991B1B','#FEF2F2','#FCA5A5',overdue),
+    buildCol('Due Today','#B45309','#FFFBEB','#FDE68A',dueToday),
+    buildCol('This Week','#1D4ED8','#EFF6FF','#BFDBFE',thisWeek)
+  ]);
+
+  wrap.appendChild(grid);
+
+  // Divider before task list
+  var divider=mk('div');divider.style.cssText='border-top:1px solid #e8e8e8;margin:20px 0 0';
+  wrap.appendChild(divider);
+}
+
+
+
+// ── DASHBOARD TODAY'S WORK ───────────────────────────────────────────────
+function renderDashTodaysWork(assigneeKey){
+  var wrap=document.getElementById('dash-todays-work');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  var today=new Date().toISOString().split('T')[0];
+  var weekEnd=new Date(Date.now()+7*24*60*60*1000).toISOString().split('T')[0];
+
+  var tasks=DB.tasks.filter(function(t){
+    if(t.status==='done')return false;
+    if(assigneeKey==='__all__')return true;
+    if(assigneeKey==='__unassigned__')return !t.assignedTo;
+    return t.assignedTo===assigneeKey;
+  });
+
+  var overdue=tasks.filter(function(t){return t.dueDate&&t.dueDate<today;})
+    .sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
+  var dueToday=tasks.filter(function(t){return t.dueDate===today;});
+  var thisWeek=tasks.filter(function(t){return t.dueDate&&t.dueDate>today&&t.dueDate<=weekEnd;})
+    .sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
+
+  if(!overdue.length&&!dueToday.length&&!thisWeek.length){
+    var empty=mk('div');empty.style.cssText='text-align:center;color:#aaa;padding:20px;font-size:13px;background:#fafafa;border-radius:8px';
+    empty.textContent='All clear — no overdue or upcoming tasks ✓';
+    wrap.appendChild(empty);return;
+  }
+
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px';
+
+  function buildCol(label,color,bg,border,taskList){
+    var col=mk('div');col.style.cssText='background:'+bg+';border:1px solid '+border+';border-radius:10px;overflow:hidden';
+    var colHdr=mk('div');colHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid '+border;
+    var colLabel=mk('div');colLabel.style.cssText='font-size:11px;font-weight:800;color:'+color+';text-transform:uppercase;letter-spacing:.06em';colLabel.textContent=label;
+    var colCnt=mk('div');colCnt.style.cssText='font-size:11px;font-weight:700;color:'+color+';background:#fff;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center';colCnt.textContent=taskList.length;
+    app(colHdr,[colLabel,colCnt]);col.appendChild(colHdr);
+    if(!taskList.length){
+      var e=mk('div');e.style.cssText='padding:14px 12px;font-size:12px;color:'+color+';opacity:.5;text-align:center';e.textContent='All clear ✓';col.appendChild(e);
+    } else {
+      taskList.slice(0,5).forEach(function(t){
+        var row=mk('div');row.style.cssText='padding:8px 12px;border-bottom:1px solid '+border+';cursor:pointer';
+        row.onclick=function(){nav('tasks');};
+        var tname=mk('div');tname.style.cssText='font-size:12px;font-weight:600;color:#1a1a1a;margin-bottom:2px';tname.textContent=t.title;
+        var meta=mk('div');meta.style.cssText='display:flex;align-items:center;gap:6px;flex-wrap:wrap';
+        if(t.dueDate){
+          var daysOff=Math.round((new Date(t.dueDate)-new Date(today))/(1000*60*60*24));
+          var dueEl=mk('span');dueEl.style.cssText='font-size:10px;color:'+color+';font-weight:600';
+          dueEl.textContent=daysOff<0?Math.abs(daysOff)+'d overdue':daysOff===0?'Today':''+t.dueDate;
+          meta.appendChild(dueEl);
+        }
+        var pColors={high:'#991B1B',medium:'#B45309',low:'#166534'};
+        var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};
+        var pri=mk('span');pri.style.cssText='font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pColors[t.priority]||'#888');
+        pri.textContent=(t.priority||'MED').toUpperCase();meta.appendChild(pri);
+        if(t.assignedTo&&assigneeKey==='__all__'){
+          var st=DB.staff.find(function(x){return x.id===t.assignedTo;});
+          if(st){var stTag=mk('span');stTag.style.cssText='font-size:10px;color:#2D6B5E;background:#e6f0ee;padding:1px 6px;border-radius:8px';stTag.textContent=st.name;meta.appendChild(stTag);}
+        }
+        var doneBtn=mk('button');doneBtn.style.cssText='margin-left:auto;background:none;border:1px solid '+border+';border-radius:6px;padding:2px 8px;font-size:10px;color:'+color+';cursor:pointer';
+        doneBtn.textContent='Done';
+        doneBtn.onclick=function(e){
+          e.stopPropagation();
+          if(confirm('Mark "'+t.title+'" as done?'))dbSave('tasks',Object.assign({},t,{status:'done',completedAt:today}));
+        };
+        meta.appendChild(doneBtn);
+        app(row,[tname,meta]);col.appendChild(row);
+      });
+      if(taskList.length>5){
+        var more=mk('div');more.style.cssText='padding:6px 12px;font-size:11px;color:'+color+';text-align:center;cursor:pointer';
+        more.textContent='+'+(taskList.length-5)+' more →';
+        more.onclick=function(){nav('tasks');};
+        col.appendChild(more);
+      }
+    }
+    return col;
+  }
+
+  app(grid,[
+    buildCol('Overdue','#991B1B','#FEF2F2','#FCA5A5',overdue),
+    buildCol('Due Today','#B45309','#FFFBEB','#FDE68A',dueToday),
+    buildCol('This Week','#1D4ED8','#EFF6FF','#BFDBFE',thisWeek)
+  ]);
+  wrap.appendChild(grid);
+}
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
