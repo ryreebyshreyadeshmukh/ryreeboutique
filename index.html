@@ -3260,6 +3260,12 @@ function openTaskModal(id, defaultStatus, prefillOrderId, prefillStaffId){
     mkActions([
       mkBtn('Cancel',closeModal),
       id?mkBtn('Delete',function(){if(confirm('Permanently delete this task? This cannot be undone.')){dbDel('tasks',id);closeModal();}},'btn-danger'):null,
+      (id&&t&&t.status!=='done')?mkBtn('Mark Done',function(){
+        if(confirm('Mark this task as done?')){
+          dbSave('tasks',Object.assign({},t,{status:'done',completedAt:new Date().toISOString().split('T')[0]}));
+          closeModal();
+        }
+      },'btn btn-xs'):null,
       mkBtn(id?'Save':'Create task',function(){
         var title=document.getElementById('tk-title').value.trim();
         if(!title){alert('Enter a task title.');return;}
