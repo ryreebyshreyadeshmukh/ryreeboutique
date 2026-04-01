@@ -747,7 +747,6 @@ function openLinkModal(cid){
 function renderLinkModal(){
   var c=DB.clothing.find(function(x){return x.id===_lCid;});
   var avail=DB.measitems.filter(function(m){return _lSel.indexOf(m.id)<0;});
-  var selItems=_lSel.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
   var opts=[{value:'',label:'— Select —'}].concat(avail.map(function(m){return {value:m.id,label:m.name+(m.unit?' ('+m.unit+')':'')};}));
   var sel=mkSelect('lnk-sel',opts,'');
   var addB=mkBtn('Add',function(){
@@ -757,24 +756,61 @@ function renderLinkModal(){
   },'btn btn-primary btn-sm');
   var addRow=mkRow('display:flex;gap:8px;align-items:center;margin-bottom:10px');
   app(addRow,[sel,addB]);
-  var selBox=mk('div','sel-box');
-  if(!selItems.length){var ns=mk('span');ns.style.cssText='font-size:12px;color:#bbb;padding:4px';ns.textContent='None added yet';selBox.appendChild(ns);}
-  else{
-    selItems.forEach(function(m){
-      var pill=mk('div','pill-rem');
-      pill.appendChild(mk('span',null,m.name));
-      var rb=mk('button',null,'×');
+
+  // Ordered list with ↑↓ buttons
+  var listWrap=mk('div');listWrap.id='lnk-list';
+
+  function renderList(){
+    listWrap.innerHTML='';
+    var selItems=_lSel.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean);
+    if(!selItems.length){
+      var ns=mk('div');ns.style.cssText='font-size:12px;color:#bbb;padding:8px 4px';ns.textContent='No measurements added yet.';
+      listWrap.appendChild(ns);return;
+    }
+    selItems.forEach(function(m,i){
+      var row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:6px';
+
+      // Sequence number
+      var num=mk('span');num.style.cssText='font-size:11px;font-weight:700;color:#aaa;width:20px;flex-shrink:0;text-align:center';
+      num.textContent=String(i+1)+'.';
+
+      // Name + unit
+      var info=mk('div');info.style.cssText='flex:1;font-size:13px;font-weight:500;color:#1a1a1a';
+      info.textContent=m.name+(m.unit?' ('+m.unit+')':'');
+
+      // ↑↓ buttons
+      var upBtn=mk('button');upBtn.textContent='↑';
+      upBtn.style.cssText='background:#f0f0f0;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:13px;color:#555;'+(i===0?'opacity:.3;pointer-events:none':'');
+      upBtn.onclick=(function(idx2){return function(){
+        var tmp=_lSel[idx2-1];_lSel[idx2-1]=_lSel[idx2];_lSel[idx2]=tmp;
+        renderList();
+      };})(i);
+
+      var dnBtn=mk('button');dnBtn.textContent='↓';
+      dnBtn.style.cssText='background:#f0f0f0;border:none;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:13px;color:#555;'+(i===selItems.length-1?'opacity:.3;pointer-events:none':'');
+      dnBtn.onclick=(function(idx2){return function(){
+        var tmp=_lSel[idx2+1];_lSel[idx2+1]=_lSel[idx2];_lSel[idx2]=tmp;
+        renderList();
+      };})(i);
+
+      // Remove button
+      var rb=mk('button');rb.textContent='×';
+      rb.style.cssText='background:none;border:1px solid #fca5a5;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:13px;color:#ef4444';
       rb.setAttribute('data-mid',m.id);
-      rb.onclick=function(){var mid=this.getAttribute('data-mid');_lSel=_lSel.filter(function(x){return x!==mid;});renderLinkModal();};
-      pill.appendChild(rb);selBox.appendChild(pill);
+      rb.onclick=function(){var mid=this.getAttribute('data-mid');_lSel=_lSel.filter(function(x){return x!==mid;});renderList();};
+
+      app(row,[num,info,upBtn,dnBtn,rb]);
+      listWrap.appendChild(row);
     });
   }
+  renderList();
+
   var wrap=mk('div');
   app(wrap,[
     mk('div','modal-title','Measurements for '+c.name),
-    mk('div','modal-sub','Select measurement items from the dropdown.'),
+    mk('div','modal-sub','Add measurements and use ↑↓ to set the order for tailors.'),
     mkFg('Add field',addRow),
-    mkFg('Added ('+selItems.length+')',selBox),
+    mkFg('Added & ordered ('+(function(){return _lSel.map(function(id){return DB.measitems.find(function(x){return x.id===id;});}).filter(Boolean).length;}())+')',listWrap),
     mkActions([mkBtn('Cancel',closeModal),mkBtn('Save',function(){
       var c2=DB.clothing.find(function(x){return x.id===_lCid;});
       dbSave('clothing',Object.assign({},c2,{measitemIds:_lSel.slice()}));
