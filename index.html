@@ -865,7 +865,13 @@ function pgClients(){
         };
         app(ch,[cn,eb,db2]);card.appendChild(ch);
         var vd=mk('div');vd.style.cssText='display:grid;gap:7px';
-        Object.keys(vals).forEach(function(k){
+        // Sort by clothing item's measitemIds order
+        var orderedKeys=(cloth.measitemIds||[])
+          .map(function(id){var m=DB.measitems.find(function(x){return x.id===id;});return m?m.name:null;})
+          .filter(function(n){return n&&vals[n]!==undefined&&vals[n]!=='';});
+        // Add any keys not in measitemIds (legacy data)
+        Object.keys(vals).forEach(function(k){if(orderedKeys.indexOf(k)<0&&vals[k]!==''&&vals[k]!==null)orderedKeys.push(k);});
+        orderedKeys.forEach(function(k){
           var row=mk('div','meas-row');
           var ks=mk('span');ks.style.cssText='color:#888;font-size:12px';ks.textContent=k;
           var vs=mk('span','meas-val',vals[k]);
@@ -1075,7 +1081,13 @@ function printCard(clientId){
   var secs=mKeys.map(function(cid){
     var cloth=DB.clothing.find(function(x){return x.id===cid;});if(!cloth)return'';
     var vals=cl.measurements[cid]||{};
-    var filledVals=Object.keys(vals).filter(function(k){return vals[k]!==''&&vals[k]!==null&&vals[k]!==undefined;});
+    // Sort by clothing item's measitemIds order
+    var orderedPrintKeys=(cloth.measitemIds||[])
+      .map(function(id){var m=DB.measitems.find(function(x){return x.id===id;});return m?m.name:null;})
+      .filter(function(n){return n&&vals[n]!==undefined&&vals[n]!==''&&vals[n]!==null;});
+    // Add legacy keys not in measitemIds
+    Object.keys(vals).forEach(function(k){if(orderedPrintKeys.indexOf(k)<0&&vals[k]!==''&&vals[k]!==null&&vals[k]!==undefined)orderedPrintKeys.push(k);});
+    var filledVals=orderedPrintKeys;
     if(!filledVals.length)return '';
     var rows=filledVals.map(function(k){var mi=DB.measitems.find(function(m){return m.name===k;});var unit=mi&&mi.unit?mi.unit:'';return '<tr><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:13px">'+k+'</td><td style="padding:7px 12px;border:1px solid #e0e0e0;font-size:14px;font-weight:700;text-align:center;width:35%">'+vals[k]+(unit?' <span style="font-size:11px;color:#888;font-weight:400">'+unit+'</span>':'')+'</td></tr>';}).join('');
     return '<div style="margin-bottom:20px"><div style="background:#2D6B5E;color:#C9A84C;padding:8px 14px;font-size:13px;font-weight:700;border-radius:6px 6px 0 0">'+cloth.name.toUpperCase()+'</div><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8">MEASUREMENT</td><td style="padding:6px 12px;border:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#999;background:#f8f8f8;text-align:center">VALUE</td></tr></thead><tbody>'+rows+'</tbody></table></div>';
