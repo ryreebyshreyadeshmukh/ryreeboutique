@@ -3840,25 +3840,57 @@ function updateEstTotals(){
 function saveEstimatorAsQuotation(){
   var garments=getEstGarments();
   var garmentObj=garments.find(function(g){return g.id===_estGarment;});
-  if(!garmentObj)return;
+  if(!garmentObj){alert('Please select a garment first.');return;}
   var cols=getEstCols();
-  var grand=garmentObj.components.reduce(function(a,c){return a+cols.reduce(function(b,colDef){return b+Number((_estData[c]||{})[colDef.id]||0);},0);},0);
+  var grand=garmentObj.components.reduce(function(a,c){
+    return a+cols.reduce(function(b,colDef){return b+Number((_estData[c]||{})[colDef.id]||0);},0);
+  },0);
   var markup=getEstMarkup();
   var mrp=grand*markup;
   var selling=Math.round(mrp-(mrp*(_estDiscount/100)));
-  nav('quotations');
-  setTimeout(function(){
-    openQuotationModal();
-    setTimeout(function(){
-      var rows=document.querySelectorAll('.quot-svc-row');
-      if(rows.length>0){
-        var nameInp=rows[0].querySelector('.quot-svc-name');
-        var priceInp=rows[0].querySelector('.quot-svc-price');
-        if(nameInp) nameInp.value=garmentObj.name+' (custom)';
-        if(priceInp){priceInp.value=selling;updateQuotTotal();}
-      }
-    },200);
-  },300);
+
+  // Ask for client and service name before saving
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Save as Quotation'));
+  wrap.appendChild(mk('div','modal-sub','This estimate will be saved as a quotation in the Quotations module.'));
+
+  var clientSel2=mkClientSelect('est-quot-client','');
+  var svcInp=mkInput('est-quot-svc','text','Service name',garmentObj.name+' (Custom Design)');
+  var totalDisp=mk('div');totalDisp.style.cssText='background:#e6f0ee;padding:10px 14px;border-radius:8px;font-size:14px;font-weight:700;color:#2D6B5E;margin-bottom:4px';
+  totalDisp.textContent='Total: ₹'+selling.toLocaleString('en-IN');
+
+  app(wrap,[
+    mkFg('Client (optional)',clientSel2),
+    mkFg('Service / Package name',svcInp),
+    totalDisp,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save Quotation',function(){
+        var svcName=(document.getElementById('est-quot-svc')||{}).value||garmentObj.name;
+        var clientId=(document.getElementById('est-quot-client')||{}).value||'';
+        var cl=clientId?DB.clients.find(function(x){return x.id===clientId;}):null;
+        var today=new Date().toISOString().split('T')[0];
+        var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
+        dbSave('quotations',{
+          id:uid(),
+          clientId:clientId,
+          clientName:cl?cl.name:'',
+          date:today,
+          validTill:validTill,
+          services:[{name:svcName,price:String(selling)}],
+          travelCharges:'',
+          total:selling,
+          notes:'Generated from Price Estimator',
+          terms:DEFAULT_TERMS.join('\n'),
+          status:'Pending',
+          created:Date.now()
+        });
+        closeModal();
+        alert('Quotation saved! Check the Quotations module.');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap);
 }
 
 function printEstimate(){
