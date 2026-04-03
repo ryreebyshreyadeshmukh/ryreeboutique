@@ -2678,6 +2678,8 @@ function openQuotationModal(id){
 
   function renderServiceRows(){
     servicesWrap.innerHTML='';
+    var cntEl=document.getElementById('svc-count-label');
+    if(cntEl)cntEl.textContent=svcData.length+' service'+(svcData.length!==1?'s':'');
     var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:4px';
     ['Service / Package name','Price (₹)',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:11px;font-weight:600;color:#888';l.textContent=h;colHdr.appendChild(l);});
     servicesWrap.appendChild(colHdr);
@@ -2791,7 +2793,16 @@ function openQuotationModal(id){
     app(mk('div','form-row'),[mkFg('Client',clientSel),mkFg('Client name (if new)',clientNameInp)]),
     app(mk('div','form-row'),[mkFg('Quotation date',dateInp),mkFg('Valid till',validInp)]),
     mkFg('Service / event date & time',serviceInp),
-    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');app(fg,[l,datalist,servicesWrap,addSvcBtn]);return fg;})(),
+    (function(){
+      var fg=mk('div','form-group');
+      var lRow=mk('div');lRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px';
+      var l=mk('label','form-label','Services & packages *');l.style.margin='0';
+      var cnt=mk('span');cnt.id='svc-count-label';cnt.style.cssText='font-size:11px;color:#2D6B5E;font-weight:600';
+      cnt.textContent=svcData.length+' service'+(svcData.length!==1?'s':'');
+      app(lRow,[l,cnt]);
+      app(fg,[lRow,datalist,servicesWrap,addSvcBtn]);
+      return fg;
+    })(),
     app(mk('div','form-row'),[mkFg('Travel / extra charges (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisplay);return fg;})()]),
     (function(){
       var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:4px';
