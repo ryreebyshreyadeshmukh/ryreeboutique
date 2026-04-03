@@ -4321,94 +4321,75 @@ function _doPrintOrder(orderId,internal,discType,discVal){
 function printOrderQuotation(orderId){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
 
-  // Build a modal to collect: discount type/amount + service name for Quotations module
   var wrap=mk('div');
   wrap.appendChild(mk('div','modal-title','Generate Quotation'));
-  wrap.appendChild(mk('div','modal-sub','Set discount and choose a service name. This quotation will also be saved in the Quotations module.'));
+  wrap.appendChild(mk('div','modal-sub',
+    'A quotation will be created from this order\u2019s items. You can add a discount later via Edit after client negotiations.'));
 
-  // Service name dropdown from DB.services
-  var svcOpts=[{value:'',label:'— Select service / package —'}]
-    .concat(DB.services.map(function(s){return {value:s.name,label:s.name};}))
-    .concat([{value:'__custom__',label:'Type custom name...'}]);
-  var svcSel=mkSelect('oq-svc',svcOpts,'');
-  var customNameInp=mkInput('oq-custom-name','text','Enter service name...');
-  customNameInp.style.display='none';
-  svcSel.onchange=function(){
-    customNameInp.style.display=this.value==='__custom__'?'block':'none';
-  };
+  // Order items preview
+  var preview=mk('div');preview.style.cssText='background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:10px 14px;margin-bottom:12px';
+  var prevTitle=mk('div');prevTitle.style.cssText='font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';
+  prevTitle.textContent='Order items ('+items.length+')';
+  preview.appendChild(prevTitle);
+  var total=0;
+  items.forEach(function(it){
+    total+=Number(it.amount||0);
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid #e6f0ee';
+    var nm=mk('span');nm.textContent=it.name+(it.qty>1?' ×'+it.qty:'');
+    var amt=mk('span');amt.style.cssText='font-weight:600;color:#2D6B5E';amt.textContent=it.amount?rupee(it.amount):'\u2014';
+    app(row,[nm,amt]);preview.appendChild(row);
+  });
+  var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 0 0';
+  var totLbl=mk('span');totLbl.textContent='Total';
+  var totAmt=mk('span');totAmt.style.color='#2D6B5E';totAmt.textContent=rupee(total);
+  app(totRow,[totLbl,totAmt]);preview.appendChild(totRow);
+  wrap.appendChild(preview);
 
-  // Discount type
-  var discTypeRow=mk('div');discTypeRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:4px';
-  var discLabel=mk('div','form-label','Discount');discLabel.style.margin='0';
-  var pctBtn=mk('button');pctBtn.textContent='%';pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;background:#2D6B5E;color:#fff;cursor:pointer;font-weight:600';
-  var flatBtn=mk('button');flatBtn.textContent='₹';flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;background:#fff;cursor:pointer;font-weight:600;color:#555';
-  var discInp=mkInput('oq-disc','number','0');discInp.style.cssText='flex:1';discInp.min='0';
-  var discType='pct';
-  pctBtn.onclick=function(e){e.preventDefault();discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';};
-  flatBtn.onclick=function(e){e.preventDefault();discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';};
-  app(discTypeRow,[pctBtn,flatBtn,discInp]);
-
-  // Notes override
-  var notesInp=mk('textarea','form-input');notesInp.id='oq-notes';notesInp.rows=2;
-  notesInp.placeholder='Additional notes for this quotation...';
-  notesInp.value=o.notes||'';
-
-  // T&C section
-  var oqTcWrap=mk('div');
-  var oqTcLabel=mk('div','form-label','Terms & Conditions');
-  var oqTcRow=mk('div');oqTcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
-  var oqTcOpts=[{value:'',label:'— Load from template —'}]
+  // T&C template picker only
+  var tcWrap=mk('div');
+  var tcRow=mk('div');tcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  var tcOpts=[{value:'',label:'\u2014 Select T&C template (optional) \u2014'}]
     .concat(DB.tctemplates.map(function(t){return {value:t.id,label:t.name};}));
-  var oqTcSel=mkSelect('oq-tc-sel',oqTcOpts,'');oqTcSel.style.flex='1';
-  var oqTcLoadBtn=mkBtn('Load',function(){
+  var tcSel=mkSelect('oq-tc-sel',tcOpts,'');tcSel.style.flex='1';
+  var tcLoadBtn=mkBtn('Load',function(){
     var tid=document.getElementById('oq-tc-sel').value;
     if(!tid)return;
     var tmpl=DB.tctemplates.find(function(t){return t.id===tid;});
     if(tmpl)document.getElementById('oq-terms').value=tmpl.terms;
   },'btn btn-xs');
-  app(oqTcRow,[oqTcSel,oqTcLoadBtn]);
-  var oqTermsTA=mk('textarea','form-input');oqTermsTA.id='oq-terms';oqTermsTA.rows=4;
-  oqTermsTA.placeholder='Terms & conditions for this quotation...';
-  oqTermsTA.value=[
+  app(tcRow,[tcSel,tcLoadBtn]);
+  var termsTA=mk('textarea','form-input');termsTA.id='oq-terms';termsTA.rows=4;
+  termsTA.placeholder='Terms & conditions...';
+  termsTA.value=[
     'This quotation is valid for 15 days from the date of issue.',
     'Cancellations before 48 hours of the day of service will forfeit the advance.',
     'Prices are subject to change based on fabric and material availability.'
   ].join('\n');
-  app(oqTcWrap,[oqTcLabel,oqTcRow,oqTermsTA]);
+  app(tcWrap,[mkFg('T&C Template',tcRow),termsTA]);
+  wrap.appendChild(tcWrap);
 
-  app(wrap,[
-    mkFg('Service / Package name *',svcSel),
-    (function(){var fg=mk('div','form-group');app(fg,[discLabel,discTypeRow]);return fg;})(),
-    customNameInp,
-    mkFg('Notes',notesInp),
-    oqTcWrap,
-    mkActions([
-      mkBtn('Cancel',closeModal),
-      mkBtn('Generate & Save',function(){
-        // Read ALL values before closeModal removes DOM elements
-        var svcName=document.getElementById('oq-svc').value;
-        if(svcName==='__custom__') svcName=((document.getElementById('oq-custom-name')||{}).value||'').trim();
-        if(!svcName){alert('Select or enter a service name.');return;}
-        var discVal=Number((document.getElementById('oq-disc')||{}).value||0);
-        var notes=(document.getElementById('oq-notes')||{}).value||'';
-        var termsEl=document.getElementById('oq-terms');
-        var terms=termsEl?termsEl.value:'';
-        closeModal();
-        saveOrderAsQuotation(orderId,svcName,discType,discVal,notes,terms);
-        generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms);
-      },'btn btn-primary')
-    ])
-  ]);
+  wrap.appendChild(mkActions([
+    mkBtn('Cancel',closeModal),
+    mkBtn('Generate & Save',function(){
+      var terms=(document.getElementById('oq-terms')||{}).value||'';
+      closeModal();
+      saveOrderAsQuotation(orderId,terms);
+      generateOrderQuotationPDF(orderId,terms);
+    },'btn btn-primary')
+  ]));
+
   showM(wrap,true);
 }
 
-function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms){
+function generateOrderQuotationPDF(orderId,terms){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var validTill=new Date(Date.now()+15*24*60*60*1000).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-  var items=(o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}]);
+  var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
+  var subtotal=Number(o.amount||0);
 
   // Merge images
   var itemsWithImgs=items.map(function(it,idx2){
@@ -4416,12 +4397,6 @@ function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms)
     var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
     return Object.assign({},it,{images:imgs.filter(Boolean)});
   });
-
-  var subtotal=Number(o.amount||0);
-  var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
-  var total=subtotal-discAmt;
-  var advance=Number(o.advance||0);
-  var balance=total-advance;
 
   var itemsHtml=itemsWithImgs.map(function(it,i){
     var imgHtml='';
@@ -4432,25 +4407,33 @@ function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms)
     }
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
-        +'<div style="font-weight:600">'+(i+1)+'. '+it.name+'</div>'
+        +'<div style="font-weight:600">'+(i+1)+'. '+it.name+(it.qty>1?' ×'+it.qty:'')+'</div>'
+        +(it.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+it.delivery+'</div>':'')
         +(it.itemNotes?'<div style="font-size:11px;color:#888;margin-top:3px">'+it.itemNotes+'</div>':'')
         +imgHtml
       +'</td>'
       +'<td style="padding:10px 12px;text-align:center;font-size:13px;vertical-align:top;color:#555">'+it.qty+'</td>'
-      +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top">'+(it.delivery?'<span style="color:#888">'+it.delivery+'</span>':'\u2014')+'</td>'
-      +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(it.amount?'\u20b9'+Number(it.amount).toLocaleString('en-IN'):'\u2014')+'</td>'
+      +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top;color:#888">'+(it.delivery||'—')+'</td>'
+      +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(it.amount?'₹'+Number(it.amount).toLocaleString('en-IN'):'—')+'</td>'
       +'</tr>';
   }).join('');
 
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation - '+(cl?cl.name:'')+'</title>'
+  var tcLines=(terms||'').split('\n').filter(function(l){return l.trim();});
+  var tcHtml=tcLines.length
+    ?'<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
+      +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
+      +tcLines.map(function(l,i){return '<div>'+(i+1)+'. '+l.trim()+'</div>';}).join('')
+      +'</div>'
+    :'';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#333;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
     +'<div class="no-print"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
-    +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">Close</button></div>'
+    +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button></div>'
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:20px">'
       +'<div>'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.1em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'
         +'<div style="font-size:26px;font-weight:900;color:#2D6B5E">QUOTATION</div>'
-        +'<div style="font-size:12px;color:#888;margin-top:3px">'+svcName+'</div>'
         +(o.orderNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Ref: '+o.orderNo+'</div>':'')
       +'</div>'
       +'<div style="text-align:right">'
@@ -4475,66 +4458,55 @@ function generateOrderQuotationPDF(orderId,svcName,discType,discVal,notes,terms)
       +'<tbody>'+itemsHtml+'</tbody>'
     +'</table>'
     +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
-      +'<table style="width:300px">'
-        +'<tr><td style="padding:6px 12px;color:#888">Subtotal</td><td style="padding:6px 12px;text-align:right;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
-        +(discVal>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:6px 12px;color:#166534">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td><td style="padding:6px 12px;text-align:right;color:#166534">-\u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>':'')
-        +'<tr style="background:#f9fffe;border-top:2px solid #2D6B5E"><td style="padding:8px 12px;font-weight:700">Total</td><td style="padding:8px 12px;text-align:right;font-size:16px;font-weight:800;color:#2D6B5E">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
-        +(advance>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:6px 12px;color:#888">Advance Paid</td><td style="padding:6px 12px;text-align:right;color:#166534">-\u20b9'+advance.toLocaleString('en-IN')+'</td></tr>':'')
-        +(advance>0?'<tr style="background:#FEF2F2"><td style="padding:6px 12px;font-weight:700;color:#991B1B">Balance Due</td><td style="padding:6px 12px;text-align:right;font-weight:800;color:#991B1B">\u20b9'+balance.toLocaleString('en-IN')+'</td></tr>':'')
+      +'<table style="width:260px;border-collapse:collapse">'
+        +'<tr style="background:#f0fdf4;border-top:2px solid #2D6B5E">'
+          +'<td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td>'
+          +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:#2D6B5E">₹'+subtotal.toLocaleString('en-IN')+'</td>'
+        +'</tr>'
       +'</table>'
     +'</div>'
-    +(notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+notes+'</div></div>':'')
-    +(function(){
-      var tcSrc=q.terms||[
-        'This quotation is valid for 15 days from the date of issue.',
-        'Cancellations before 48 hours of the day of service will forfeit the advance.',
-        'Prices are subject to change based on fabric and material availability.'
-      ].join('\n');
-      var tcLines=tcSrc.split('\n').filter(function(l){return l.trim();});
-      return '<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
-        +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
-        +tcLines.map(function(l,i){return '<div>'+(i+1)+'. '+l.trim()+'</div>';}).join('')
-        +'</div>';
-    })()
+    +(o.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+o.notes+'</div></div>':'')
+    +tcHtml
     +'<div style="margin-top:16px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
     +'</body></html>';
 
   var win=window.open('','_blank');
-  if(win){
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.document.title='Quotation'+(o.orderNo?' - '+o.orderNo:'')+(cl?' - '+cl.name:'');
-  }
+  if(win){win.document.open();win.document.write(html);win.document.close();}
   else alert('Allow popups to generate PDF.');
 }
 
-function saveOrderAsQuotation(orderId,svcName,discType,discVal,notes,terms){
+function saveOrderAsQuotation(orderId,terms){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
-  var subtotal=Number(o.amount||0);
-  var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
-  var total=subtotal-discAmt;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+  var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
   var today=new Date().toISOString().split('T')[0];
   var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
 
+  // Convert order items directly to quotation services
+  var services=items.map(function(it){
+    return {name:it.name+(it.qty>1?' ×'+it.qty:''),price:Number(it.amount||0)};
+  });
+
   var quot={
     id:uid(),
-    clientId:o.clientId,
-    clientName:DB.clients.find(function(x){return x.id===o.clientId;})?DB.clients.find(function(x){return x.id===o.clientId;}).name:'',
+    clientId:o.clientId||'',
+    clientName:cl?cl.name:'',
+    clientPhone:cl?(cl.phone||''):'',
     date:today,
     validTill:validTill,
-    services:[{name:svcName,price:String(total)}],
-    travelCharges:'',
-    total:total,
-    notes:notes||o.notes||'',
-    terms:terms||'Cancellations before 48 hours of the day of service will forfeit the advance.',
+    services:services,
+    travelCharge:'',
+    discountType:'pct',
+    discountVal:0,
+    notes:o.notes||'',
+    terms:terms||'',
     status:'Pending',
     linkedOrderId:orderId,
     linkedOrderNo:o.orderNo||'',
     created:Date.now()
   };
   dbSave('quotations',quot);
-  alert('Quotation saved! Check the Quotations module to track it.');
+  alert('Quotation saved! Open Quotations module to view or edit it.');
 }
 
 
