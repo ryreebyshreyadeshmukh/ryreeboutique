@@ -2673,13 +2673,16 @@ function openQuotationModal(id){
   var servicesWrap=mk('div');servicesWrap.id='quot-services';
   var existingServices=q?q.services:[{name:'',price:''}];
 
+  // Single source of truth for services
+  var svcData=existingServices.map(function(s){return {name:s.name||'',price:String(s.price||'')};});
+
   function renderServiceRows(){
     servicesWrap.innerHTML='';
     var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:4px';
     ['Service / Package name','Price (₹)',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:11px;font-weight:600;color:#888';l.textContent=h;colHdr.appendChild(l);});
     servicesWrap.appendChild(colHdr);
 
-    var rows=servicesWrap._rows||existingServices;
+    var rows=svcData;
     rows.forEach(function(svc,idx){
       var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';
       row.className='quot-svc-row';
@@ -2692,16 +2695,17 @@ function openQuotationModal(id){
 
       var priceInp=mk('input','form-input');priceInp.type='number';priceInp.placeholder='₹';priceInp.value=svc.price||'';priceInp.style.width='100px';priceInp.className='quot-svc-price';
       // Auto-fill price from defaults
-      nameInp.oninput=function(){
+      nameInp.oninput=(function(i){return function(){
+        svcData[i].name=this.value;
         var list=DB.services.length?DB.services:DEFAULT_SERVICES;
         var match=list.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));
-        if(match&&!priceInp.value)priceInp.value=match.price;
+        if(match&&!priceInp.value){priceInp.value=match.price;svcData[i].price=String(match.price);}
         updateQuotTotal();
-      };
-      priceInp.oninput=updateQuotTotal;
+      };})(idx);
+      priceInp.oninput=(function(i){return function(){svcData[i].price=this.value;updateQuotTotal();};})(idx);
 
       var delBtn=mk('button','btn-danger');delBtn.textContent='×';delBtn.style.cssText='padding:4px 8px;font-size:14px';
-      delBtn.onclick=function(){row.parentNode.removeChild(row);updateQuotTotal();};
+      delBtn.onclick=(function(i){return function(){svcData.splice(i,1);renderServiceRows();updateQuotTotal();};})(idx);
 
       app(row,[nameWrap,priceInp,delBtn]);
       servicesWrap.appendChild(row);
@@ -2714,17 +2718,11 @@ function openQuotationModal(id){
   suggestionList.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
 
   var addSvcBtn=mkBtn('+ Add service / package',function(){
-    var newRow=mk('div');newRow.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';
-    newRow.className='quot-svc-row';
-    var nameInp2=mk('input','form-input');nameInp2.placeholder='e.g. Hairstyling';nameInp2.className='quot-svc-name form-input';nameInp2.setAttribute('list','svc-suggestions');
-    var priceInp2=mk('input','form-input');priceInp2.type='number';priceInp2.placeholder='₹';priceInp2.style.width='100px';priceInp2.className='quot-svc-price';
-    nameInp2.oninput=function(){var list=DB.services.length?DB.services:DEFAULT_SERVICES;var match=list.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));if(match&&!priceInp2.value){priceInp2.value=match.price;updateQuotTotal();}};
-    priceInp2.oninput=updateQuotTotal;
-    var delBtn2=mk('button','btn-danger');delBtn2.textContent='×';delBtn2.style.cssText='padding:4px 8px;font-size:14px';
-    delBtn2.onclick=function(){newRow.parentNode.removeChild(newRow);updateQuotTotal();};
-    app(newRow,[nameInp2,priceInp2,delBtn2]);
-    servicesWrap.appendChild(newRow);
-    setTimeout(function(){nameInp2.focus();},50);
+    svcData.push({name:'',price:''});
+    renderServiceRows();
+    // Focus last name input
+    var inputs=servicesWrap.querySelectorAll('.quot-svc-name');
+    if(inputs.length)setTimeout(function(){inputs[inputs.length-1].focus();},50);
   },'btn btn-xs');
   addSvcBtn.style.marginTop='4px';
 
