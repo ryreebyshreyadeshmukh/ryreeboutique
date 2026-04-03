@@ -2667,168 +2667,169 @@ function pgQuotations(){
 
 function openQuotationModal(id){
   var q=id?DB.quotations.find(function(x){return x.id===id;}):null;
-  var clientOpts=[{value:'',label:'— Walk-in / new client —'}].concat(DB.clients.map(function(c){return {value:c.id,label:c.name+(c.phone?' ('+c.phone+')':'')};}));
+  if(!q){alert('No quotation found.');return;}
 
-  // Build services section
-  var servicesWrap=mk('div');servicesWrap.id='quot-services';
-  var existingServices=q?q.services:[{name:'',price:''}];
+  // Load images from orderImages if linked to an order
+  var linkedOrderId=q.linkedOrderId||'';
+  var services=q.services||[];
 
-  // Single source of truth for services
-  var svcData=existingServices.map(function(s){return {name:s.name||'',price:String(s.price||'')};});
+  // Build item rows — same as order modal
+  var itemsWrap=mk('div');itemsWrap.id='quot-items-wrap';
 
-  function renderServiceRows(){
-    servicesWrap.innerHTML='';
-    var cntEl=document.getElementById('svc-count-label');
-    if(cntEl)cntEl.textContent=svcData.length+' service'+(svcData.length!==1?'s':'');
-    var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:4px';
-    ['Service / Package name','Price (₹)',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:11px;font-weight:600;color:#888';l.textContent=h;colHdr.appendChild(l);});
-    servicesWrap.appendChild(colHdr);
-
-    var rows=svcData;
-    rows.forEach(function(svc,idx){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:6px;align-items:center';
-      row.className='quot-svc-row';
-
-      // Service name with suggestions
-      var nameWrap=mk('div');nameWrap.style.position='relative';
-      var nameInp=mk('input','form-input');nameInp.placeholder='e.g. Bridal Makeup';nameInp.value=svc.name||'';nameInp.className='quot-svc-name form-input';
-      nameInp.setAttribute('list','svc-suggestions');
-      nameWrap.appendChild(nameInp);
-
-      var priceInp=mk('input','form-input');priceInp.type='number';priceInp.placeholder='₹';priceInp.value=svc.price||'';priceInp.style.width='100px';priceInp.className='quot-svc-price';
-      // Auto-fill price from defaults
-      nameInp.oninput=(function(i){return function(){
-        svcData[i].name=this.value;
-        var list=DB.services.length?DB.services:DEFAULT_SERVICES;
-        var match=list.find(function(s){return s.name.toLowerCase()===this.value.toLowerCase();}.bind(this));
-        if(match&&!priceInp.value){priceInp.value=match.price;svcData[i].price=String(match.price);}
-        updateQuotTotal();
-      };})(idx);
-      priceInp.oninput=(function(i){return function(){svcData[i].price=this.value;updateQuotTotal();};})(idx);
-
-      var delBtn=mk('button','btn-danger');delBtn.textContent='×';delBtn.style.cssText='padding:4px 8px;font-size:14px';
-      delBtn.onclick=(function(i){return function(){svcData.splice(i,1);renderServiceRows();updateQuotTotal();};})(idx);
-
-      app(row,[nameWrap,priceInp,delBtn]);
-      servicesWrap.appendChild(row);
-    });
-  }
-
-  // Datalist for service suggestions - use DB.services if available, else defaults
-  var datalist=mk('datalist');datalist.id='svc-suggestions';
-  var suggestionList=DB.services.length?DB.services:DEFAULT_SERVICES;
-  suggestionList.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
-
-  var addSvcBtn=mkBtn('+ Add service / package',function(){
-    svcData.push({name:'',price:''});
-    renderServiceRows();
-    // Focus last name input
-    var inputs=servicesWrap.querySelectorAll('.quot-svc-name');
-    if(inputs.length)setTimeout(function(){inputs[inputs.length-1].focus();},50);
-  },'btn btn-xs');
-  addSvcBtn.style.marginTop='4px';
-
-  // Travel + totals
-  var travelInp=mkInput('quot-travel','number','Travel / extra charges (₹)',q?(q.travelCharge||''):'');
-  travelInp.oninput=function(){updateQuotTotal();};
-  var totalDisplay=mk('div');totalDisplay.id='quot-total-display';totalDisplay.style.cssText='background:#e6f0ee;border-radius:8px;padding:10px 14px;font-size:15px;font-weight:700;color:#2D6B5E;text-align:right;margin-top:8px';
-  totalDisplay.textContent='Total: '+rupee(existingServices.reduce(function(a,s){return a+Number(s.price||0);},0));
-
-  function updateQuotTotal(){
-    var rows=document.querySelectorAll('.quot-svc-row');
-    var svcTotal=0;rows.forEach(function(r){svcTotal+=Number(r.querySelector('.quot-svc-price').value||0);});
-    var travel=Number(document.getElementById('quot-travel').value||0);
-    var subtotal=svcTotal+travel;
+  function recalcQuotTotal(){
+    var total=0;
+    itemsWrap.querySelectorAll('.quot-item-amount').forEach(function(inp){total+=Number(inp.value||0);});
     var discType=(document.getElementById('quot-disc-type')||{}).value||'pct';
     var discVal=Number((document.getElementById('quot-disc-val')||{}).value||0);
-    var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
-    var total=subtotal-discAmt;
-    var td=document.getElementById('quot-total-display');
+    var subtotal=total+Number((document.getElementById('quot-travel-q')||{}).value||0);
+    var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
+    var finalTotal=subtotal-discAmt;
+    var td=document.getElementById('quot-total-disp');
     if(td){
       if(discAmt>0){
-        td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(subtotal)+' &nbsp;−&nbsp; Discount: '+rupee(discAmt)+'</div>'
-          +'<div>Total: <strong>'+rupee(total)+'</strong></div>';
+        td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(subtotal)+' &minus; Discount: '+rupee(discAmt)+'</div><div style="font-size:15px;font-weight:700;color:#2D6B5E">Total: '+rupee(finalTotal)+'</div>';
       } else {
-        td.textContent='Total: '+rupee(total);
+        td.textContent='Total: '+rupee(finalTotal);
       }
     }
   }
 
-  // Default valid date = 7 days from today
-  var validDate=new Date();validDate.setDate(validDate.getDate()+7);
-  var validStr=validDate.toISOString().split('T')[0];
+  function addItemRow(svc,idx2){
+    var row=mk('div');row.className='quot-item-row';
+    row.style.cssText='background:#fafafa;border:1px solid #f0f0f0;border-radius:8px;padding:10px 12px;margin-bottom:8px';
 
-  // Terms
-  // T&C template picker
-  var tcWrap=mk('div');tcWrap.style.cssText='margin-bottom:4px';
-  var tcPickLabel=mk('div','form-label','Terms & Conditions');
+    // Row 1: name + amount + delete
+    var top=mk('div');top.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:8px;align-items:center;margin-bottom:8px';
+    var nameInp=mk('input','form-input');nameInp.value=svc.name||'';nameInp.placeholder='Item name';nameInp.className='quot-item-name form-input';nameInp.style.background='#fff';
+    var amtInp=mk('input','form-input');amtInp.type='number';amtInp.value=svc.price||'';amtInp.placeholder='Amount';amtInp.className='quot-item-amount form-input';amtInp.style.cssText='background:#fff;text-align:right';
+    amtInp.oninput=function(){recalcQuotTotal();};
+    var delBtn=mk('button','btn-danger');delBtn.textContent='x';delBtn.style.cssText='padding:4px 8px;font-size:14px';
+    delBtn.onclick=function(){
+      if(itemsWrap.querySelectorAll('.quot-item-row').length>1)row.parentNode.removeChild(row);
+      recalcQuotTotal();
+    };
+    app(top,[nameInp,amtInp,delBtn]);
+
+    // Row 2: delivery date + notes
+    var mid=mk('div');mid.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px';
+    var delLabel=mk('label');delLabel.style.cssText='font-size:11px;font-weight:600;color:#888;white-space:nowrap';delLabel.textContent='Delivery date:';
+    var delInp=mk('input','form-input');delInp.type='date';delInp.value=svc.delivery||'';delInp.className='quot-item-delivery form-input';delInp.style.cssText='flex:1;background:#fff;max-width:180px';
+    app(mid,[delLabel,delInp]);
+
+    var notesInp=mk('textarea','form-input');notesInp.value=svc.itemNotes||'';notesInp.placeholder='Item notes...';notesInp.className='quot-item-notes form-input';notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
+
+    // Images — load from orderImages if available
+    var imgSlots=mk('div');imgSlots.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px';
+    var imgLabel=mk('div');imgLabel.style.cssText='font-size:11px;color:#aaa;margin-bottom:4px';imgLabel.textContent='Reference images';
+
+    // Load images from linkedOrder's orderImages
+    if(linkedOrderId){
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===linkedOrderId&&img.itemIndex===idx2;});
+      var imgs=imgDoc?(imgDoc.images||[]):[];
+      if(imgs.length){
+        imgs.forEach(function(src){
+          if(!src)return;
+          var thumb=mk('img');thumb.src=src;
+          thumb.style.cssText='width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8;cursor:pointer';
+          thumb.onclick=(function(url){return function(){
+            var modal=mk('div');modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+            var big=mk('img');big.src=url;big.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;object-fit:contain';
+            modal.appendChild(big);modal.onclick=function(){document.body.removeChild(modal);};
+            document.body.appendChild(modal);
+          };})(src);
+          imgSlots.appendChild(thumb);
+        });
+      }
+    }
+
+    app(row,[top,mid,notesInp,imgLabel,imgSlots]);
+    itemsWrap.appendChild(row);
+  }
+
+  // Render all items
+  services.forEach(function(svc,i){addItemRow(svc,i);});
+
+  var addItemBtn=mkBtn('+ Add item',function(){addItemRow({name:'',price:'',delivery:'',itemNotes:''},services.length);},'btn btn-xs');
+  addItemBtn.style.marginTop='4px';
+
+  // Column labels
+  var colHdr=mk('div');colHdr.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:8px;margin-bottom:4px';
+  ['Item','Amount (₹)',''].forEach(function(h){var l=mk('div');l.style.cssText='font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase';l.textContent=h;colHdr.appendChild(l);});
+
+  // Travel + total display
+  var travelInp=mkInput('quot-travel-q','number','Travel / extra charges (₹)',q.travelCharge||'');
+  travelInp.oninput=function(){recalcQuotTotal();};
+  var totalDisp=mk('div');totalDisp.id='quot-total-disp';
+  totalDisp.style.cssText='background:#e6f0ee;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;color:#2D6B5E;margin-top:8px';
+
+  // Discount
+  var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center';
+  var pctBtn=mk('button');pctBtn.type='button';pctBtn.textContent='%';
+  pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;'+((!q.discountType||q.discountType==='pct')?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+  var flatBtn=mk('button');flatBtn.type='button';flatBtn.textContent='₹';
+  flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;'+(q.discountType==='flat'?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+  var discTypeInp=mk('input');discTypeInp.type='hidden';discTypeInp.id='quot-disc-type';discTypeInp.value=q.discountType||'pct';
+  pctBtn.onclick=function(){discTypeInp.value='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';recalcQuotTotal();};
+  flatBtn.onclick=function(){discTypeInp.value='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';recalcQuotTotal();};
+  var discValInp=mkInput('quot-disc-val','number','0',q.discountVal?String(q.discountVal):'');
+  discValInp.style.flex='1';discValInp.oninput=function(){recalcQuotTotal();};
+  app(discRow,[pctBtn,flatBtn,discTypeInp,discValInp]);
+
+  // T&C
   var tcRow=mk('div');tcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
-  var tcTemplOpts=[{value:'',label:'— Load from template —'}]
+  var tcOpts=[{value:'',label:'— Load from template —'}]
     .concat(DB.tctemplates.map(function(t){return {value:t.id,label:t.name};}));
-  var tcSel=mkSelect('quot-tc-sel',tcTemplOpts,'');
-  tcSel.style.flex='1';
+  var tcSel=mkSelect('quot-tc-sel',tcOpts,'');tcSel.style.flex='1';
   var tcLoadBtn=mkBtn('Load',function(){
-    var tid=document.getElementById('quot-tc-sel').value;
-    if(!tid)return;
+    var tid=document.getElementById('quot-tc-sel').value;if(!tid)return;
     var tmpl=DB.tctemplates.find(function(t){return t.id===tid;});
     if(tmpl)document.getElementById('quot-terms').value=tmpl.terms;
   },'btn btn-xs');
   app(tcRow,[tcSel,tcLoadBtn]);
-  var termsArea=mk('textarea','form-input');termsArea.id='quot-terms';termsArea.rows=5;
-  termsArea.value=q?(q.terms||DEFAULT_TERMS.join('\n')):(DEFAULT_TERMS.join('\n'));
-  termsArea.placeholder='Enter terms & conditions...';
-  app(tcWrap,[tcPickLabel,tcRow,termsArea]);
+  var termsTA=mk('textarea','form-input');termsTA.id='quot-terms';termsTA.rows=4;
+  termsTA.placeholder='Terms & conditions...';termsTA.value=q.terms||'';
 
-  var clientSel=mkClientSelect('quot-client',q?(q.clientId||''):'');
-  var clientNameInp=mkInput('quot-client-name','text','Client name (if not in list)',q?(q.clientName||''):'');
-  var dateInp=mkInput('quot-date','date','',new Date().toISOString().split('T')[0]);
-  var validInp=mkInput('quot-valid','date','',q?(q.validTill||validStr):validStr);
-  var serviceInp=mkInput('quot-service-date','datetime-local','',q?(q.serviceDate||''):'');
-  var notesInp=mk('textarea','form-input');notesInp.id='quot-notes';notesInp.rows=2;notesInp.placeholder='Special requirements, venue details...';if(q)notesInp.value=q.notes||'';
+  // Notes
+  var notesTA=mk('textarea','form-input');notesTA.id='quot-notes';notesTA.rows=2;
+  notesTA.placeholder='Notes...';notesTA.value=q.notes||'';
 
   var wrap2=mk('div');
   app(wrap2,[
-    mk('div','modal-title',(id?'Edit':'New')+' Quotation'),
-    mk('div','modal-sub','Create a service quotation to send via WhatsApp or print.'),
-    app(mk('div','form-row'),[mkFg('Client',clientSel),mkFg('Client name (if new)',clientNameInp)]),
-    app(mk('div','form-row'),[mkFg('Quotation date',dateInp),mkFg('Valid till',validInp)]),
-    mkFg('Service / event date & time',serviceInp),
-    (function(){
-      var fg=mk('div','form-group');
-      var lRow=mk('div');lRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px';
-      var l=mk('label','form-label','Services & packages *');l.style.margin='0';
-      var cnt=mk('span');cnt.id='svc-count-label';cnt.style.cssText='font-size:11px;color:#2D6B5E;font-weight:600';
-      cnt.textContent=svcData.length+' service'+(svcData.length!==1?'s':'');
-      app(lRow,[l,cnt]);
-      app(fg,[lRow,datalist,servicesWrap,addSvcBtn]);
-      return fg;
-    })(),
-    app(mk('div','form-row'),[mkFg('Travel / extra charges (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisplay);return fg;})()]),
-    (function(){
-      var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:4px';
-      // Discount type toggle
-      var pctBtn=mk('button');pctBtn.textContent='%';pctBtn.type='button';
-      pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;'+((!q||!q.discountType||q.discountType==='pct')?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
-      var flatBtn=mk('button');flatBtn.textContent='₹';flatBtn.type='button';
-      flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;'+(q&&q.discountType==='flat'?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
-      var discTypeSel=mk('input');discTypeSel.type='hidden';discTypeSel.id='quot-disc-type';
-      discTypeSel.value=(q&&q.discountType)||'pct';
-      pctBtn.onclick=function(){discTypeSel.value='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';updateQuotTotal();};
-      flatBtn.onclick=function(){discTypeSel.value='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';updateQuotTotal();};
-      var discValInp=mkInput('quot-disc-val','number','0',(q&&q.discountVal)?String(q.discountVal):'');
-      discValInp.style.cssText=(discValInp.style.cssText||'')+'flex:1';
-      discValInp.oninput=function(){updateQuotTotal();};
-      app(discRow,[pctBtn,flatBtn,discTypeSel,discValInp]);
-      return mkFg('Discount (optional)',discRow);
-    })(),
-    mkFg('Notes / special requirements',notesInp),
-    tcWrap,
+    mk('div','modal-title','Edit Quotation — '+(q.clientName||'')),
+    mk('div','modal-sub','Edit items, amounts, delivery dates. Add discount and T&C as needed.'),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Items *');app(fg,[l,colHdr,itemsWrap,addItemBtn]);return fg;})(),
+    app(mk('div','form-row'),[mkFg('Travel / extra (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisp);return fg;})()]),
+    mkFg('Discount (optional)',discRow),
+    mkFg('Notes',notesTA),
+    mkFg('T&C Template',tcRow),
+    termsTA,
     mkActions([
       mkBtn('Cancel',closeModal),
-      mkBtn(id?'Save':'Create',function(){saveQuotation(id);},'btn btn-primary')
+      mkBtn('Save',function(){
+        var items2=[];
+        itemsWrap.querySelectorAll('.quot-item-row').forEach(function(row){
+          var name=(row.querySelector('.quot-item-name')||{}).value||'';
+          var price=Number((row.querySelector('.quot-item-amount')||{}).value||0);
+          var delivery=(row.querySelector('.quot-item-delivery')||{}).value||'';
+          var notes=(row.querySelector('.quot-item-notes')||{}).value||'';
+          if(name)items2.push({name:name,price:price,delivery:delivery,itemNotes:notes});
+        });
+        if(!items2.length){alert('Add at least one item.');return;}
+        clearModalDraft('quotation');
+        dbSave('quotations',Object.assign({},q,{
+          services:items2,
+          travelCharge:(document.getElementById('quot-travel-q')||{}).value||'',
+          discountType:(document.getElementById('quot-disc-type')||{}).value||'pct',
+          discountVal:Number((document.getElementById('quot-disc-val')||{}).value||0),
+          notes:(document.getElementById('quot-notes')||{}).value||'',
+          terms:(document.getElementById('quot-terms')||{}).value||''
+        }));
+        closeModal();
+      },'btn btn-primary')
     ])
   ]);
-  renderServiceRows();
+
+  setTimeout(function(){recalcQuotTotal();},50);
   showM(wrap2,true);
 }
 
@@ -2985,130 +2986,93 @@ function printQuotation(id){
   var cl=DB.clients.find(function(x){return x.id===q.clientId;});
   var today=q.date||new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var validTill=q.validTill?new Date(q.validTill).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
-
-  // If linked to order - use order items; otherwise use services list
-  var itemsHtml='';
-  var subtotal=0;
-
-  if(q.linkedOrderId){
-    var o=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
-    if(o){
-      var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
-      subtotal=Number(o.amount||0);
-      itemsHtml=items.map(function(it,idx2){
-        var imgDoc=DB.orderImages.find(function(img){return img.orderId===o.id&&img.itemIndex===idx2;});
-        var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||'']):(Array.isArray(it.refImage)?it.refImage:[it.refImage||'']);
-        imgs=imgs.filter(Boolean);
-        var imgHtml=imgs.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+imgs.map(function(src){return '<img src="'+src+'" style="width:140px;height:140px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')+'</div>':'';
-        return '<tr style="border-bottom:1px solid #f0f0f0">'
-          +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
-            +'<div style="font-weight:600">'+(idx2+1)+'. '+it.name+'</div>'
-            +(it.itemNotes?'<div style="font-size:11px;color:#888;margin-top:3px">'+it.itemNotes+'</div>':'')
-            +imgHtml
-          +'</td>'
-          +'<td style="padding:10px 12px;text-align:center;font-size:13px;vertical-align:top">'+it.qty+'</td>'
-          +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top;color:#888">'+(it.delivery||'—')+'</td>'
-          +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(it.amount?'₹'+Number(it.amount).toLocaleString('en-IN'):'—')+'</td>'
-          +'</tr>';
-      }).join('');
-      itemsHtml='<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px">'
-        +'<thead><tr style="background:#2D6B5E;color:#fff">'
-          +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
-          +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:55px">QTY</th>'
-          +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">DELIVERY BY</th>'
-          +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">AMOUNT</th>'
-        +'</tr></thead><tbody>'+itemsHtml+'</tbody></table>';
-    }
-  } else {
-    // Standalone quotation - services list
-    var svcs=q.services||[];
-    subtotal=svcs.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
-    var svcRows=svcs.map(function(s,i){
-      return '<tr style="border-bottom:1px solid #f0f0f0">'
-        +'<td style="padding:10px 12px;font-size:13px;vertical-align:top"><div style="font-weight:600">'+(i+1)+'. '+s.name+'</div></td>'
-        +'<td style="padding:10px 12px;text-align:center;font-size:13px;vertical-align:top">1</td>'
-        +'<td style="padding:10px 12px;text-align:right;font-size:13px;vertical-align:top;color:#888">—</td>'
-        +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;color:#2D6B5E">'+(s.price?'₹'+Number(s.price).toLocaleString('en-IN'):'—')+'</td>'
-        +'</tr>';
-    }).join('');
-    if(Number(q.travelCharge||0)>0){
-      svcRows+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 12px;font-size:13px;color:#888">Travel / extra charges</td><td></td><td></td>'
-        +'<td style="padding:10px 12px;text-align:right;font-size:14px;font-weight:700;color:#888">₹'+Number(q.travelCharge).toLocaleString('en-IN')+'</td></tr>';
-    }
-    itemsHtml='<table style="width:100%;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px">'
-      +'<thead><tr style="background:#2D6B5E;color:#fff">'
-        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">SERVICE / PACKAGE</th>'
-        +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:55px">QTY</th>'
-        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">DATE</th>'
-        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:110px">AMOUNT</th>'
-      +'</tr></thead><tbody>'+svcRows+'</tbody></table>';
-  }
-
-  // Totals
+  var services=q.services||[];
   var discType=q.discountType||'pct';
   var discVal=Number(q.discountVal||0);
-  var discAmt=discVal>0?(discType==='pct'?Math.round(subtotal*discVal/100):discVal):0;
-  var totalAfterDisc=subtotal-discAmt;
-  var totalsHtml='<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
-    +'<table style="width:290px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;border-collapse:collapse">'
-      +'<tr style="background:#f9f9f9"><td style="padding:9px 14px;color:#888;font-size:13px">Subtotal</td>'
-        +'<td style="padding:9px 14px;text-align:right;font-size:14px;font-weight:700">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
-      +(discAmt>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td>'
-        +'<td style="padding:9px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>':'')
-      +'<tr style="background:#f0fdf4;border-top:2px solid #2D6B5E"><td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td>'
-        +'<td style="padding:10px 14px;text-align:right;font-size:17px;font-weight:900;color:#2D6B5E">₹'+totalAfterDisc.toLocaleString('en-IN')+'</td></tr>'
-    +'</table></div>';
+  var subtotal=services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+  var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
+  var total=subtotal-discAmt;
 
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation - '+(cl?cl.name:q.clientName||'')+'</title>'
+  // Build items HTML — with images from orderImages if linked
+  var itemsHtml=services.map(function(s,i){
+    var imgHtml='';
+    if(q.linkedOrderId){
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===i;});
+      var imgs=imgDoc?(imgDoc.images||[]):[];
+      if(imgs.length){
+        imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+          +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:130px;height:130px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+          +'</div>';
+      }
+    }
+    return '<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:12px;font-size:13px;vertical-align:top">'
+        +'<div style="font-weight:700;font-size:14px;color:#2D6B5E">'+(i+1)+'. '+s.name+'</div>'
+        +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
+        +(s.itemNotes?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
+        +imgHtml
+      +'</td>'
+      +'<td style="padding:12px;text-align:right;font-size:15px;font-weight:700;vertical-align:top;color:#2D6B5E;white-space:nowrap">'
+        +(s.price?'₹'+Number(s.price).toLocaleString('en-IN'):'—')
+      +'</td>'
+    +'</tr>';
+  }).join('');
+
+  var tcLines=(q.terms||'').split('\n').filter(function(l){return l.trim();});
+  var tcHtml=tcLines.length
+    ?'<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#666;margin-top:8px">'
+      +'<div style="font-weight:700;margin-bottom:6px;color:#888;text-transform:uppercase;letter-spacing:.05em">Terms & Conditions</div>'
+      +tcLines.map(function(l,i){return '<div style="margin-bottom:3px">'+(i+1)+'. '+l.trim()+'</div>';}).join('')
+      +'</div>'
+    :'';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Quotation</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#333;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
-    +'<div class="no-print"><button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
-    +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button></div>'
-    // Header
-    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:20px">'
+    +'<div class="no-print">'
+      +'<button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid #2D6B5E;margin-bottom:20px">'
       +'<div>'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.1em;margin-bottom:4px">RYREE BY SHREYA DESHMUKH</div>'
         +'<div style="font-size:26px;font-weight:900;color:#2D6B5E">QUOTATION</div>'
-        +(q.services&&q.services[0]?'<div style="font-size:12px;color:#888;margin-top:3px">'+q.services[0].name+'</div>':'')
         +(q.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Ref: '+q.linkedOrderNo+'</div>':'')
       +'</div>'
       +'<div style="text-align:right">'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em">DATE</div>'
-        +'<div style="font-size:14px;font-weight:700;margin-bottom:8px">'+today+'</div>'
+        +'<div style="font-size:13px;font-weight:700;margin-bottom:8px">'+today+'</div>'
         +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em">VALID TILL</div>'
-        +'<div style="font-size:14px;font-weight:700;color:#B45309">'+validTill+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:#B45309">'+validTill+'</div>'
       +'</div>'
     +'</div>'
-    // Client
-    +'<div style="background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:14px 16px;margin-bottom:20px">'
+    +'<div style="background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:12px 16px;margin-bottom:20px">'
       +'<div style="font-size:9px;color:#aaa;font-weight:700;letter-spacing:.06em;margin-bottom:4px">PREPARED FOR</div>'
       +'<div style="font-size:18px;font-weight:700;color:#2D6B5E">'+(cl?cl.name:q.clientName||'Client')+'</div>'
       +((cl&&cl.phone)||q.clientPhone?'<div style="font-size:12px;color:#888;margin-top:2px">'+((cl&&cl.phone)||q.clientPhone)+'</div>':'')
     +'</div>'
-    +itemsHtml
-    +totalsHtml
-    +(q.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px"><div style="font-size:9px;font-weight:700;color:#92400e;letter-spacing:.06em;margin-bottom:4px">NOTES</div><div style="font-size:12px;color:#555">'+q.notes+'</div></div>':'')
-    +(function(){
-      var tcSrc=q.terms||[
-        'This quotation is valid for 15 days from the date of issue.',
-        'Cancellations before 48 hours of the day of service will forfeit the advance.',
-        'Prices are subject to change based on fabric and material availability.'
-      ].join('\n');
-      var tcLines=tcSrc.split('\n').filter(function(l){return l.trim();});
-      return '<div style="border-top:1px solid #e8e8e8;padding-top:12px;font-size:11px;color:#aaa">'
-        +'<div style="font-weight:700;margin-bottom:4px;color:#888">TERMS & CONDITIONS</div>'
-        +tcLines.map(function(l,i){return '<div>'+(i+1)+'. '+l.trim()+'</div>';}).join('')
-        +'</div>';
-    })()
-    +'<div style="margin-top:16px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
+    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
+      +'<thead><tr style="background:#2D6B5E;color:#fff">'
+        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:120px">AMOUNT</th>'
+      +'</tr></thead>'
+      +'<tbody>'+itemsHtml+'</tbody>'
+    +'</table>'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
+      +'<table style="width:280px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+        +(discAmt>0
+          ?'<tr style="background:#f9f9f9"><td style="padding:9px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+           +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td><td style="padding:9px 14px;text-align:right;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>'
+          :'')
+        +'<tr style="background:#e6f0ee;border-top:2px solid #2D6B5E"><td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td><td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:#2D6B5E">₹'+total.toLocaleString('en-IN')+'</td></tr>'
+      +'</table>'
+    +'</div>'
+    +(q.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+q.notes+'</div>':'')
+    +tcHtml
+    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
     +'</body></html>';
 
   var win=window.open('','_blank');
-  if(win){
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.document.title='Quotation - '+(cl?cl.name:q.clientName||'');
-  }
+  if(win){win.document.open();win.document.write(html);win.document.close();}
   else alert('Allow popups to print.');
 }
 
@@ -4322,71 +4286,31 @@ function printOrderQuotation(orderId){
   var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
   var cl=DB.clients.find(function(x){return x.id===o.clientId;});
   var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
-  var total=Number(o.amount||0);
-
-  var wrap=mk('div');
-  wrap.appendChild(mk('div','modal-title','Generate Quotation'));
-
-  // Order summary — read only
-  var preview=mk('div');preview.style.cssText='background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:12px 14px;margin-bottom:16px';
-  var cl2Line=mk('div');cl2Line.style.cssText='font-size:15px;font-weight:700;color:#2D6B5E;margin-bottom:8px';
-  cl2Line.textContent=(cl?cl.name:'Client')+' — '+(o.orderNo||'');
-  preview.appendChild(cl2Line);
-  items.forEach(function(it){
-    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:3px 0';
-    var nm=mk('span');nm.textContent=it.name+(it.qty>1?' ×'+it.qty:'')+(it.delivery?' (by '+it.delivery+')':'');
-    var amt=mk('span');amt.style.fontWeight='600';amt.textContent=it.amount?rupee(it.amount):'—';
-    app(row,[nm,amt]);preview.appendChild(row);
+  var today=new Date().toISOString().split('T')[0];
+  var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
+  var services=items.map(function(it){
+    return {name:it.name+(it.qty>1?' ×'+it.qty:''),price:Number(it.amount||0),delivery:it.delivery||'',itemNotes:it.itemNotes||''};
   });
-  var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;font-size:14px;font-weight:700;margin-top:8px;padding-top:8px;border-top:1px solid #e6f0ee';
-  var tl=mk('span');tl.textContent='Total';
-  var tv=mk('span');tv.style.color='#2D6B5E';tv.textContent=rupee(total);
-  app(totRow,[tl,tv]);preview.appendChild(totRow);
-  wrap.appendChild(preview);
-
-  // Discount (optional)
-  var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center';
-  var pctBtn=mk('button');pctBtn.type='button';pctBtn.textContent='%';
-  pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;background:#2D6B5E;color:#fff';
-  var flatBtn=mk('button');flatBtn.type='button';flatBtn.textContent='₹';
-  flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;background:#fff;color:#555';
-  var discType='pct';
-  pctBtn.onclick=function(){discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';};
-  flatBtn.onclick=function(){discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';};
-  var discInp=mkInput('oq-disc','number','0 (no discount)');discInp.style.flex='1';discInp.min='0';discInp.value='0';
-  app(discRow,[pctBtn,flatBtn,discInp]);
-
-  // T&C
-  var tcRow=mk('div');tcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
-  var tcOpts=[{value:'',label:'— No template —'}]
-    .concat(DB.tctemplates.map(function(t){return {value:t.id,label:t.name};}));
-  var tcSel=mkSelect('oq-tc-sel',tcOpts,'');tcSel.style.flex='1';
-  var tcLoadBtn=mkBtn('Load',function(){
-    var tid=document.getElementById('oq-tc-sel').value;if(!tid)return;
-    var tmpl=DB.tctemplates.find(function(t){return t.id===tid;});
-    if(tmpl)document.getElementById('oq-terms').value=tmpl.terms;
-  },'btn btn-xs');
-  app(tcRow,[tcSel,tcLoadBtn]);
-  var termsTA=mk('textarea','form-input');termsTA.id='oq-terms';termsTA.rows=3;
-  termsTA.placeholder='Terms & conditions (optional, can add later via Edit)...';
-
-  app(wrap,[
-    mkFg('Discount (optional)',discRow),
-    mkFg('T&C Template',tcRow),
-    termsTA,
-    mkActions([
-      mkBtn('Cancel',closeModal),
-      mkBtn('Generate & Save',function(){
-        var discVal=Number((document.getElementById('oq-disc')||{}).value||0);
-        var terms=(document.getElementById('oq-terms')||{}).value||'';
-        closeModal();
-        saveOrderAsQuotation(orderId,discType,discVal,terms);
-        generateOrderQuotationPDF(orderId,discType,discVal,terms);
-      },'btn btn-primary')
-    ])
-  ]);
-
-  showM(wrap,true);
+  var qid=uid();
+  dbSave('quotations',{
+    id:qid,
+    clientId:o.clientId||'',
+    clientName:cl?cl.name:'',
+    clientPhone:cl?(cl.phone||''):'',
+    date:today,
+    validTill:validTill,
+    services:services,
+    travelCharge:'',
+    discountType:'pct',
+    discountVal:0,
+    notes:o.notes||'',
+    terms:'',
+    status:'Pending',
+    linkedOrderId:orderId,
+    linkedOrderNo:o.orderNo||'',
+    created:Date.now()
+  });
+  alert('Quotation created! Go to Quotations to view, edit or print it.');
 }
 
 function generateOrderQuotationPDF(orderId,discType,discVal,terms){
