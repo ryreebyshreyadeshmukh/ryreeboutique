@@ -5265,7 +5265,7 @@ function restoreModalDraft(key){
     Object.keys(data).forEach(function(id){
       if(id==='savedAt')return;
       var el=root.querySelector('#'+id);
-      if(el&&el.type!=='file'&&el.type!=='checkbox'){{el.value=data[id];restored++;}}
+      if(el&&el.type!=='file'&&el.type!=='checkbox'){el.value=data[id];restored++;}
     });
     return restored>0;
   }catch(e){return false;}
