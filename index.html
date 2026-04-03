@@ -2612,7 +2612,9 @@ function pgQuotations(){
   var t=mkTable(['Client','Services','Total','Valid till','Status','']);
   DB.quotations.slice().reverse().forEach(function(q){
     var cl=q.clientId?DB.clients.find(function(x){return x.id===q.clientId;}):null;
-    var total2=q.services.reduce(function(a,s){return a+Number(s.price||0);},0)+(Number(q.travelCharge||0));
+    var subtotal2=q.services.reduce(function(a,s){return a+Number(s.price||0);},0)+(Number(q.travelCharge||0));
+    var discAmt2=Number(q.discountVal||0)>0?(q.discountType==='flat'?Number(q.discountVal):Math.round(subtotal2*Number(q.discountVal)/100)):0;
+    var total2=subtotal2-discAmt2;
     var statusColors={Pending:'#B45309',Accepted:'#166534',Declined:'#991B1B',Expired:'#888'};
     var statusBgs={Pending:'#FFFBEB',Accepted:'#F0FDF4',Declined:'#FEF2F2',Expired:'#f5f5f5'};
     var statusBadge=mk('span','badge');
@@ -2736,8 +2738,20 @@ function openQuotationModal(id){
     var rows=document.querySelectorAll('.quot-svc-row');
     var svcTotal=0;rows.forEach(function(r){svcTotal+=Number(r.querySelector('.quot-svc-price').value||0);});
     var travel=Number(document.getElementById('quot-travel').value||0);
+    var subtotal=svcTotal+travel;
+    var discType=(document.getElementById('quot-disc-type')||{}).value||'pct';
+    var discVal=Number((document.getElementById('quot-disc-val')||{}).value||0);
+    var discAmt=discType==='pct'?Math.round(subtotal*discVal/100):discVal;
+    var total=subtotal-discAmt;
     var td=document.getElementById('quot-total-display');
-    if(td)td.textContent='Total: '+rupee(svcTotal+travel);
+    if(td){
+      if(discAmt>0){
+        td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(subtotal)+' &nbsp;−&nbsp; Discount: '+rupee(discAmt)+'</div>'
+          +'<div>Total: <strong>'+rupee(total)+'</strong></div>';
+      } else {
+        td.textContent='Total: '+rupee(total);
+      }
+    }
   }
 
   // Default valid date = 7 days from today
@@ -2781,6 +2795,23 @@ function openQuotationModal(id){
     mkFg('Service / event date & time',serviceInp),
     (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Services & packages *');app(fg,[l,datalist,servicesWrap,addSvcBtn]);return fg;})(),
     app(mk('div','form-row'),[mkFg('Travel / extra charges (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisplay);return fg;})()]),
+    (function(){
+      var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:4px';
+      // Discount type toggle
+      var pctBtn=mk('button');pctBtn.textContent='%';pctBtn.type='button';
+      pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;'+((!q||!q.discountType||q.discountType==='pct')?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+      var flatBtn=mk('button');flatBtn.textContent='₹';flatBtn.type='button';
+      flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;'+(q&&q.discountType==='flat'?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+      var discTypeSel=mk('input');discTypeSel.type='hidden';discTypeSel.id='quot-disc-type';
+      discTypeSel.value=(q&&q.discountType)||'pct';
+      pctBtn.onclick=function(){discTypeSel.value='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';updateQuotTotal();};
+      flatBtn.onclick=function(){discTypeSel.value='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';updateQuotTotal();};
+      var discValInp=mkInput('quot-disc-val','number','0',(q&&q.discountVal)?String(q.discountVal):'');
+      discValInp.style.cssText=(discValInp.style.cssText||'')+'flex:1';
+      discValInp.oninput=function(){updateQuotTotal();};
+      app(discRow,[pctBtn,flatBtn,discTypeSel,discValInp]);
+      return mkFg('Discount (optional)',discRow);
+    })(),
     mkFg('Notes / special requirements',notesInp),
     tcWrap,
     mkActions([
@@ -2816,6 +2847,8 @@ function saveQuotation(id){
     serviceDate:document.getElementById('quot-service-date').value,
     services:services,
     travelCharge:document.getElementById('quot-travel').value||0,
+    discountType:(document.getElementById('quot-disc-type')||{}).value||'pct',
+    discountVal:Number((document.getElementById('quot-disc-val')||{}).value||0),
     notes:document.getElementById('quot-notes').value,
     terms:document.getElementById('quot-terms').value,
     status:id?(DB.quotations.find(function(x){return x.id===id;})||{}).status||'Pending':'Pending',
@@ -2828,7 +2861,11 @@ function viewQuotation(id){
   var q=DB.quotations.find(function(x){return x.id===id;});if(!q)return;
   var cl=DB.clients.find(function(x){return x.id===q.clientId;});
   var svcs=q.services||[];
-  var total=svcs.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+  var subtotalView=svcs.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+  var discTypeView=q.discountType||'pct';
+  var discValView=Number(q.discountVal||0);
+  var discAmtView=discValView>0?(discTypeView==='pct'?Math.round(subtotalView*discValView/100):discValView):0;
+  var total=subtotalView-discAmtView;
   var wrap=mk('div');
 
   // Header
@@ -2883,6 +2920,13 @@ function viewQuotation(id){
   var tl=mk('div');tl.style.cssText='font-size:14px;font-weight:700';tl.textContent='Total';
   var tr2=mk('div');tr2.style.cssText='font-size:16px;font-weight:800;color:#2D6B5E';tr2.textContent=rupee(total);
   app(totalRow,[tl,tr2]);itemsContainer.appendChild(totalRow);
+  // Show discount row if applicable
+  if(discAmtView>0){
+    var discRow2=mk('div');discRow2.style.cssText='display:flex;justify-content:space-between;padding:8px 14px;background:#f0fdf4;font-size:13px';
+    var dl2=mk('div');dl2.style.cssText='color:#166534';dl2.textContent='Discount'+(discTypeView==='pct'?' ('+discValView+'%)':'');
+    var dv2=mk('div');dv2.style.cssText='font-weight:600;color:#166534';dv2.textContent='- '+rupee(discAmtView);
+    app(discRow2,[dl2,dv2]);itemsContainer.insertBefore(discRow2,totalRow);
+  }
   wrap.appendChild(itemsContainer);
 
   if(q.notes){var nn=mk('div');nn.style.cssText='padding:10px 14px;background:#fffbeb;border-radius:8px;font-size:13px;color:#555;border:1px solid #fde68a;margin-bottom:10px';nn.textContent='Notes: '+q.notes;wrap.appendChild(nn);}
@@ -2992,11 +3036,16 @@ function printQuotation(id){
   }
 
   // Totals
-  var totalAfterDisc=subtotal;
+  var discType=q.discountType||'pct';
+  var discVal=Number(q.discountVal||0);
+  var discAmt=discVal>0?(discType==='pct'?Math.round(subtotal*discVal/100):discVal):0;
+  var totalAfterDisc=subtotal-discAmt;
   var totalsHtml='<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
     +'<table style="width:290px;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;border-collapse:collapse">'
       +'<tr style="background:#f9f9f9"><td style="padding:9px 14px;color:#888;font-size:13px">Subtotal</td>'
         +'<td style="padding:9px 14px;text-align:right;font-size:14px;font-weight:700">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+      +(discAmt>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td>'
+        +'<td style="padding:9px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>':'')
       +'<tr style="background:#f0fdf4;border-top:2px solid #2D6B5E"><td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td>'
         +'<td style="padding:10px 14px;text-align:right;font-size:17px;font-weight:900;color:#2D6B5E">₹'+totalAfterDisc.toLocaleString('en-IN')+'</td></tr>'
     +'</table></div>';
