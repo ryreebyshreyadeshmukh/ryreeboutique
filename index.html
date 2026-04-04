@@ -155,6 +155,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-quotations" data-page="quotations">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none"/><path d="M11.5 10.5l1 1 1.5-1.5" stroke="#2D6B5E" stroke-width="1" fill="none" stroke-linecap="round"/></svg>Quotations
     </div>
+    <div class="nav-item" id="nav-invoices" data-page="invoices">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/></svg>Invoices
+    </div>
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
     </div>
@@ -342,7 +345,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -352,7 +355,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -587,7 +590,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -1201,14 +1204,13 @@ function pgOrders(){
     delBtn.onclick=function(){
       if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
     };
-    var invoiceBtn=mkBtn('Invoice',function(){printOrderInvoice(o.id);},'btn btn-xs');
     var workBtn=mkBtn('Work Order',function(){printWorkOrder(o.id);},'btn btn-xs');
     workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
     var quotBtn=mkBtn('Quotation',function(){printOrderQuotation(o.id);},'btn btn-xs');
     quotBtn.style.cssText+='color:#1E40AF;border-color:#BFDBFE';
     var createTasksBtn=mkBtn('+ Tasks',function(){openCreateTasksFromOrder(o.id);},'btn btn-xs');
     createTasksBtn.style.cssText+='color:#065F46;border-color:#6EE7B7';
-    app(acts,[collectBtn,quotBtn,invoiceBtn,workBtn,createTasksBtn,editBtn,delBtn]);
+    app(acts,[collectBtn,quotBtn,workBtn,createTasksBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -2640,13 +2642,15 @@ function pgQuotations(){
     };
     var selTd=mk('td');selTd.appendChild(sel);
 
-    var acts=mkRow('display:flex;gap:5px');
+    var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
     var viewBtn=mkBtn('View',function(){viewQuotation(q.id);},'btn btn-xs');
     var editBtn=mkBtn('Edit',function(){openQuotationModal(q.id);},'btn btn-xs');
     var printBtn=mkBtn('Print',function(){printQuotation(q.id);},'btn btn-xs');
+    var invBtn=mkBtn('Generate Invoice',function(){generateInvoiceFromQuotation(q.id);},'btn btn-xs');
+    invBtn.style.cssText+='color:#166534;border-color:#86EFAC';
     var delBtn=mk('button','btn-danger','Del');delBtn.setAttribute('data-qid',q.id);
     delBtn.onclick=function(){if(confirm('Delete quotation?'))dbDel('quotations',this.getAttribute('data-qid'));};
-    app(acts,[viewBtn,editBtn,printBtn,delBtn]);
+    app(acts,[viewBtn,editBtn,printBtn,invBtn,delBtn]);
     var actTd=mk('td');actTd.appendChild(acts);
 
     var clCell=mk('div');
@@ -5239,6 +5243,241 @@ function restoreModalDraft(key){
 
 function clearModalDraft(key){
   try{localStorage.removeItem('ryree_draft_'+key);}catch(e){}
+}
+
+// ── INVOICES MODULE ───────────────────────────────────────────────────────
+function pgInvoices(){
+  var wrap=mk('div');
+  var total=DB.invoices.length;
+  var paid=DB.invoices.filter(function(i){return i.status==='Paid';}).length;
+  var sent=DB.invoices.filter(function(i){return i.status==='Sent';}).length;
+  var draft=DB.invoices.filter(function(i){return i.status==='Draft';}).length;
+
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';
+  app(stats,[
+    sc('Total',total),
+    sc('Draft',draft,'#B45309','#FFFBEB'),
+    sc('Sent',sent,'#1D4ED8','#EFF6FF'),
+    sc('Paid',paid,'#166534','#F0FDF4')
+  ]);
+
+  wrap.appendChild(mkPageHeader('Invoices','All generated invoices'));
+  wrap.appendChild(stats);
+
+  if(!DB.invoices.length){
+    var empty=mk('div','card');
+    var msg=mk('div');msg.style.cssText='text-align:center;padding:32px';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No invoices yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888';s.textContent='Generate invoices from the Quotations module after a quotation is approved.';
+    app(msg,[t,s]);app(empty,[msg]);wrap.appendChild(empty);
+    return wrap;
+  }
+
+  wrap.appendChild(mkSearchBar('inv-search2','Search by client or invoice number...',function(q){
+    document.querySelectorAll('.inv-row2').forEach(function(row){
+      var txt=(row.getAttribute('data-search')||'').toLowerCase();
+      row.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  }));
+
+  var tw=mk('div','card-p0');
+  var t=mkTable(['Invoice No.','Client','Amount','Advance','Balance','Date','Status','']);
+  DB.invoices.slice().reverse().forEach(function(inv){
+    var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
+    var balance=Number(inv.total||0)-Number(inv.advancePaid||0);
+    var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
+    var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
+
+    var statusSel=mk('select');statusSel.style.cssText='border:none;background:transparent;cursor:pointer;font-size:11px;font-weight:600;outline:none;color:#555';
+    ['Draft','Sent','Paid'].forEach(function(s){var op=mk('option',null,s);op.value=s;if(inv.status===s)op.selected=true;statusSel.appendChild(op);});
+    statusSel.setAttribute('data-iid',inv.id);
+    statusSel.onchange=function(){
+      var iid=this.getAttribute('data-iid');
+      var invoice=DB.invoices.find(function(x){return x.id===iid;});
+      if(invoice)dbSave('invoices',Object.assign({},invoice,{status:this.value}));
+    };
+
+    var acts=mkRow('display:flex;gap:5px');
+    var printBtn=mkBtn('Print',function(){printInvoice(inv.id);},'btn btn-xs');
+    var delBtn=mk('button','btn-danger','Del');delBtn.style.padding='3px 8px';
+    delBtn.setAttribute('data-iid',inv.id);
+    delBtn.onclick=function(){
+      if(confirm('Delete this invoice?'))dbDel('invoices',this.getAttribute('data-iid'));
+    };
+    app(acts,[printBtn,delBtn]);
+
+    var balTd=mk('td');balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
+    balTd.textContent=balance>0?rupee(balance):'Paid \u2713';
+
+    var tr=mk('tr');tr.className='inv-row2';
+    tr.setAttribute('data-search',((inv.invoiceNo||'')+' '+(cl?cl.name:inv.clientName||'')).toLowerCase());
+    [
+      mk('td',null,inv.invoiceNo||'—'),
+      mk('td',null,cl?cl.name:inv.clientName||'—'),
+      mk('td',null,rupee(inv.total||0)),
+      mk('td',null,rupee(inv.advancePaid||0)),
+      balTd,
+      mk('td',null,inv.date||'—'),
+      (function(){var td=mk('td');td.appendChild(statusSel);return td;})(),
+      (function(){var td=mk('td');td.appendChild(acts);return td;})()
+    ].forEach(function(td){tr.appendChild(td);});
+    t._body.appendChild(tr);
+  });
+  tw.appendChild(t);wrap.appendChild(tw);
+  return wrap;
+}
+
+function generateInvoiceFromQuotation(qid){
+  var q=DB.quotations.find(function(x){return x.id===qid;});if(!q)return;
+  var cl=q.clientId?DB.clients.find(function(x){return x.id===q.clientId;}):null;
+
+  // Calculate totals
+  var services=q.services||[];
+  var subtotal=services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+  var discType=q.discountType||'pct';
+  var discVal=Number(q.discountVal||0);
+  var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
+  var total=subtotal-discAmt;
+
+  // Get advance from linked order if any
+  var advancePaid=0;
+  if(q.linkedOrderId){
+    var o=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
+    if(o){
+      advancePaid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+    }
+  }
+
+  // Generate invoice number
+  var now=new Date();
+  var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  var mon=months[now.getMonth()];
+  var yr=String(now.getFullYear()).slice(-2);
+  var seq=String(DB.invoices.length+1).padStart(3,'0');
+  var invoiceNo='INV-'+mon+yr+'-'+seq;
+
+  var inv={
+    id:uid(),
+    invoiceNo:invoiceNo,
+    quotationId:qid,
+    quotationNo:q.linkedOrderNo||'',
+    linkedOrderId:q.linkedOrderId||'',
+    clientId:q.clientId||'',
+    clientName:cl?cl.name:q.clientName||'',
+    clientPhone:cl?(cl.phone||''):q.clientPhone||'',
+    date:new Date().toISOString().split('T')[0],
+    services:services,
+    travelCharge:q.travelCharge||'',
+    discountType:discType,
+    discountVal:discVal,
+    subtotal:subtotal,
+    discountAmt:discAmt,
+    total:total,
+    advancePaid:advancePaid,
+    notes:q.notes||'',
+    terms:q.terms||'',
+    status:'Draft',
+    created:Date.now()
+  };
+
+  dbSave('invoices',inv);
+  // Mark quotation as Accepted
+  dbSave('quotations',Object.assign({},q,{status:'Accepted'}));
+  alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
+}
+
+function printInvoice(id){
+  var inv=DB.invoices.find(function(x){return x.id===id;});if(!inv)return;
+  var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
+  var today=new Date(inv.date||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var services=inv.services||[];
+  var total=Number(inv.total||0);
+  var advance=Number(inv.advancePaid||0);
+  var balance=total-advance;
+  var discAmt=Number(inv.discountAmt||0);
+  var subtotal=Number(inv.subtotal||total);
+
+  var itemsHtml=services.map(function(s,i){
+    var imgHtml='';
+    if(inv.linkedOrderId){
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===inv.linkedOrderId&&img.itemIndex===i;});
+      var imgs=imgDoc?(imgDoc.images||[]):[];
+      if(imgs.length){
+        imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+          +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+          +'</div>';
+      }
+    }
+    return '<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:12px;font-size:13px;vertical-align:top">'
+        +'<div style="font-weight:700;font-size:14px;color:#222">'+(i+1)+'. '+s.name+'</div>'
+        +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
+        +(s.itemNotes?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
+        +imgHtml
+      +'</td>'
+      +'<td style="padding:12px;text-align:right;font-size:15px;font-weight:700;vertical-align:top;white-space:nowrap">'
+        +(s.price?'\u20b9'+Number(s.price).toLocaleString('en-IN'):'\u2014')
+      +'</td>'
+    +'</tr>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice '+inv.invoiceNo+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#222;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
+    +'<div class="no-print">'
+      +'<button onclick="window.print()" style="background:#222;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
+    // Header
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #222;margin-bottom:20px">'
+      +'<div>'
+        +'<div style="font-size:28px;font-weight:900;letter-spacing:-0.5px">INVOICE</div>'
+        +'<div style="font-size:13px;color:#666;margin-top:4px">No. '+inv.invoiceNo+'</div>'
+        +(inv.quotationNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Order ref: '+inv.quotationNo+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em">DATE</div>'
+        +'<div style="font-size:14px;font-weight:700">'+today+'</div>'
+      +'</div>'
+    +'</div>'
+    // Client
+    +'<div style="margin-bottom:20px">'
+      +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">BILL TO</div>'
+      +'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>'
+      +((cl&&cl.phone)||inv.clientPhone?'<div style="font-size:13px;color:#666;margin-top:2px">'+((cl&&cl.phone)||inv.clientPhone)+'</div>':'')
+    +'</div>'
+    // Items
+    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
+      +'<thead><tr style="background:#222;color:#fff">'
+        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">DESCRIPTION</th>'
+        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:130px">AMOUNT</th>'
+      +'</tr></thead>'
+      +'<tbody>'+itemsHtml+'</tbody>'
+    +'</table>'
+    // Totals
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
+      +'<table style="width:280px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+        +(discAmt>0
+          ?'<tr style="background:#f9f9f9"><td style="padding:8px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+           +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Discount</td><td style="padding:8px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- \u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>'
+          :'')
+        +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px">Total</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
+        +(advance>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Advance Paid</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+advance.toLocaleString('en-IN')+'</td></tr>':'')
+        +'<tr style="background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
+          +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balance>0?'Balance Due':'Paid in Full')+'</td>'
+          +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balance>0?'#c0392b':'#166534')+'">'
+            +(balance>0?'\u20b9'+balance.toLocaleString('en-IN'):'\u2713')
+          +'</td>'
+        +'</tr>'
+      +'</table>'
+    +'</div>'
+    +(inv.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+inv.notes+'</div>':'')
+    +'<div style="margin-top:20px;text-align:center;font-size:10px;color:#ccc">Ryree by Shreya Deshmukh</div>'
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(win){win.document.open();win.document.write(html);win.document.close();}
+  else alert('Allow popups to print.');
 }
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
