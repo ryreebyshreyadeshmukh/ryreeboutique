@@ -1207,9 +1207,11 @@ function pgOrders(){
     workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
     var quotBtn=mkBtn('Quotation',function(){printOrderQuotation(o.id);},'btn btn-xs');
     quotBtn.style.cssText+='color:#1E40AF;border-color:#BFDBFE';
+    var quickInvBtn=mkBtn('Quick Invoice',function(){quickInvoiceFromOrder(o.id);},'btn btn-xs');
+    quickInvBtn.style.cssText+='color:#166534;border-color:#86EFAC';
     var createTasksBtn=mkBtn('+ Tasks',function(){openCreateTasksFromOrder(o.id);},'btn btn-xs');
     createTasksBtn.style.cssText+='color:#065F46;border-color:#6EE7B7';
-    app(acts,[quotBtn,workBtn,createTasksBtn,editBtn,delBtn]);
+    app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,editBtn,delBtn]);
 
     app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
     card.appendChild(mainRow);
@@ -1354,7 +1356,6 @@ function openOrderModal(id){
     nameInp.className='order-item-name form-input';
     nameInp.setAttribute('list','order-item-list');
     nameInp.style.background='#fff';
-    nameInp.oninput=function(){saveDraft();};
 
     var qtyInp=mk('input','form-input');
     qtyInp.type='number';qtyInp.min='1';qtyInp.value=qty||1;
@@ -1362,12 +1363,30 @@ function openOrderModal(id){
     qtyInp.style.cssText='width:100%;background:#fff;text-align:center';
     qtyInp.placeholder='Qty';
 
+    // Auto-fill amount from service price × qty when item is selected
+    function autoFillAmount(){
+      var itemName=nameInp.value.trim();
+      var q=Number(qtyInp.value||1);
+      var svc=DB.services.find(function(s){return s.name.toLowerCase()===itemName.toLowerCase();});
+      if(svc&&Number(svc.price||0)>0){
+        var row=nameInp.closest('.order-item-row');
+        var ai=row?row.querySelector('.order-item-amount'):null;
+        if(ai&&!ai._manuallyEdited){
+          ai.value=String(Number(svc.price)*q);
+          recalcOrderTotal();
+          saveDraft();
+        }
+      }
+      saveDraft();
+    }
+    nameInp.oninput=function(){autoFillAmount();};
+
     var amtInp=mk('input','form-input');
     amtInp.type='number';amtInp.min='0';amtInp.value=amount||'';
     amtInp.className='order-item-amount';
     amtInp.style.cssText='width:100%;background:#fff';
     amtInp.placeholder='Amount';
-    amtInp.oninput=function(){recalcOrderTotal();saveDraft();};
+    amtInp.oninput=function(){amtInp._manuallyEdited=true;recalcOrderTotal();saveDraft();};
 
     var delBtn=mk('button','btn-danger');delBtn.textContent='x';delBtn.style.cssText='padding:4px 8px;font-size:14px';
     delBtn.onclick=function(){
@@ -2888,7 +2907,13 @@ function openQuotationModal(id){
     var top=mk('div');top.style.cssText='display:grid;grid-template-columns:1fr 100px auto;gap:8px;align-items:center;margin-bottom:8px';
     var nameInp=mk('input','form-input');nameInp.value=svc.name||'';nameInp.placeholder='Item name';nameInp.className='quot-item-name form-input';nameInp.style.background='#fff';
     var amtInp=mk('input','form-input');amtInp.type='number';amtInp.value=svc.price||'';amtInp.placeholder='Amount';amtInp.className='quot-item-amount form-input';amtInp.style.cssText='background:#fff;text-align:right';
-    amtInp.oninput=function(){recalcQuotTotal();};
+    amtInp.oninput=function(){amtInp._manuallyEdited=true;recalcQuotTotal();};
+    // Auto-fill price from services when name is typed
+    nameInp.oninput=function(){
+      var match=DB.services.find(function(s){return s.name.toLowerCase()===this.value.trim().toLowerCase();}.bind(this));
+      if(match&&Number(match.price||0)>0&&!amtInp._manuallyEdited)amtInp.value=String(match.price);
+      recalcQuotTotal();
+    };
     var delBtn=mk('button','btn-danger');delBtn.textContent='x';delBtn.style.cssText='padding:4px 8px;font-size:14px';
     delBtn.onclick=function(){
       if(itemsWrap.querySelectorAll('.quot-item-row').length>1)row.parentNode.removeChild(row);
@@ -5467,7 +5492,8 @@ function pgInvoices(){
   var t=mkTable(['Invoice No.','Client','Amount','Advance','Balance','Date','Status','']);
   DB.invoices.slice().reverse().forEach(function(inv){
     var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
-    var balance=Number(inv.total||0)-Number(inv.advancePaid||0);
+    var invCollected=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+    var balance=Number(inv.total||0)-invCollected;
     var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
     var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
 
@@ -5578,7 +5604,9 @@ function printInvoice(id){
   var services=inv.services||[];
   var total=Number(inv.total||0);
   var advance=Number(inv.advancePaid||0);
-  var balance=total-advance;
+  var collectedPayments=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
+  var totalCollected=advance+collectedPayments;
+  var balance=total-totalCollected;
   var discAmt=Number(inv.discountAmt||0);
   var subtotal=Number(inv.subtotal||total);
 
@@ -5758,6 +5786,114 @@ function printInvoiceReceipt(inv,cl,paidNow,mode,note,recNo,today,totalPaidSoFar
   var win=window.open('','_blank','width=500,height=700');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
+}
+
+
+// ── QUICK INVOICE FROM ORDER ──────────────────────────────────────────────
+function quickInvoiceFromOrder(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});if(!o)return;
+  var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+
+  // Check if invoice already exists for this order
+  var existing=DB.invoices.find(function(inv){return inv.linkedOrderId===orderId;});
+  if(existing){
+    if(!confirm('An invoice already exists for this order ('+existing.invoiceNo+'). Create another one?'))return;
+  }
+
+  var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
+  var subtotal=Number(o.amount||0);
+  var advance=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+
+  // Show simple confirm modal with order summary + collect option
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Quick Invoice'));
+  wrap.appendChild(mk('div','modal-sub','Creates an invoice directly from this order — no quotation needed.'));
+
+  // Order preview
+  var preview=mk('div');preview.style.cssText='background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:12px 14px;margin-bottom:16px';
+  var clLine=mk('div');clLine.style.cssText='font-size:15px;font-weight:700;color:#2D6B5E;margin-bottom:8px';
+  clLine.textContent=(cl?cl.name:'Client')+' — '+(o.orderNo||'');
+  preview.appendChild(clLine);
+  items.forEach(function(it){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #e6f0ee';
+    var nm=mk('span');nm.textContent=it.name+(it.qty>1?' ×'+it.qty:'');
+    var amt=mk('span');amt.style.fontWeight='600';amt.textContent=it.amount?rupee(it.amount):'—';
+    app(row,[nm,amt]);preview.appendChild(row);
+  });
+  var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 0 0';
+  var tl=mk('span');tl.textContent='Total';
+  var tv=mk('span');tv.style.color='#2D6B5E';tv.textContent=rupee(subtotal);
+  app(totRow,[tl,tv]);preview.appendChild(totRow);
+  if(advance>0){
+    var advRow=mk('div');advRow.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#166534';
+    var al=mk('span');al.textContent='Advance collected';
+    var av=mk('span');av.style.fontWeight='600';av.textContent=rupee(advance);
+    app(advRow,[al,av]);preview.appendChild(advRow);
+    var balRow=mk('div');balRow.style.cssText='display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#991B1B';
+    var bl=mk('span');bl.textContent='Balance due';
+    var bv=mk('span');bv.textContent=rupee(subtotal-advance);
+    app(balRow,[bl,bv]);preview.appendChild(balRow);
+  }
+  wrap.appendChild(preview);
+
+  // Collect now option
+  var collectChk=mk('input');collectChk.type='checkbox';collectChk.id='qi-collect';collectChk.checked=advance<=0;collectChk.style.marginRight='6px';
+  var collectLbl=mk('label');collectLbl.style.cssText='font-size:13px;display:flex;align-items:center;cursor:pointer';
+  collectLbl.appendChild(collectChk);collectLbl.appendChild(document.createTextNode('Collect payment now'));
+
+  wrap.appendChild(mkFg('',collectLbl));
+
+  wrap.appendChild(mkActions([
+    mkBtn('Cancel',closeModal),
+    mkBtn('Create Invoice',function(){
+      var doCollect=document.getElementById('qi-collect').checked;
+
+      // Generate invoice number
+      var now=new Date();
+      var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+      var invoiceNo='INV-'+months[now.getMonth()]+String(now.getFullYear()).slice(-2)+'-'+String(DB.invoices.length+1).padStart(3,'0');
+
+      var services=items.map(function(it){
+        return {name:it.name+(it.qty>1?' ×'+it.qty:''),price:Number(it.amount||0),delivery:it.delivery||'',itemNotes:it.itemNotes||''};
+      });
+
+      var inv={
+        id:uid(),
+        invoiceNo:invoiceNo,
+        linkedOrderId:orderId,
+        linkedOrderNo:o.orderNo||'',
+        clientId:o.clientId||'',
+        clientName:cl?cl.name:'',
+        clientPhone:cl?(cl.phone||''):'',
+        date:now.toISOString().split('T')[0],
+        services:services,
+        travelCharge:'',
+        discountType:'pct',
+        discountVal:0,
+        subtotal:subtotal,
+        discountAmt:0,
+        total:subtotal,
+        advancePaid:advance,
+        payments:[],
+        notes:o.notes||'',
+        terms:'',
+        status:advance>=subtotal?'Paid':'Draft',
+        created:Date.now()
+      };
+
+      dbSave('invoices',inv);
+      closeModal();
+
+      if(doCollect&&advance<subtotal){
+        // Open collect payment immediately
+        setTimeout(function(){openInvoiceCollect(inv.id);},300);
+      } else {
+        alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
+      }
+    },'btn btn-primary')
+  ]));
+
+  showM(wrap,true);
 }
 
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
