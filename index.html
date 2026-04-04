@@ -1368,16 +1368,13 @@ function openOrderModal(id){
       var itemName=nameInp.value.trim();
       var q=Number(qtyInp.value||1);
       var svc=DB.services.find(function(s){return s.name.toLowerCase()===itemName.toLowerCase();});
-      if(svc&&Number(svc.price||0)>0){
-        var row=nameInp.closest('.order-item-row');
-        var ai=row?row.querySelector('.order-item-amount'):null;
-        if(ai&&!ai._manuallyEdited){
-          ai.value=String(Number(svc.price)*q);
-          recalcOrderTotal();
-          saveDraft();
-        }
+      if(svc&&Number(svc.price||0)>0&&!amtInp._manuallyEdited){
+        amtInp.value=String(Number(svc.price)*q);
+        recalcOrderTotal();
+        saveDraft();
+      } else {
+        saveDraft();
       }
-      saveDraft();
     }
     nameInp.oninput=function(){autoFillAmount();};
 
