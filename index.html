@@ -71,7 +71,7 @@ tbody tr:hover td{background:#fafafa}
 .avatar{width:34px;height:34px;border-radius:50%;background:#e6f0ee;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#2D6B5E;flex-shrink:0}
 .search-wrap{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:8px 12px;margin-bottom:14px}
 .search-wrap input{border:none;outline:none;font-size:13px;flex:1;color:#1a1a1a;background:transparent}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}#modal-root-2:empty{display:none;}#modal-root-2 .modal-overlay{z-index:2000;}
 .modal{background:#fff;border-radius:14px;padding:26px;width:540px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .modal-title{font-size:17px;font-weight:600;margin-bottom:3px}
 .modal-sub{font-size:12px;color:#999;margin-bottom:18px}
@@ -228,6 +228,7 @@ textarea.form-input{resize:vertical}
   <div class="main" id="main-content"></div>
 </div>
 <div id="modal-root"></div>
+  <div id="modal-root-2"></div>
 <div class="sidebar-overlay" id="sb-overlay" onclick="toggleSidebar()"></div>
 
 <script>
@@ -508,22 +509,21 @@ function openQuickAddClient(onSave){
     mkFg('Full name *',nmInp),
     mkFg('Phone',phInp),
     mkActions([
-      mkBtn('Cancel',function(){closeModal();if(onSave)onSave(null);}),
+      mkBtn('Cancel',function(){closeModal2();if(onSave)onSave(null);}),
       mkBtn('Add client',function(){
         var name=document.getElementById('qc-name').value.trim();
         if(!name){alert('Please enter a name.');return;}
         var phone=document.getElementById('qc-phone').value.trim();
         var newId=uid();
         var newClient={id:newId,name:name,phone:phone,email:'',notes:'',birthday:'',measurements:{}};
-        // Add to local DB immediately so onSave can find it
         DB.clients.push(newClient);
         dbSave('clients',newClient);
-        closeModal();
+        closeModal2();
         if(onSave)onSave(newId);
       },'btn btn-primary')
     ])
   ]);
-  showM(wrap);
+  showM2(wrap);
   setTimeout(function(){var e=document.getElementById('qc-name');if(e)e.focus();},50);
 }
 function mkFg(label,input){
@@ -2726,9 +2726,25 @@ function showM(contentEl,noOutsideClose,draftKey){
     ov.onclick=function(e){if(e.target===ov)closeModal();};
   }
   var root=document.getElementById('modal-root');root.innerHTML='';root.appendChild(ov);
-  // Auto-save text inputs if this is a data-entry modal
   if(noOutsideClose){
     setTimeout(function(){initModalAutosave(draftKey||'default');},100);
+  }
+}
+function showM2(contentEl,onClose){
+  // Second-layer modal — sits on top of existing modal without destroying it
+  var ov=mk('div','modal-overlay');ov.style.zIndex='2000';
+  var modal=mk('div','modal');modal.appendChild(contentEl);ov.appendChild(modal);
+  ov.onclick=function(e){if(e.target===ov)closeModal2();};
+  var root2=document.getElementById('modal-root-2');
+  if(root2){root2.innerHTML='';root2.appendChild(ov);}
+  root2._onClose=onClose||null;
+}
+function closeModal2(){
+  var root2=document.getElementById('modal-root-2');
+  if(root2){
+    if(root2._onClose)root2._onClose();
+    root2.innerHTML='';
+    root2._onClose=null;
   }
 }
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
