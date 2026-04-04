@@ -220,6 +220,16 @@ textarea.form-input{resize:vertical}
       <button id="export-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke-linecap="round"/></svg>Export data
       </button>
+      <div id="storage-indicator" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:10px;color:rgba(201,168,76,.5);font-weight:600;letter-spacing:.06em;text-transform:uppercase">Storage</span>
+          <span id="storage-pct" style="font-size:10px;color:rgba(201,168,76,.7);font-weight:700">—</span>
+        </div>
+        <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden">
+          <div id="storage-bar" style="height:100%;width:0%;border-radius:2px;background:#C9A84C;transition:width .5s ease"></div>
+        </div>
+        <div id="storage-detail" style="font-size:10px;color:rgba(201,168,76,.4);margin-top:4px">Calculating...</div>
+      </div>
       <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
@@ -6010,6 +6020,78 @@ function quickInvoiceFromOrder(orderId){
   showM(wrap,true);
 }
 
+
+// ── STORAGE INDICATOR ─────────────────────────────────────────────────────
+function calcStorageUsage(){
+  try{
+    // Estimate bytes used across all collections
+    // JSON.stringify gives us a rough byte count
+    var totalBytes=0;
+
+    // Text collections — stringify to estimate
+    var textCols=['clients','orders','quotations','invoices','tasks',
+      'expenses','appointments','staff','inventory','vendors',
+      'clothing','measitems','services','tctemplates','tasktemplates'];
+    textCols.forEach(function(col){
+      if(DB[col]&&DB[col].length){
+        totalBytes+=new Blob([JSON.stringify(DB[col])]).size;
+      }
+    });
+
+    // Images — biggest contributor
+    // orderImages collection stores base64 strings
+    if(DB.orderImages&&DB.orderImages.length){
+      DB.orderImages.forEach(function(doc){
+        var imgs=doc.images||[];
+        imgs.forEach(function(b64){
+          if(b64){
+            // base64 is ~4/3 of actual bytes
+            totalBytes+=Math.round(b64.length*0.75);
+          }
+        });
+      });
+    }
+
+    var totalMB=totalBytes/(1024*1024);
+    var freeLimitMB=1024; // 1 GB free tier
+    var pct=Math.min((totalMB/freeLimitMB)*100,100);
+
+    // Color based on usage
+    var barColor='#C9A84C'; // gold — normal
+    var pctColor='rgba(201,168,76,.7)';
+    if(pct>80){barColor='#EF4444';pctColor='#FCA5A5';}
+    else if(pct>60){barColor='#F97316';pctColor='#FED7AA';}
+    else if(pct>40){barColor='#EAB308';pctColor='#FEF08A';}
+
+    var pctEl=document.getElementById('storage-pct');
+    var barEl=document.getElementById('storage-bar');
+    var detailEl=document.getElementById('storage-detail');
+
+    if(pctEl)pctEl.textContent=pct.toFixed(1)+'%';
+    if(pctEl)pctEl.style.color=pctColor;
+    if(barEl){barEl.style.width=pct+'%';barEl.style.background=barColor;}
+    if(detailEl){
+      detailEl.textContent=totalMB.toFixed(1)+' MB of 1 GB used';
+      if(pct>80)detailEl.style.color='rgba(252,165,165,.8)';
+      else if(pct>60)detailEl.style.color='rgba(254,215,170,.8)';
+    }
+
+    return {totalMB:totalMB,pct:pct};
+  }catch(e){
+    console.warn('Storage calc failed:',e);
+    return {totalMB:0,pct:0};
+  }
+}
+
+// Call after DB loads and after every render
+function updateStorageIndicator(){
+  // Debounce — only run every 30 seconds max
+  var now=Date.now();
+  if(window._lastStorageCalc&&(now-window._lastStorageCalc)<30000)return;
+  window._lastStorageCalc=now;
+  setTimeout(calcStorageUsage,100);
+}
+
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
@@ -6173,6 +6255,10 @@ function manualSync(){
 // ── INIT ──────────────────────────────────────────────────────────────────
 if(isLoggedIn()){showApp();}
 else{document.getElementById('login-wrap').style.display='flex';}
+
+// Update storage indicator whenever render is called
+var _origRender=render;
+render=function(){var r=_origRender.apply(this,arguments);updateStorageIndicator();return r;};
 </script>
 </body>
 </html>
