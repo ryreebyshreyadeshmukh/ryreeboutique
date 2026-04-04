@@ -1363,7 +1363,14 @@ function openOrderModal(id){
     qtyInp.style.cssText='width:100%;background:#fff;text-align:center';
     qtyInp.placeholder='Qty';
 
-    // Auto-fill amount from service price × qty when item is selected
+    var amtInp=mk('input','form-input');
+    amtInp.type='number';amtInp.min='0';amtInp.value=amount||'';
+    amtInp.className='order-item-amount';
+    amtInp.style.cssText='width:100%;background:#fff';
+    amtInp.placeholder='Amount';
+    amtInp.oninput=function(){amtInp._manuallyEdited=true;recalcOrderTotal();saveDraft();};
+
+    // Auto-fill amount from service price × qty — defined AFTER amtInp
     function autoFillAmount(){
       var itemName=nameInp.value.trim();
       var q=Number(qtyInp.value||1);
@@ -1377,13 +1384,7 @@ function openOrderModal(id){
       }
     }
     nameInp.oninput=function(){autoFillAmount();};
-
-    var amtInp=mk('input','form-input');
-    amtInp.type='number';amtInp.min='0';amtInp.value=amount||'';
-    amtInp.className='order-item-amount';
-    amtInp.style.cssText='width:100%;background:#fff';
-    amtInp.placeholder='Amount';
-    amtInp.oninput=function(){amtInp._manuallyEdited=true;recalcOrderTotal();saveDraft();};
+    qtyInp.oninput=function(){autoFillAmount();};
 
     var delBtn=mk('button','btn-danger');delBtn.textContent='x';delBtn.style.cssText='padding:4px 8px;font-size:14px';
     delBtn.onclick=function(){
