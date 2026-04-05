@@ -2232,10 +2232,18 @@ function renderExpTable(dateVal){
       if(e.source==='invoice'){
         var invBadge=mk('span','badge');invBadge.style.cssText='font-size:10px;background:#EFF6FF;color:#1D4ED8';
         invBadge.textContent='Auto — Invoice';
-        var invLink=mk('span');invLink.style.cssText='font-size:11px;color:#1D4ED8;cursor:pointer;text-decoration:underline';
+        var invLink=mk('span');invLink.style.cssText='font-size:11px;color:#1D4ED8;cursor:pointer;text-decoration:underline;margin-right:4px';
         invLink.textContent=e.invoiceNo||'View';
         invLink.onclick=function(){nav('invoices');};
-        app(actTd,[invBadge,invLink]);
+        // Allow manual delete of auto entries (e.g. orphaned from deleted invoices)
+        var autoDelBtn=mk('button','btn-danger');autoDelBtn.textContent='Del';autoDelBtn.style.cssText='padding:1px 6px;font-size:10px';
+        autoDelBtn.setAttribute('data-id',e.id);
+        autoDelBtn.onclick=function(){
+          var eid=this.getAttribute('data-id');
+          if(confirm('Delete this auto-generated cash book entry? This will not affect the invoice itself.'))
+            dbDel('expenses',eid);
+        };
+        app(actTd,[invBadge,invLink,autoDelBtn]);
       } else {
         var editB=mk('button','btn btn-xs','Edit');editB.setAttribute('data-id',e.id);editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
         actTd.appendChild(editB);actTd.appendChild(delB);
