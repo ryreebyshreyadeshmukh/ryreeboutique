@@ -5885,8 +5885,24 @@ function openInvoiceCollect(invId){
           status:newStatus
         });
         dbSave('invoices',updatedInv);
-        // Invoice payments are tracked in inv.payments only
-        // P&L and dues read from invoices directly — no need to sync to order
+        // Auto-create Cash Book entry tagged source='invoice'
+        // so P&L doesn't double-count it
+        var cbEntry={
+          id:uid(),
+          date:date,
+          amount:String(amt),
+          entryType:'cash-in',
+          category:'Invoice payment',
+          mode:mode,
+          source:'invoice',
+          invoiceId:inv.id,
+          invoiceNo:inv.invoiceNo||'',
+          clientId:inv.clientId||'',
+          clientName:cl?cl.name:inv.clientName||'',
+          description:(cl?cl.name:inv.clientName||'Client')+' — '+(inv.invoiceNo||'Invoice')+(note&&note!=='Payment'?' ('+note+')':''),
+          created:Date.now()
+        };
+        dbSave('expenses',cbEntry);
         if(doPrint){
           var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
           var recNo='RCP-'+inv.invoiceNo+'-'+updatedPayments.length;
