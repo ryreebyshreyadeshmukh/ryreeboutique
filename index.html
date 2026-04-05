@@ -1178,13 +1178,12 @@ function pgOrders(){
     var card=mk('div');card.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:10px;overflow:hidden';
 
     // Main row
-    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;padding:14px 16px';
+    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:28px 2fr 1fr 1fr auto;gap:8px;align-items:center;padding:14px 16px';
 
     // Client + item
     var clientDiv=mk('div');
     var av=mkAvatar(cl?cl.name:'?',28);
     var nameSpan=mk('span');nameSpan.style.cssText='font-weight:600;font-size:13px';nameSpan.textContent=cl?cl.name:'?';
-    var srBadge=mk('span');srBadge.style.cssText='display:inline-block;font-size:10px;font-weight:700;color:#aaa;margin-right:6px';srBadge.textContent='#'+orderSrNo;
     var itemSpan=mk('div');itemSpan.style.cssText='font-size:11px;color:#888;margin-top:1px';
     // Task progress for this order
     var orderTasks=DB.tasks.filter(function(t){return t.orderId===o.id;});
@@ -1202,7 +1201,7 @@ function pgOrders(){
       nameDiv.appendChild(progressEl);
     }
     itemSpan.textContent=(o.orderNo?o.orderNo+' · ':'')+o.item+(o.delivery?' · By '+o.delivery:'')+(assignedStaff?' · '+assignedStaff.name:'');
-    var nameDiv=mk('div');nameDiv.style.cssText='display:flex;align-items:baseline;gap:4px';app(nameDiv,[srBadge,nameSpan,itemSpan]);
+    var nameDiv=mk('div');app(nameDiv,[nameSpan,itemSpan]);
     var clientCell=mkRow('display:flex;align-items:center;gap:8px');app(clientCell,[av,nameDiv]);
     clientDiv.appendChild(clientCell);
 
@@ -1263,7 +1262,8 @@ function pgOrders(){
     createTasksBtn.style.cssText+='color:#065F46;border-color:#6EE7B7';
     app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,editBtn,delBtn]);
 
-    app(mainRow,[clientDiv,amtDiv,sel,acts]);
+    var srDiv=mk('div');srDiv.style.cssText='font-size:11px;font-weight:700;color:#ccc;text-align:center';srDiv.textContent=String(orderSrNo);
+    app(mainRow,[srDiv,clientDiv,amtDiv,sel,acts]);
     card.appendChild(mainRow);
 
     // Items detail: merge images from DB.orderImages into items
@@ -1713,6 +1713,7 @@ function pgAppointments(){
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
       app(tr,[srTdA,ccTd,dtTd,tmTd,puTd,acTd]);t._body.appendChild(tr);
     });
+    makeSortable(t);
     return t;
   }
   var wrap=mk('div');
@@ -2911,6 +2912,7 @@ function pgQuotations(){
     [srTdQ,clTd,svcTd,amtTd,validTd,selTd,actTd].forEach(function(td){tr.appendChild(td);});
     t._body.appendChild(tr);
   });
+  makeSortable(t);
   tw.appendChild(t);wrap.appendChild(tw);
   return wrap;
 }
@@ -5657,7 +5659,6 @@ function pgInvoices(){
   var invSrNo=0;
   DB.invoices.slice().reverse().forEach(function(inv){
     invSrNo++;
-    invSrNo++;
     var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
     var invCollected=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
     var balance=Number(inv.total||0)-invCollected;
@@ -6509,6 +6510,51 @@ function openEditInvoice(id){
 
   setTimeout(function(){if(!hasPayments)recalcTotal();},50);
   showM(wrap,true);
+}
+
+// ── SORTABLE TABLE UTILITY ────────────────────────────────────────────────
+function makeSortable(table){
+  var ths=table.querySelectorAll('thead th');
+  var _sortCol=-1,_sortDir=1;
+  ths.forEach(function(th,colIdx){
+    // Skip action columns (last col) and sr no (first col)
+    if(colIdx===0||colIdx===ths.length-1)return;
+    th.style.cursor='pointer';
+    th.style.userSelect='none';
+    th.title='Click to sort';
+    var arrow=mk('span');arrow.style.cssText='margin-left:4px;font-size:10px;opacity:0.4';arrow.textContent='\u25b4\u25be';
+    th.appendChild(arrow);
+    th.onclick=function(){
+      var tbody=table.querySelector('tbody');
+      if(!tbody)return;
+      var rows=Array.from(tbody.querySelectorAll('tr'));
+      if(!rows.length)return;
+      // Toggle direction
+      if(_sortCol===colIdx)_sortDir*=-1;
+      else{_sortCol=colIdx;_sortDir=1;}
+      // Update arrows
+      ths.forEach(function(h,i){
+        var a=h.querySelector('span');
+        if(a)a.textContent=i===colIdx?(_sortDir===1?'\u25b4':'\u25be'):'\u25b4\u25be';
+        if(a)a.style.opacity=i===colIdx?'1':'0.4';
+      });
+      // Sort rows
+      rows.sort(function(a,b){
+        var at=(a.cells[colIdx]?a.cells[colIdx].textContent:'')||'';
+        var bt=(b.cells[colIdx]?b.cells[colIdx].textContent:'')||'';
+        // Try numeric sort first
+        var an=parseFloat(at.replace(/[^0-9.-]/g,''));
+        var bn=parseFloat(bt.replace(/[^0-9.-]/g,''));
+        if(!isNaN(an)&&!isNaN(bn))return(an-bn)*_sortDir;
+        // Date sort
+        var ad=new Date(at),bd=new Date(bt);
+        if(!isNaN(ad)&&!isNaN(bd))return(ad-bd)*_sortDir;
+        // String sort
+        return at.localeCompare(bt)*_sortDir;
+      });
+      rows.forEach(function(r){tbody.appendChild(r);});
+    };
+  });
 }
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
