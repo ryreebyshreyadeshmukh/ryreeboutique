@@ -2168,9 +2168,20 @@ function renderExpTable(dateVal){
       var typeBadge=mk('span','badge');typeBadge.style.background=isIn?'#F0FDF4':'#FEF2F2';typeBadge.style.color=isIn?'#166534':'#991B1B';typeBadge.textContent=isIn?'Cash in':'Expense';
       var amtTd=mk('td');amtTd.style.cssText='font-weight:600;color:'+(isIn?'#166534':'#991B1B');amtTd.textContent=(isIn?'+ ':'\u2212 ')+rupee(e.amount);
       var delB=mk('button','btn-danger','Del');delB.setAttribute('data-id',e.id);delB.onclick=function(){if(confirm('Delete?'))dbDel('expenses',this.getAttribute('data-id'));};
-      var editB=mk('button','btn btn-xs','Edit');editB.setAttribute('data-id',e.id);editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
       var modeTd=mk('td');modeTd.appendChild(modeBadge);var typeTd=mk('td');typeTd.appendChild(typeBadge);
-      var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px';actTd.appendChild(editB);actTd.appendChild(delB);
+      var actTd=mk('td');actTd.style.cssText='display:flex;gap:5px;align-items:center';
+      // Auto invoice entries — show badge, block edit/delete
+      if(e.source==='invoice'){
+        var invBadge=mk('span','badge');invBadge.style.cssText='font-size:10px;background:#EFF6FF;color:#1D4ED8';
+        invBadge.textContent='Auto — Invoice';
+        var invLink=mk('span');invLink.style.cssText='font-size:11px;color:#1D4ED8;cursor:pointer;text-decoration:underline';
+        invLink.textContent=e.invoiceNo||'View';
+        invLink.onclick=function(){nav('invoices');};
+        app(actTd,[invBadge,invLink]);
+      } else {
+        var editB=mk('button','btn btn-xs','Edit');editB.setAttribute('data-id',e.id);editB.onclick=function(){openEditExpenseModal(this.getAttribute('data-id'));};
+        actTd.appendChild(editB);actTd.appendChild(delB);
+      }
       var tr=mk('tr');[mk('td',null,e.date),typeTd,mk('td',null,e.category||'—'),amtTd,modeTd,mk('td',null,e.description||'—'),actTd].forEach(function(td){tr.appendChild(td);});
       t._body.appendChild(tr);
     })(filtered[i]);
@@ -2181,12 +2192,19 @@ function updateExpStats(dateVal){
   var sd=document.getElementById('exp-stats');if(!sd)return;
   sd.innerHTML='';
   var filtered=DB.expenses.filter(function(e){return !dateVal||e.date===dateVal;});
-  var cashIn=filtered.filter(function(e){return e.entryType==='cash-in';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var invoiceCashIn=filtered.filter(function(e){return e.entryType==='cash-in'&&e.source==='invoice';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var manualCashIn=filtered.filter(function(e){return e.entryType==='cash-in'&&e.source!=='invoice';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var cashIn=invoiceCashIn+manualCashIn;
   var totalExp=filtered.filter(function(e){return e.entryType!=='cash-in';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   var cashExp=filtered.filter(function(e){return e.entryType!=='cash-in'&&e.mode==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   var upiExp=filtered.filter(function(e){return e.entryType!=='cash-in'&&e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);val.style.color=c||'#1a1a1a';app(card,[lbl,val]);return card;}
-  app(sd,[sc('Cash in',rupee(cashIn),'#166534','#F0FDF4'),sc('Expenses out',rupee(totalExp),'#991B1B','#FEF2F2'),sc('Cash paid',rupee(cashExp),'#166534'),sc('UPI paid',rupee(upiExp),'#1D4ED8')]);
+  app(sd,[
+    sc('Invoice collected',rupee(invoiceCashIn),'#1D4ED8','#EFF6FF'),
+    sc('Other cash in',rupee(manualCashIn),'#166534','#F0FDF4'),
+    sc('Expenses out',rupee(totalExp),'#991B1B','#FEF2F2'),
+    sc('Cash paid',rupee(cashExp),'#166534')
+  ]);
 }
 function openExpenseModal(){
   var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income (cash-in)'},{value:'Other',label:'Other'}];
@@ -2450,7 +2468,8 @@ function getPLData(){
   var legacyOrderTotal=legacyOrderPayments.reduce(function(a,x){return a+Number(x.payment.amount||0);},0);
 
   // Cash-in entries from Cash Book
-  var cashIns=DB.expenses.filter(function(e){return (e.date||'').startsWith(prefix)&&e.entryType==='cash-in';});
+  // Exclude auto-generated invoice entries — already counted in invoicePayTotal
+  var cashIns=DB.expenses.filter(function(e){return (e.date||'').startsWith(prefix)&&e.entryType==='cash-in'&&e.source!=='invoice';});
   var cashInTotal=cashIns.reduce(function(a,e){return a+Number(e.amount||0);},0);
 
   var totalIncome=invoicePayTotal+legacyOrderTotal+cashInTotal;
@@ -5866,17 +5885,8 @@ function openInvoiceCollect(invId){
           status:newStatus
         });
         dbSave('invoices',updatedInv);
-        // Also update linked order advance for P&L compatibility
-        if(inv.linkedOrderId){
-          var o=DB.orders.find(function(x){return x.id===inv.linkedOrderId;});
-          if(o){
-            var existingPays=o.payments||[];
-            dbSave('orders',Object.assign({},o,{
-              payments:existingPays.concat([newPayment]),
-              advance:Number(o.advance||0)+amt
-            }));
-          }
-        }
+        // Invoice payments are tracked in inv.payments only
+        // P&L and dues read from invoices directly — no need to sync to order
         if(doPrint){
           var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
           var recNo='RCP-'+inv.invoiceNo+'-'+updatedPayments.length;
