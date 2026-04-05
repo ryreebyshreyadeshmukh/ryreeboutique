@@ -5686,7 +5686,7 @@ function pgInvoices(){
       mk('td',null,inv.invoiceNo||'—'),
       mk('td',null,cl?cl.name:inv.clientName||'—'),
       mk('td',null,rupee(inv.total||0)),
-      mk('td',null,rupee(0)),
+      mk('td',null,rupee(invCollected)),
       balTd,
       mk('td',null,inv.date||'—'),
       (function(){var td=mk('td');td.appendChild(statusSel);return td;})(),
@@ -6024,22 +6024,16 @@ function quickInvoiceFromOrder(orderId){
     }
   }
 
-  // Collect now option
-  var collectChk=mk('input');collectChk.type='checkbox';collectChk.id='qi-collect';collectChk.checked=true;collectChk.style.marginRight='6px';
-  var collectLbl=mk('label');collectLbl.style.cssText='font-size:13px;display:flex;align-items:center;cursor:pointer';
-  collectLbl.appendChild(collectChk);collectLbl.appendChild(document.createTextNode('Collect payment now'));
-
   app(wrap,[
     mkFg('Discount (optional)',discRow),
     (function(){var fg=mk('div','form-group');fg.appendChild(totalDisp);return fg;})(),
-    mkFg('',collectLbl),
     mkActions([
       mkBtn('Cancel',closeModal),
       mkBtn('Create Invoice',function(){
         var discVal=Number((document.getElementById('qi-disc')||{}).value||0);
         var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
         var total=subtotal-discAmt;
-        var doCollect=document.getElementById('qi-collect').checked;
+
 
         var now=new Date();
         var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -6075,12 +6069,7 @@ function quickInvoiceFromOrder(orderId){
 
         dbSave('invoices',inv);
         closeModal();
-
-        if(doCollect){
-          setTimeout(function(){openInvoiceCollect(inv.id);},300);
-        } else {
-          alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
-        }
+        alert('Invoice '+invoiceNo+' created! Go to Invoices module to collect payment.');
       },'btn btn-primary')
     ])
   ]);
