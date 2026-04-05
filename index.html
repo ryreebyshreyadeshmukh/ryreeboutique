@@ -941,7 +941,40 @@ function pgClients(){
       var acts=mkRow('display:flex;gap:6px;flex-wrap:wrap');
       var mb=mkBtn('📏 Measurements',function(){openTakeMeas(c.id);},'btn-meas');
       var vb=mkBtn('View',function(){selClient=c.id;render();},'btn btn-xs');
-      var db2=mkBtn('Delete',function(){if(confirm('Delete client "'+c.name+'"?'+(DB.orders.filter(function(o){return o.clientId===c.id;}).length?' This client has '+DB.orders.filter(function(o){return o.clientId===c.id;}).length+' order(s). All data will be lost.':' Their measurements will also be deleted.'))){dbDel('clients',c.id)};},'btn-danger');
+      var db2=mkBtn('Delete',function(){
+  var orderCount=DB.orders.filter(function(o){return o.clientId===c.id;}).length;
+  var apptCount=DB.appointments.filter(function(a){return a.clientId===c.id;}).length;
+  var taskCount=DB.tasks.filter(function(t){return t.clientId===c.id;}).length;
+  var msg='Delete client "'+c.name+'"?';
+  var details=[];
+  if(orderCount)details.push(orderCount+' order'+(orderCount!==1?'s':''));
+  if(apptCount)details.push(apptCount+' appointment'+(apptCount!==1?'s':''));
+  if(taskCount)details.push(taskCount+' task'+(taskCount!==1?'s':''));
+  if(details.length)msg+=' This will also delete: '+details.join(', ')+'.';
+  if(!confirm(msg))return;
+  // Delete appointments
+  DB.appointments.filter(function(a){return a.clientId===c.id;}).forEach(function(a){dbDel('appointments',a.id);});
+  // Delete tasks
+  DB.tasks.filter(function(t){return t.clientId===c.id;}).forEach(function(t){dbDel('tasks',t.id);});
+  // Delete orders and their children
+  DB.orders.filter(function(o){return o.clientId===c.id;}).forEach(function(o){
+    DB.orderImages.filter(function(img){return img.orderId===o.id;})
+      .forEach(function(img){db.collection('orderImages').doc(img.orderId+'_'+img.itemIndex).delete().catch(function(){});});
+    DB.tasks.filter(function(t){return t.orderId===o.id;}).forEach(function(t){dbDel('tasks',t.id);});
+    DB.quotations.filter(function(q){return q.linkedOrderId===o.id;}).forEach(function(q){
+      DB.invoices.filter(function(i){return i.quotationId===q.id;}).forEach(function(i){
+        DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===i.id;}).forEach(function(e){dbDel('expenses',e.id);});
+        dbDel('invoices',i.id);
+      });
+      dbDel('quotations',q.id);
+    });
+    dbDel('orders',o.id);
+  });
+  // Delete quotations directly linked to client (not via order)
+  DB.quotations.filter(function(q){return q.clientId===c.id&&!q.linkedOrderId;}).forEach(function(q){dbDel('quotations',q.id);});
+  // Finally delete the client
+  dbDel('clients',c.id);
+},'btn-danger');
       app(acts,[mb,vb,db2]);
       var nameTd=mk('td');nameTd.style.cursor='pointer';nameTd.onclick=function(){selClient=c.id;render();};nameTd.appendChild(nameCell);
       var phoneTd=mk('td');phoneTd.style.color='#666';phoneTd.textContent=c.phone||'—';
@@ -1211,7 +1244,32 @@ function pgOrders(){
     var delBtn=mk('button','btn-danger','Del');
     delBtn.setAttribute('data-oid',o.id);
     delBtn.onclick=function(){
-      if(confirm('Delete this order?'))dbDel('orders',this.getAttribute('data-oid'));
+      var oid=this.getAttribute('data-oid');
+      var ord=DB.orders.find(function(x){return x.id===oid;});
+      var taskCount=DB.tasks.filter(function(t){return t.orderId===oid;}).length;
+      var msg='Delete this order?';
+      if(taskCount>0)msg+=' '+taskCount+' linked task'+(taskCount!==1?'s':'')+' will also be deleted.';
+      if(!confirm(msg))return;
+      // Delete orderImages
+      DB.orderImages.filter(function(img){return img.orderId===oid;})
+        .forEach(function(img){db.collection('orderImages').doc(img.orderId+'_'+img.itemIndex).delete().catch(function(){});});
+      // Delete linked tasks
+      DB.tasks.filter(function(t){return t.orderId===oid;})
+        .forEach(function(t){dbDel('tasks',t.id);});
+      // Delete linked quotations
+      DB.quotations.filter(function(q){return q.linkedOrderId===oid;})
+        .forEach(function(q){
+          // Also delete invoice if quotation had one
+          DB.invoices.filter(function(i){return i.quotationId===q.id||i.linkedOrderId===oid;})
+            .forEach(function(i){
+              DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===i.id;})
+                .forEach(function(e){dbDel('expenses',e.id);});
+              dbDel('invoices',i.id);
+            });
+          dbDel('quotations',q.id);
+        });
+      // Finally delete the order
+      dbDel('orders',oid);
     };
     var workBtn=mkBtn('Work Order',function(){printWorkOrder(o.id);},'btn btn-xs');
     workBtn.style.cssText+='color:#6B21A8;border-color:#D8B4FE';
@@ -2888,7 +2946,20 @@ function pgQuotations(){
       invBtn.title='Mark quotation as Accepted first';
     }
     var delBtn=mk('button','btn-danger','Del');delBtn.setAttribute('data-qid',q.id);
-    delBtn.onclick=function(){if(confirm('Delete quotation?'))dbDel('quotations',this.getAttribute('data-qid'));};
+    delBtn.onclick=function(){
+      var qid=this.getAttribute('data-qid');
+      var linkedInv=DB.invoices.find(function(i){return i.quotationId===qid;});
+      var msg='Delete quotation?';
+      if(linkedInv)msg+=' Linked invoice '+linkedInv.invoiceNo+' will also be deleted.';
+      if(!confirm(msg))return;
+      // Delete linked invoice and its cash book entries
+      if(linkedInv){
+        DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===linkedInv.id;})
+          .forEach(function(e){dbDel('expenses',e.id);});
+        dbDel('invoices',linkedInv.id);
+      }
+      dbDel('quotations',qid);
+    };
     app(acts,[viewBtn,editBtn,printBtn,invBtn,delBtn]);
     var actTd=mk('td');actTd.appendChild(acts);
 
@@ -5668,7 +5739,13 @@ function pgInvoices(){
     var delBtn=mk('button','btn-danger','Del');delBtn.style.padding='3px 8px';
     delBtn.setAttribute('data-iid',inv.id);
     delBtn.onclick=function(){
-      if(confirm('Delete this invoice?'))dbDel('invoices',this.getAttribute('data-iid'));
+      var iid=this.getAttribute('data-iid');
+      if(!confirm('Delete this invoice? All linked cash book entries will also be deleted.'))return;
+      // Delete linked Cash Book entries first
+      var linkedExpenses=DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===iid;});
+      linkedExpenses.forEach(function(e){dbDel('expenses',e.id);});
+      // Then delete the invoice
+      dbDel('invoices',iid);
     };
     app(acts,[viewBtn2,collectBtn2,printBtn,delBtn]);
 
@@ -6278,6 +6355,22 @@ function viewInvoice(id){
 
   showM(wrap);
 }
+
+// ── CASH BOOK CLEANUP ────────────────────────────────────────────────────
+function cleanupOrphanedCashBookEntries(){
+  // Find cash book entries tagged source='invoice' where invoice no longer exists
+  var invoiceIds=DB.invoices.map(function(i){return i.id;});
+  var orphans=DB.expenses.filter(function(e){
+    return e.source==='invoice'&&e.invoiceId&&invoiceIds.indexOf(e.invoiceId)<0;
+  });
+  if(!orphans.length){
+    alert('No orphaned entries found. Cash Book is clean.');
+    return;
+  }
+  if(!confirm('Found '+orphans.length+' orphaned cash book entr'+(orphans.length===1?'y':'ies')+' from deleted invoices. Delete them now?'))return;
+  orphans.forEach(function(e){dbDel('expenses',e.id);});
+  alert(orphans.length+' entr'+(orphans.length===1?'y':'ies')+' cleaned up.');
+}
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
@@ -6349,10 +6442,13 @@ function buildExportModal(){
   wrap.appendChild(grid);
   var restoreBtn=mkBtn('Restore from local backup',restoreFromLocalBackup,'btn btn-sm');
   restoreBtn.style.color='#B45309';restoreBtn.style.borderColor='#FDE68A';
+  var cleanupBtn=mkBtn('Clean orphaned entries',cleanupOrphanedCashBookEntries,'btn btn-sm');
+  cleanupBtn.style.color='#991B1B';cleanupBtn.style.borderColor='#FCA5A5';
+  cleanupBtn.title='Remove Cash Book entries from deleted invoices';
   var actRow=mk('div');actRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0';
   var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on sign out';
-  var btns=mk('div');btns.style.cssText='display:flex;gap:8px';
-  app(btns,[restoreBtn,mkBtn('Close',closeModal)]);
+  var btns=mk('div');btns.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
+  app(btns,[cleanupBtn,restoreBtn,mkBtn('Close',closeModal)]);
   actRow.appendChild(hint);actRow.appendChild(btns);
   wrap.appendChild(actRow);
   return wrap;
