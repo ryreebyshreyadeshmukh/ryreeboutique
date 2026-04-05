@@ -2147,11 +2147,24 @@ function pgExpenses(){
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Cash Book','Daily expenses and non-order cash',mkBtn('+ Add Entry',function(){openExpenseModal();},'btn btn-primary')));
   var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';stats.id='exp-stats';wrap.appendChild(stats);
-  var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px';
+  var df=mk('div');df.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap';
   var dl=mk('label','form-label','Date:');dl.style.margin='0';
   var di=mk('input','form-input');di.id='exp-date-filter';di.type='date';di.value=_expDateFilter;di.style.width='160px';
   di.oninput=function(){_expDateFilter=this.value;renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);};
-  app(df,[dl,di]);wrap.appendChild(df);
+  var allDatesBtn=mkBtn('All dates',function(){
+    _expDateFilter='';
+    var dateEl=document.getElementById('exp-date-filter');
+    if(dateEl)dateEl.value='';
+    renderExpTable('');updateExpStats('');
+  },'btn btn-xs');
+  allDatesBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E';
+  var todayBtn=mkBtn('Today',function(){
+    _expDateFilter=new Date().toISOString().split('T')[0];
+    var dateEl=document.getElementById('exp-date-filter');
+    if(dateEl)dateEl.value=_expDateFilter;
+    renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);
+  },'btn btn-xs');
+  app(df,[dl,di,allDatesBtn,todayBtn]);wrap.appendChild(df);
   var tw=mk('div','card-p0');tw.id='exp-table';wrap.appendChild(tw);
   setTimeout(function(){renderExpTable(_expDateFilter);updateExpStats(_expDateFilter);},0);
   return wrap;
@@ -2365,7 +2378,7 @@ function openCollectPayment(orderId){
     mk('div','modal-sub',(cl?cl.name:'Client')+' — '+o.item),
     infoDiv,
     app(mk('div','form-row'),[mkFg('Amount received (₹) *',amtInp),mkFg('Payment mode',modeSel)]),
-    app(mk('div','form-row'),[mkFg('Date received',dateInp),mkFg('Note',noteInp)]),
+    app(mk('div','form-row'),[mkFg('Date received',dateInp),mkFg('Payment type',noteSel)]),
     mkFg('',printLbl),
     mkActions([mkBtn('Cancel',closeModal),mkBtn('Save payment',function(){
       var amt=Number(document.getElementById('cp-amt').value||0);
@@ -2640,12 +2653,12 @@ function pgDues(){
   var dueOrders=[];
   // Also add invoices with outstanding balance
   var dueInvoices=DB.invoices.filter(function(inv){
-    var totalPaid=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+    var totalPaid=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
     return Number(inv.total||0)>totalPaid&&inv.status!=='Paid';
   });
   var ordersDue=dueOrders.reduce(function(a,o){return a+Number(o.amount||0)-getPaid(o);},0);
   var invoicesDue=dueInvoices.reduce(function(a,inv){
-    var totalPaid=(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+    var totalPaid=(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0);
     return a+Number(inv.total||0)-totalPaid;
   },0);
   var totalDue=ordersDue+invoicesDue;
@@ -2675,7 +2688,7 @@ function renderDuesTable(filter){
   }).sort(function(a,b){return (a.delivery||'9999').localeCompare(b.delivery||'9999');});
   // Invoice dues
   var invDues=DB.invoices.filter(function(inv){
-    var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+    var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
     return Number(inv.total||0)>tp&&inv.status!=='Paid';
   });
 
@@ -5628,10 +5641,10 @@ function pgInvoices(){
   }));
 
   var tw=mk('div','card-p0');
-  var t=mkTable(['Invoice No.','Client','Amount','Advance','Balance','Date','Status','']);
+  var t=mkTable(['Invoice No.','Client','Amount','Collected','Balance','Date','Status','']);
   DB.invoices.slice().reverse().forEach(function(inv){
     var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
-    var invCollected=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+    var invCollected=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
     var balance=Number(inv.total||0)-invCollected;
     var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
     var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
@@ -5647,8 +5660,9 @@ function pgInvoices(){
 
     var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
     var viewBtn2=mkBtn('View',function(){viewInvoice(inv.id);},'btn btn-xs');
+    var editInvBtn=mkBtn('Edit',function(){openEditInvoice(inv.id);},'btn btn-xs');
     var collectBtn2=mkBtn('+ Collect',function(){openInvoiceCollect(inv.id);},'btn btn-xs btn-primary');
-    if(Number(inv.total||0)-Number(inv.advancePaid||0)-(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)<=0)collectBtn2.style.opacity='0.4';
+    if(Number(inv.total||0)-(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)<=0)collectBtn2.style.opacity='0.4';
     var printBtn=mkBtn('Print',function(){printInvoice(inv.id);},'btn btn-xs');
     var delBtn=mk('button','btn-danger','Del');delBtn.style.padding='3px 8px';
     delBtn.setAttribute('data-iid',inv.id);
@@ -5661,7 +5675,7 @@ function pgInvoices(){
       // Then delete the invoice
       dbDel('invoices',iid);
     };
-    app(acts,[viewBtn2,collectBtn2,printBtn,delBtn]);
+    app(acts,[viewBtn2,editInvBtn,collectBtn2,printBtn,delBtn]);
 
     var balTd=mk('td');balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
     balTd.textContent=balance>0?rupee(balance):'Paid \u2713';
@@ -5672,7 +5686,7 @@ function pgInvoices(){
       mk('td',null,inv.invoiceNo||'—'),
       mk('td',null,cl?cl.name:inv.clientName||'—'),
       mk('td',null,rupee(inv.total||0)),
-      mk('td',null,rupee(inv.advancePaid||0)),
+      mk('td',null,rupee(0)),
       balTd,
       mk('td',null,inv.date||'—'),
       (function(){var td=mk('td');td.appendChild(statusSel);return td;})(),
@@ -5734,29 +5748,7 @@ function generateInvoiceFromQuotation(qid){
   dbSave('invoices',inv);
   // Mark quotation as Accepted
   dbSave('quotations',Object.assign({},q,{status:'Accepted'}));
-  // If advance was already collected via order, create a Cash Book entry now
-  if(advancePaid>0){
-    var today2=new Date().toISOString().split('T')[0];
-    // Check if cash book entry already exists for this invoice
-    var alreadyExists=DB.expenses.some(function(e){return e.source==='invoice'&&e.invoiceId===inv.id;});
-    if(!alreadyExists){
-      dbSave('expenses',{
-        id:uid(),
-        date:today2,
-        amount:String(advancePaid),
-        entryType:'cash-in',
-        category:'Invoice payment',
-        mode:'Cash',
-        source:'invoice',
-        invoiceId:inv.id,
-        invoiceNo:invoiceNo,
-        clientId:inv.clientId||'',
-        clientName:cl?cl.name:q.clientName||'',
-        description:(cl?cl.name:q.clientName||'Client')+' — '+invoiceNo+' (Advance)',
-        created:Date.now()
-      });
-    }
-  }
+  // advancePaid is always 0 — payments collected via Invoice + Collect
   alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
 }
 
@@ -5766,9 +5758,8 @@ function printInvoice(id){
   var today=new Date(inv.date||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
   var services=inv.services||[];
   var total=Number(inv.total||0);
-  var advance=Number(inv.advancePaid||0);
   var collectedPayments=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
-  var totalCollected=advance+collectedPayments;
+  var totalCollected=collectedPayments;
   var balance=total-totalCollected;
   var discAmt=Number(inv.discountAmt||0);
   var subtotal=Number(inv.subtotal||total);
@@ -5860,14 +5851,21 @@ function openInvoiceCollect(invId){
   var inv=DB.invoices.find(function(x){return x.id===invId;});if(!inv)return;
   var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
   var payments=inv.payments||[];
-  var totalPaid=payments.reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
+  var totalPaid=payments.reduce(function(a,p){return a+Number(p.amount||0);},0);
   var balance=Number(inv.total||0)-totalPaid;
 
   var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
   var amtInp=mkInput('ic-amt','number','Amount received (\u20b9)',balance>0?String(balance):'');
   var modeSel=mkSelect('ic-mode',modeOpts,'Cash');
   var dateInp=mkInput('ic-date','date','',new Date().toISOString().split('T')[0]);
-  var noteInp=mkInput('ic-note','text','e.g. Advance, Final payment...');
+  var noteOpts=[
+    {value:'Advance',label:'Advance'},
+    {value:'Partial payment',label:'Partial payment'},
+    {value:'Final payment',label:'Final payment'},
+    {value:'Balance',label:'Balance'},
+    {value:'Other',label:'Other'}
+  ];
+  var noteSel=mkSelect('ic-note',noteOpts,'Advance');
   var printChk=mk('input');printChk.type='checkbox';printChk.id='ic-print';printChk.checked=true;printChk.style.marginRight='6px';
   var printLbl=mk('label');printLbl.style.cssText='font-size:13px;display:flex;align-items:center;cursor:pointer';
   printLbl.appendChild(printChk);printLbl.appendChild(document.createTextNode('Print receipt'));
@@ -5883,7 +5881,7 @@ function openInvoiceCollect(invId){
     mk('div','modal-sub',(cl?cl.name:inv.clientName||'Client')+' \u2014 '+inv.invoiceNo),
     infoDiv,
     app(mk('div','form-row'),[mkFg('Amount received (\u20b9) *',amtInp),mkFg('Payment mode',modeSel)]),
-    app(mk('div','form-row'),[mkFg('Date received',dateInp),mkFg('Note',noteInp)]),
+    app(mk('div','form-row'),[mkFg('Date received',dateInp),mkFg('Payment type',noteSel)]),
     mkFg('',printLbl),
     mkActions([
       mkBtn('Cancel',closeModal),
@@ -5972,9 +5970,7 @@ function quickInvoiceFromOrder(orderId){
 
   var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
   var subtotal=Number(o.amount||0);
-  var advance=0; // No advance from orders — collect via Invoice module
 
-  // Show simple confirm modal with order summary + collect option
   var wrap=mk('div');
   wrap.appendChild(mk('div','modal-title','Quick Invoice'));
   wrap.appendChild(mk('div','modal-sub','Creates an invoice directly from this order — no quotation needed.'));
@@ -5991,78 +5987,105 @@ function quickInvoiceFromOrder(orderId){
     app(row,[nm,amt]);preview.appendChild(row);
   });
   var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 0 0';
-  var tl=mk('span');tl.textContent='Total';
+  var tl=mk('span');tl.textContent='Subtotal';
   var tv=mk('span');tv.style.color='#2D6B5E';tv.textContent=rupee(subtotal);
   app(totRow,[tl,tv]);preview.appendChild(totRow);
-  if(advance>0){
-    var advRow=mk('div');advRow.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#166534';
-    var al=mk('span');al.textContent='Advance collected';
-    var av=mk('span');av.style.fontWeight='600';av.textContent=rupee(advance);
-    app(advRow,[al,av]);preview.appendChild(advRow);
-    var balRow=mk('div');balRow.style.cssText='display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#991B1B';
-    var bl=mk('span');bl.textContent='Balance due';
-    var bv=mk('span');bv.textContent=rupee(subtotal-advance);
-    app(balRow,[bl,bv]);preview.appendChild(balRow);
-  }
   wrap.appendChild(preview);
 
+  // Discount
+  var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center';
+  var pctBtn=mk('button');pctBtn.type='button';pctBtn.textContent='%';
+  pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;background:#2D6B5E;color:#fff';
+  var flatBtn=mk('button');flatBtn.type='button';flatBtn.textContent='₹';
+  flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;background:#fff;color:#555';
+  var discType='pct';
+  pctBtn.onclick=function(){discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';updateTotal();};
+  flatBtn.onclick=function(){discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';updateTotal();};
+  var discInp=mkInput('qi-disc','number','0 (no discount)');discInp.style.flex='1';discInp.min='0';discInp.value='0';
+  discInp.oninput=function(){updateTotal();};
+  app(discRow,[pctBtn,flatBtn,discInp]);
+
+  // Live total display
+  var totalDisp=mk('div');totalDisp.id='qi-total-disp';
+  totalDisp.style.cssText='background:#e6f0ee;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;color:#2D6B5E;margin-top:4px';
+  totalDisp.textContent='Total: '+rupee(subtotal);
+
+  function updateTotal(){
+    var dv=Number((document.getElementById('qi-disc')||{}).value||0);
+    var da=dv>0?(discType==='flat'?dv:Math.round(subtotal*dv/100)):0;
+    var tot=subtotal-da;
+    var td=document.getElementById('qi-total-disp');
+    if(td){
+      if(da>0){
+        td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(subtotal)+' − Discount: '+rupee(da)+'</div><div>Total: '+rupee(tot)+'</div>';
+      } else {
+        td.textContent='Total: '+rupee(tot);
+      }
+    }
+  }
+
   // Collect now option
-  var collectChk=mk('input');collectChk.type='checkbox';collectChk.id='qi-collect';collectChk.checked=advance<=0;collectChk.style.marginRight='6px';
+  var collectChk=mk('input');collectChk.type='checkbox';collectChk.id='qi-collect';collectChk.checked=true;collectChk.style.marginRight='6px';
   var collectLbl=mk('label');collectLbl.style.cssText='font-size:13px;display:flex;align-items:center;cursor:pointer';
   collectLbl.appendChild(collectChk);collectLbl.appendChild(document.createTextNode('Collect payment now'));
 
-  wrap.appendChild(mkFg('',collectLbl));
+  app(wrap,[
+    mkFg('Discount (optional)',discRow),
+    (function(){var fg=mk('div','form-group');fg.appendChild(totalDisp);return fg;})(),
+    mkFg('',collectLbl),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Create Invoice',function(){
+        var discVal=Number((document.getElementById('qi-disc')||{}).value||0);
+        var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
+        var total=subtotal-discAmt;
+        var doCollect=document.getElementById('qi-collect').checked;
 
-  wrap.appendChild(mkActions([
-    mkBtn('Cancel',closeModal),
-    mkBtn('Create Invoice',function(){
-      var doCollect=document.getElementById('qi-collect').checked;
+        var now=new Date();
+        var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        var invoiceNo='INV-'+months[now.getMonth()]+String(now.getFullYear()).slice(-2)+'-'+String(DB.invoices.length+1).padStart(3,'0');
 
-      // Generate invoice number
-      var now=new Date();
-      var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-      var invoiceNo='INV-'+months[now.getMonth()]+String(now.getFullYear()).slice(-2)+'-'+String(DB.invoices.length+1).padStart(3,'0');
+        var services=items.map(function(it){
+          return {name:it.name+(it.qty>1?' ×'+it.qty:''),price:Number(it.amount||0),delivery:it.delivery||'',itemNotes:it.itemNotes||''};
+        });
 
-      var services=items.map(function(it){
-        return {name:it.name+(it.qty>1?' ×'+it.qty:''),price:Number(it.amount||0),delivery:it.delivery||'',itemNotes:it.itemNotes||''};
-      });
+        var inv={
+          id:uid(),
+          invoiceNo:invoiceNo,
+          linkedOrderId:orderId,
+          linkedOrderNo:o.orderNo||'',
+          clientId:o.clientId||'',
+          clientName:cl?cl.name:'',
+          clientPhone:cl?(cl.phone||''):'',
+          date:now.toISOString().split('T')[0],
+          services:services,
+          travelCharge:'',
+          discountType:discType,
+          discountVal:discVal,
+          subtotal:subtotal,
+          discountAmt:discAmt,
+          total:total,
+          advancePaid:0,
+          payments:[],
+          notes:o.notes||'',
+          terms:'',
+          status:'Draft',
+          created:Date.now()
+        };
 
-      var inv={
-        id:uid(),
-        invoiceNo:invoiceNo,
-        linkedOrderId:orderId,
-        linkedOrderNo:o.orderNo||'',
-        clientId:o.clientId||'',
-        clientName:cl?cl.name:'',
-        clientPhone:cl?(cl.phone||''):'',
-        date:now.toISOString().split('T')[0],
-        services:services,
-        travelCharge:'',
-        discountType:'pct',
-        discountVal:0,
-        subtotal:subtotal,
-        discountAmt:0,
-        total:subtotal,
-        advancePaid:advance,
-        payments:[],
-        notes:o.notes||'',
-        terms:'',
-        status:advance>=subtotal?'Paid':'Draft',
-        created:Date.now()
-      };
+        dbSave('invoices',inv);
+        closeModal();
 
-      dbSave('invoices',inv);
-      closeModal();
+        if(doCollect){
+          setTimeout(function(){openInvoiceCollect(inv.id);},300);
+        } else {
+          alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
+        }
+      },'btn btn-primary')
+    ])
+  ]);
 
-      if(doCollect&&advance<subtotal){
-        // Open collect payment immediately
-        setTimeout(function(){openInvoiceCollect(inv.id);},300);
-      } else {
-        alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
-      }
-    },'btn btn-primary')
-  ]));
-
+  setTimeout(function(){updateTotal();},50);
   showM(wrap,true);
 }
 
@@ -6145,8 +6168,7 @@ function viewInvoice(id){
   var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
   var services=inv.services||[];
   var payments=inv.payments||[];
-  var advance=Number(inv.advancePaid||0);
-  var totalCollected=payments.reduce(function(a,p){return a+Number(p.amount||0);},0)+advance;
+  var totalCollected=payments.reduce(function(a,p){return a+Number(p.amount||0);},0);
   var total=Number(inv.total||0);
   var balance=total-totalCollected;
   var discAmt=Number(inv.discountAmt||0);
@@ -6264,6 +6286,7 @@ function viewInvoice(id){
   // Actions
   wrap.appendChild(mkActions([
     mkBtn('Close',closeModal),
+    mkBtn('Edit',function(){closeModal();setTimeout(function(){openEditInvoice(id);},100);},'btn btn-sm'),
     balance>0?mkBtn('+ Collect',function(){closeModal();setTimeout(function(){openInvoiceCollect(id);},100);},'btn btn-primary'):null,
     mkBtn('Print',function(){printInvoice(id);},'btn btn-sm')
   ].filter(Boolean)));
@@ -6287,6 +6310,189 @@ function cleanupOrphanedCashBookEntries(){
   alert(orphans.length+' entr'+(orphans.length===1?'y':'ies')+' cleaned up.');
 }
 
+
+// ── EDIT INVOICE ──────────────────────────────────────────────────────────
+function openEditInvoice(id){
+  var inv=DB.invoices.find(function(x){return x.id===id;});if(!inv)return;
+  var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
+  var services=inv.services||[];
+  var payments=inv.payments||[];
+  var hasPayments=payments.length>0;
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Edit Invoice — '+inv.invoiceNo));
+
+  if(hasPayments){
+    // Payments exist — show warning, lock amounts
+    var warn=mk('div');warn.style.cssText='background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#B45309';
+    warn.textContent='⚠️ Payments have been collected against this invoice. Item amounts and discount cannot be changed. You can still edit notes, terms and status.';
+    wrap.appendChild(warn);
+  }
+
+  // Items — editable if no payments, read-only if payments exist
+  var itemsBox=mk('div');itemsBox.style.cssText='background:#fafafa;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
+  var itemsWrap=mk('div');itemsWrap.id='ei-items-wrap';
+
+  function recalcTotal(){
+    var sub=0;
+    itemsWrap.querySelectorAll('.ei-item-amount').forEach(function(inp){sub+=Number(inp.value||0);});
+    var dt=(document.getElementById('ei-disc-type')||{}).value||'pct';
+    var dv=Number((document.getElementById('ei-disc-val')||{}).value||0);
+    var da=dv>0?(dt==='flat'?dv:Math.round(sub*dv/100)):0;
+    var tot=sub-da;
+    var td=document.getElementById('ei-total-disp');
+    if(td){
+      if(da>0){
+        td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(sub)+' − Discount: '+rupee(da)+'</div>'
+          +'<div style="font-size:15px;font-weight:700;color:#2D6B5E">Total: '+rupee(tot)+'</div>';
+      } else {
+        td.textContent='Total: '+rupee(tot);
+      }
+    }
+  }
+
+  function addItemRow(svc,idx2){
+    var row=mk('div');row.className='ei-item-row';
+    row.style.cssText='padding:10px 14px;border-bottom:1px solid #f0f0f0';
+
+    var top=mk('div');top.style.cssText='display:grid;grid-template-columns:1fr 110px'+(hasPayments?'':' auto')+';gap:8px;align-items:center;margin-bottom:6px';
+    var nameInp=mk('input','form-input');nameInp.value=svc.name||'';nameInp.placeholder='Item name';nameInp.className='ei-item-name form-input';
+    nameInp.style.background=hasPayments?'#f9f9f9':'#fff';
+    nameInp.readOnly=hasPayments;
+
+    var amtInp=mk('input','form-input');amtInp.type='number';amtInp.value=svc.price||'';amtInp.placeholder='Amount';amtInp.className='ei-item-amount form-input';
+    amtInp.style.cssText='background:'+(hasPayments?'#f9f9f9':'#fff')+';text-align:right';
+    amtInp.readOnly=hasPayments;
+    amtInp.oninput=function(){if(!hasPayments)recalcTotal();};
+
+    app(top,[nameInp,amtInp]);
+
+    if(!hasPayments){
+      var delBtn=mk('button','btn-danger');delBtn.textContent='x';delBtn.style.cssText='padding:4px 8px;font-size:13px';
+      delBtn.onclick=function(){
+        if(itemsWrap.querySelectorAll('.ei-item-row').length>1){row.parentNode.removeChild(row);recalcTotal();}
+      };
+      top.appendChild(delBtn);
+    }
+
+    var mid=mk('div');mid.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+    var delLabel=mk('label');delLabel.style.cssText='font-size:11px;font-weight:600;color:#888;white-space:nowrap';delLabel.textContent='Delivery:';
+    var delInp=mk('input','form-input');delInp.type='date';delInp.value=svc.delivery||'';delInp.className='ei-item-delivery form-input';
+    delInp.style.cssText='flex:1;background:#fff;max-width:180px';
+    app(mid,[delLabel,delInp]);
+
+    var notesInp=mk('textarea','form-input');notesInp.value=svc.itemNotes||'';notesInp.placeholder='Item notes...';notesInp.className='ei-item-notes form-input';
+    notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
+
+    app(row,[top,mid,notesInp]);
+    itemsWrap.appendChild(row);
+  }
+
+  services.forEach(function(svc,i){addItemRow(svc,i);});
+
+  var itemsFg=mk('div','form-group');
+  var itemsLabel=mk('div');itemsLabel.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:6px';
+  var il=mk('label','form-label','Items');il.style.margin='0';
+  itemsLabel.appendChild(il);
+  if(!hasPayments){
+    var addBtn=mkBtn('+ Add item',function(){addItemRow({name:'',price:'',delivery:'',itemNotes:''},services.length);},'btn btn-xs');
+    itemsLabel.appendChild(addBtn);
+  }
+  app(itemsFg,[itemsLabel,itemsWrap]);
+  wrap.appendChild(itemsFg);
+
+  // Discount — locked if payments exist
+  if(!hasPayments){
+    var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center';
+    var pctBtn=mk('button');pctBtn.type='button';pctBtn.textContent='%';
+    pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;'+((!inv.discountType||inv.discountType==='pct')?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+    var flatBtn=mk('button');flatBtn.type='button';flatBtn.textContent='₹';
+    flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;'+(inv.discountType==='flat'?'background:#2D6B5E;color:#fff':'background:#fff;color:#555');
+    var discTypeInp=mk('input');discTypeInp.type='hidden';discTypeInp.id='ei-disc-type';discTypeInp.value=inv.discountType||'pct';
+    pctBtn.onclick=function(){discTypeInp.value='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';recalcTotal();};
+    flatBtn.onclick=function(){discTypeInp.value='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';recalcTotal();};
+    var discValInp=mkInput('ei-disc-val','number','0',inv.discountVal?String(inv.discountVal):'');
+    discValInp.style.flex='1';discValInp.oninput=function(){recalcTotal();};
+    app(discRow,[pctBtn,flatBtn,discTypeInp,discValInp]);
+    wrap.appendChild(mkFg('Discount (optional)',discRow));
+
+    var totalDisp=mk('div');totalDisp.id='ei-total-disp';
+    totalDisp.style.cssText='background:#e6f0ee;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;color:#2D6B5E;margin-bottom:16px';
+    wrap.appendChild(totalDisp);
+  }
+
+  // Notes
+  var notesTA=mk('textarea','form-input');notesTA.id='ei-notes';notesTA.rows=2;notesTA.placeholder='Notes...';notesTA.value=inv.notes||'';
+  wrap.appendChild(mkFg('Notes',notesTA));
+
+  // T&C
+  var tcRow=mk('div');tcRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  var tcOpts=[{value:'',label:'— Load from template —'}]
+    .concat(DB.tctemplates.map(function(t){return {value:t.id,label:t.name};}));
+  var tcSel=mkSelect('ei-tc-sel',tcOpts,'');tcSel.style.flex='1';
+  var tcLoadBtn=mkBtn('Load',function(){
+    var tid=document.getElementById('ei-tc-sel').value;if(!tid)return;
+    var tmpl=DB.tctemplates.find(function(t){return t.id===tid;});
+    if(tmpl)document.getElementById('ei-terms').value=tmpl.terms;
+  },'btn btn-xs');
+  app(tcRow,[tcSel,tcLoadBtn]);
+  var termsTA=mk('textarea','form-input');termsTA.id='ei-terms';termsTA.rows=3;
+  termsTA.placeholder='Terms & conditions...';termsTA.value=inv.terms||'';
+  wrap.appendChild(mkFg('T&C Template',tcRow));
+  wrap.appendChild(termsTA);
+
+  // Status
+  var statusOpts=['Draft','Sent','Paid'].map(function(s){return {value:s,label:s};});
+  var statusSel=mkSelect('ei-status',statusOpts,inv.status||'Draft');
+  wrap.appendChild(mkFg('Status',statusSel));
+
+  wrap.appendChild(mkActions([
+    mkBtn('Cancel',closeModal),
+    mkBtn('Save',function(){
+      var items2=[];
+      if(!hasPayments){
+        itemsWrap.querySelectorAll('.ei-item-row').forEach(function(row){
+          var name=(row.querySelector('.ei-item-name')||{}).value||'';
+          var price=Number((row.querySelector('.ei-item-amount')||{}).value||0);
+          var delivery=(row.querySelector('.ei-item-delivery')||{}).value||'';
+          var notes=(row.querySelector('.ei-item-notes')||{}).value||'';
+          if(name)items2.push({name:name,price:price,delivery:delivery,itemNotes:notes});
+        });
+        if(!items2.length){alert('Add at least one item.');return;}
+      } else {
+        // Keep existing items — also update delivery/notes which are still editable
+        itemsWrap.querySelectorAll('.ei-item-row').forEach(function(row,i){
+          var existing=services[i]||{};
+          var delivery=(row.querySelector('.ei-item-delivery')||{}).value||'';
+          var notes=(row.querySelector('.ei-item-notes')||{}).value||'';
+          items2.push(Object.assign({},existing,{delivery:delivery,itemNotes:notes}));
+        });
+      }
+
+      var discType=(document.getElementById('ei-disc-type')||{}).value||inv.discountType||'pct';
+      var discVal=!hasPayments?Number((document.getElementById('ei-disc-val')||{}).value||0):inv.discountVal||0;
+      var sub=!hasPayments?items2.reduce(function(a,s){return a+Number(s.price||0);},0):inv.subtotal||0;
+      var da=discVal>0?(discType==='flat'?discVal:Math.round(sub*discVal/100)):0;
+      var total=!hasPayments?sub-da:inv.total||0;
+
+      dbSave('invoices',Object.assign({},inv,{
+        services:items2,
+        subtotal:sub,
+        discountType:discType,
+        discountVal:discVal,
+        discountAmt:da,
+        total:total,
+        notes:(document.getElementById('ei-notes')||{}).value||'',
+        terms:(document.getElementById('ei-terms')||{}).value||'',
+        status:(document.getElementById('ei-status')||{}).value||inv.status
+      }));
+      closeModal();
+    },'btn btn-primary')
+  ]));
+
+  setTimeout(function(){if(!hasPayments)recalcTotal();},50);
+  showM(wrap,true);
+}
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
