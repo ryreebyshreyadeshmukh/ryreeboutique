@@ -1153,13 +1153,9 @@ function pgOrders(){
   var wrap=mk('div');
   // Summary stats
   var activeOrds=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
-  var totalPending=activeOrds.reduce(function(a,o){
-    var paid=(o.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0);
-    return a+Number(o.amount||0)-paid;
-  },0);
-  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(3,1fr);margin-bottom:20px';
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(2,1fr);margin-bottom:20px';
   function sc(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
-  app(stats,[sc('Total orders',DB.orders.length),sc('Active',activeOrds.length,'#2D6B5E'),sc('Pending collections',rupee(totalPending),'#B45309')]);
+  app(stats,[sc('Total orders',DB.orders.length),sc('Active',activeOrds.length,'#2D6B5E')]);
   wrap.appendChild(mkPageHeader('Orders','Track all client orders & payments',mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
   wrap.appendChild(stats);
   var _orderSearch='';
@@ -1174,18 +1170,13 @@ function pgOrders(){
   var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
   DB.orders.slice().reverse().forEach(function(o){
     var cl=DB.clients.find(function(x){return x.id===o.clientId;});
-    var payments=o.payments||[];
-    var totalPaid=payments.reduce(function(a,p){return a+Number(p.amount||0);},0);
-    // backward compat: if no payments array but has advance, show it
-    if(!payments.length&&Number(o.advance||0)>0)totalPaid=Number(o.advance||0);
-    var balance=Number(o.amount||0)-totalPaid;
     var assignedStaff=o.assignedTo?DB.staff.find(function(x){return x.id===o.assignedTo;}):null;
 
     // Order card
     var card=mk('div');card.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:10px;overflow:hidden';
 
     // Main row
-    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;align-items:center;padding:14px 16px';
+    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;padding:14px 16px';
 
     // Client + item
     var clientDiv=mk('div');
@@ -1217,18 +1208,6 @@ function pgOrders(){
     var amtLabel=mk('div');amtLabel.style.cssText='font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em';amtLabel.textContent='Total';
     var amtVal=mk('div');amtVal.style.cssText='font-weight:600;font-size:13px';amtVal.textContent=rupee(o.amount||0);
     app(amtDiv,[amtLabel,amtVal]);
-
-    // Paid
-    var paidDiv=mk('div');
-    var paidLabel=mk('div');paidLabel.style.cssText='font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em';paidLabel.textContent='Collected';
-    var paidVal=mk('div');paidVal.style.cssText='font-weight:600;font-size:13px;color:#166534';paidVal.textContent=rupee(totalPaid);
-    app(paidDiv,[paidLabel,paidVal]);
-
-    // Balance
-    var balDiv=mk('div');
-    var balLabel=mk('div');balLabel.style.cssText='font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em';balLabel.textContent='Balance';
-    var balVal=mk('div');balVal.style.cssText='font-weight:700;font-size:13px;color:'+(balance>0?'#991B1B':'#166534');balVal.textContent=balance>0?rupee(balance):'Paid ✓';
-    app(balDiv,[balLabel,balVal]);
 
     // Status select
     var sel=mk('select');sel.style.cssText='border:1px solid #e8e8e8;background:#fff;cursor:pointer;font-size:11px;font-weight:600;outline:none;color:#555;border-radius:6px;padding:3px 6px';
@@ -1281,7 +1260,7 @@ function pgOrders(){
     createTasksBtn.style.cssText+='color:#065F46;border-color:#6EE7B7';
     app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,editBtn,delBtn]);
 
-    app(mainRow,[clientDiv,amtDiv,paidDiv,balDiv,sel,acts]);
+    app(mainRow,[clientDiv,amtDiv,sel,acts]);
     card.appendChild(mainRow);
 
     // Items detail: merge images from DB.orderImages into items
@@ -1328,38 +1307,7 @@ function pgOrders(){
       card.appendChild(detailSec);
     }
 
-    // Payment history (if any)
-    if(payments.length>0){
-      var payHistory=mk('div');payHistory.style.cssText='background:#fafafa;border-top:1px solid #f0f0f0;padding:10px 16px';
-      var payTitle=mk('div');payTitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';payTitle.textContent='Payment history';
-      payHistory.appendChild(payTitle);
-      payments.forEach(function(p){
-        var pr=mk('div');pr.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:12px';
-        var left=mk('div');
-        var dateSpan=mk('span');dateSpan.style.cssText='color:#888;margin-right:10px';dateSpan.textContent=p.date||'—';
-        var noteSpan=mk('span');noteSpan.textContent=p.note||'Payment';
-        app(left,[dateSpan,noteSpan]);
-        var right=mkRow('display:flex;align-items:center;gap:8px');
-        var modeBadge=mk('span','badge');modeBadge.style.cssText='font-size:10px;background:'+(p.mode==='Cash'?'#F0FDF4':p.mode==='UPI'?'#EFF6FF':'#F5F3FF')+';color:'+(p.mode==='Cash'?'#166534':p.mode==='UPI'?'#1D4ED8':'#6D28D9');modeBadge.textContent=p.mode||'Cash';
-        var amtSpan=mk('span');amtSpan.style.cssText='font-weight:600;color:#166534';amtSpan.textContent=rupee(p.amount);
-        var delPayBtn=mk('button','btn-danger');delPayBtn.style.cssText='padding:1px 6px;font-size:10px';delPayBtn.textContent='Del';
-        delPayBtn.setAttribute('data-oid',o.id);delPayBtn.setAttribute('data-pid',p.id);
-        delPayBtn.onclick=function(){
-          if(!confirm('Delete this payment?'))return;
-          var oid=this.getAttribute('data-oid');var pid=this.getAttribute('data-pid');
-          var ord=DB.orders.find(function(x){return x.id===oid;});
-          if(ord){var newPays=(ord.payments||[]).filter(function(x){return x.id!==pid;});dbSave('orders',Object.assign({},ord,{payments:newPays}));}
-        };
-        app(right,[modeBadge,amtSpan,delPayBtn]);
-        app(pr,[left,right]);payHistory.appendChild(pr);
-      });
-      card.appendChild(payHistory);
-    } else if(Number(o.advance||0)>0) {
-      // Show legacy advance
-      var legacyDiv=mk('div');legacyDiv.style.cssText='background:#fafafa;border-top:1px solid #f0f0f0;padding:8px 16px;font-size:11px;color:#aaa';
-      legacyDiv.textContent='Advance of '+rupee(o.advance)+' recorded at order creation';
-      card.appendChild(legacyDiv);
-    }
+    // Payment info shown in Invoice module now
     wrap.appendChild(card);
   });
   return wrap;
@@ -1630,7 +1578,6 @@ function openOrderModal(id){
   var amtInp=mkInput('m-amount','number','Auto-calculated from items',o?(o.amount||''):'');
   amtInp.style.cssText=(amtInp.style.cssText||'')+'background:#f9f9f9;';
   amtInp.title='This field auto-fills from item amounts above. You can also edit it manually.';
-  var advInp=mkInput('m-advance','number','Advance paid (₹)',o?(o.advance||''):'');
   // delivery now per-item
   var notesTA=mk('textarea','form-input');notesTA.id='m-notes';notesTA.rows=2;notesTA.placeholder='Notes...';if(o)notesTA.value=o.notes||'';
 
@@ -1652,7 +1599,7 @@ function openOrderModal(id){
       app(fg,[l,colHdr,datalist,itemsWrap,addItemBtn]);
       return fg;
     })(),
-    app(mk('div','form-row'),[mkFg('Total amount (₹)',amtInp),mkFg('Advance paid (₹)',advInp)]),
+    mkFg('Total amount (₹)',amtInp),
     // Delivery date is now per item (see items section above)
     mkFg('Notes',notesTA),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
@@ -1715,7 +1662,7 @@ function openOrderModal(id){
         items:itemsForDB,
         item:itemLabel,
         amount:document.getElementById('m-amount').value,
-        advance:document.getElementById('m-advance').value,
+        advance:'',
         delivery:items.map(function(i){return i.delivery;}).filter(Boolean).sort()[0]||'',
         notes:document.getElementById('m-notes').value,
         payments:existing?existing.payments||[]:existing&&Number(existing.advance||0)>0?[{id:uid(),amount:Number(existing.advance),mode:'Cash',date:new Date().toISOString().split('T')[0],note:'Advance'}]:[],
@@ -1807,13 +1754,10 @@ function openApptModal(){
 function pgDashboard(){
   var today=new Date().toISOString().split('T')[0];
   var active=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
-  // Revenue = total collected via invoices + legacy order payments
-  var invoicedOrderIds3=DB.invoices.map(function(i){return i.linkedOrderId;}).filter(Boolean);
+  // Revenue = total collected via invoices
   var rev=DB.invoices.reduce(function(a,inv){
     var tp=(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
     return a+tp;
-  },0)+DB.orders.filter(function(o){return invoicedOrderIds3.indexOf(o.id)<0;}).reduce(function(a,o){
-    return a+(o.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0)+Number(o.advance||0);
   },0);
   var todayA=DB.appointments.filter(function(a){return a.date===today;}).length;
   var recentO=DB.orders.slice().reverse().slice(0,6);
@@ -2518,20 +2462,9 @@ function getPLData(){
   });
   var invoicePayTotal=invoicePayments.reduce(function(a,x){return a+Number(x.payment.amount||0);},0);
 
-  // Legacy: order payments for orders NOT linked to any invoice
-  var invoicedOrderIds=DB.invoices.map(function(i){return i.linkedOrderId;}).filter(Boolean);
+  // No legacy order payments — all money flows through invoices now
   var legacyOrderPayments=[];
-  DB.orders.forEach(function(o){
-    if(invoicedOrderIds.indexOf(o.id)>=0)return; // skip — covered by invoice
-    (o.payments||[]).forEach(function(p){
-      if((p.date||'').startsWith(prefix))legacyOrderPayments.push({order:o,payment:p});
-    });
-    if(!(o.payments||[]).length&&Number(o.advance||0)>0){
-      var orderMonth=o.created?new Date(o.created).toISOString().substring(0,7):null;
-      if(orderMonth===prefix)legacyOrderPayments.push({order:o,payment:{amount:o.advance,mode:'Cash',date:o.created?new Date(o.created).toISOString().split('T')[0]:prefix+'-01',note:'Advance'}});
-    }
-  });
-  var legacyOrderTotal=legacyOrderPayments.reduce(function(a,x){return a+Number(x.payment.amount||0);},0);
+  var legacyOrderTotal=0;
 
   // Cash-in entries from Cash Book
   // Exclude auto-generated invoice entries — already counted in invoicePayTotal
@@ -2580,10 +2513,9 @@ function renderPLContent(){
   c.appendChild(s1);
 
   // Income breakdown cards
-  var s2=mk('div','stats-row');s2.style.gridTemplateColumns='repeat(3,1fr)';s2.style.marginBottom='20px';
+  var s2=mk('div','stats-row');s2.style.gridTemplateColumns='repeat(2,1fr)';s2.style.marginBottom='20px';
   app(s2,[
     bigCard('Invoice payments',d.invoicePayTotal,'#2D6B5E','#e6f0ee'),
-    bigCard('Order payments (legacy)',d.legacyOrderTotal,'#B45309','#FFFBEB'),
     bigCard('Other cash in',d.cashInTotal,'#1D4ED8','#EFF6FF')
   ]);
   c.appendChild(s2);
@@ -2611,21 +2543,7 @@ function renderPLContent(){
         app(row,[left,v]);incCard.appendChild(row);
       });
     }
-    // Legacy order payments
-    if(d.legacyOrderPayments.length){
-      var h2=mk('div');h2.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';
-      h2.textContent='Order payments (legacy)';incCard.appendChild(h2);
-      d.legacyOrderPayments.forEach(function(x){
-        var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5;font-size:13px';
-        var left=mk('div');
-        var cl=DB.clients.find(function(c){return c.id===x.order.clientId;});
-        var nm=mk('div');nm.textContent=(cl?cl.name:'?')+' — '+x.order.item;
-        var dt=mk('div');dt.style.cssText='font-size:11px;color:#aaa';dt.textContent=x.payment.date+' · '+(x.payment.note||'Payment');
-        app(left,[nm,dt]);
-        var v=mk('span');v.style.cssText='font-weight:600;color:#166534';v.textContent=rupee(x.payment.amount);
-        app(row,[left,v]);incCard.appendChild(row);
-      });
-    }
+    // No legacy order payments
     // Cash-ins
     if(d.cashIns.length){
       var h3=mk('div');h3.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';
@@ -2678,7 +2596,7 @@ function renderPLContent(){
   var sl=mk('div');
   var slbl=mk('div');slbl.style.cssText='font-size:13px;font-weight:600;color:'+(isProfit?'#166534':'#991B1B');slbl.textContent=d.months[d.m]+' '+d.y+' — '+(isProfit?'Profitable':'Loss');
   var ssub=mk('div');ssub.style.cssText='font-size:12px;color:#888;margin-top:2px';
-  ssub.textContent=d.invoicePayments.length+' invoice payments · '+d.legacyOrderPayments.length+' order payments · '+d.exps.length+' expenses';
+  ssub.textContent=d.invoicePayments.length+' invoice payments · '+d.exps.length+' expenses';
   app(sl,[slbl,ssub]);
   var sr=mk('div');sr.style.textAlign='right';
   var snl=mk('div');snl.style.cssText='font-size:11px;color:#888';snl.textContent=isProfit?'Net profit':'Net loss';
@@ -2724,14 +2642,9 @@ function pgDues(){
   var wrap=mk('div');
   var today=new Date().toISOString().split('T')[0];
   function getPaid(o){var p=(o.payments||[]).reduce(function(a,x){return a+Number(x.amount||0);},0);return p||Number(o.advance||0);}
-  // Orders with no linked invoice
-  var invoicedOrderIds=DB.invoices.map(function(i){return i.linkedOrderId;}).filter(Boolean);
-  var dueOrders=DB.orders.filter(function(o){
-    if(o.status==='Cancelled')return false;
-    // If order has an invoice, skip from here (invoice handles dues)
-    if(invoicedOrderIds.indexOf(o.id)>=0)return false;
-    return Number(o.amount||0)>getPaid(o);
-  });
+  // Orders without invoices — no money tracking here anymore
+  // All dues come from invoices
+  var dueOrders=[];
   // Also add invoices with outstanding balance
   var dueInvoices=DB.invoices.filter(function(inv){
     var totalPaid=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
