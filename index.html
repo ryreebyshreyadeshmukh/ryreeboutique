@@ -1756,8 +1756,7 @@ function pgDashboard(){
   var active=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
   // Revenue = total collected via invoices
   var rev=DB.invoices.reduce(function(a,inv){
-    var tp=(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0)+Number(inv.advancePaid||0);
-    return a+tp;
+    return a+(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0);
   },0);
   var todayA=DB.appointments.filter(function(a){return a.date===today;}).length;
   var recentO=DB.orders.slice().reverse().slice(0,6);
@@ -2452,13 +2451,7 @@ function getPLData(){
         invoicePayments.push({inv:inv,payment:p});
       }
     });
-    // Advance paid recorded at invoice creation
-    if(!(inv.payments||[]).length&&Number(inv.advancePaid||0)>0){
-      var invMonth=inv.created?new Date(inv.created).toISOString().substring(0,7):null;
-      if(invMonth===prefix){
-        invoicePayments.push({inv:inv,payment:{amount:inv.advancePaid,mode:'Cash',date:inv.created?new Date(inv.created).toISOString().split('T')[0]:prefix+'-01',note:'Advance'}});
-      }
-    }
+    // advancePaid is legacy — actual payments tracked in inv.payments[] only
   });
   var invoicePayTotal=invoicePayments.reduce(function(a,x){return a+Number(x.payment.amount||0);},0);
 
@@ -5703,14 +5696,8 @@ function generateInvoiceFromQuotation(qid){
   var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
   var total=subtotal-discAmt;
 
-  // Get advance from linked order if any
+  // No advance from orders — money only tracked in invoice payments
   var advancePaid=0;
-  if(q.linkedOrderId){
-    var o=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
-    if(o){
-      advancePaid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
-    }
-  }
 
   // Generate invoice number
   var now=new Date();
@@ -5985,7 +5972,7 @@ function quickInvoiceFromOrder(orderId){
 
   var items=o.items||[{name:o.item,qty:1,delivery:o.delivery,amount:o.amount}];
   var subtotal=Number(o.amount||0);
-  var advance=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);
+  var advance=0; // No advance from orders — collect via Invoice module
 
   // Show simple confirm modal with order summary + collect option
   var wrap=mk('div');
@@ -6226,17 +6213,24 @@ function viewInvoice(id){
     var noPay=mk('div');noPay.style.cssText='padding:16px;text-align:center;color:#aaa;font-size:13px';noPay.textContent='No payments collected yet.';
     payBox.appendChild(noPay);
   } else {
-    // Show advance if any
+    // Show advance if any — with correction option for legacy data
     if(advance>0){
-      var advRow=mk('div');advRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+      var advRow=mk('div');advRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px;background:#FFFBEB';
       var advLeft=mk('div');
-      var advNote=mk('div');advNote.style.fontWeight='500';advNote.textContent='Advance (at order)';
-      var advDate=mk('div');advDate.style.cssText='font-size:11px;color:#aaa;margin-top:2px';advDate.textContent=inv.date||'';
-      app(advLeft,[advNote,advDate]);
+      var advNote=mk('div');advNote.style.fontWeight='500';advNote.textContent='Legacy advance (carried from order)';
+      var advSub=mk('div');advSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';advSub.textContent='This may be incorrect — click ✕ to remove if not collected';
+      app(advLeft,[advNote,advSub]);
       var advRight=mk('div');advRight.style.cssText='display:flex;align-items:center;gap:8px';
-      var advMode=mk('span','badge');advMode.style.cssText='font-size:10px;background:#F0FDF4;color:#166534';advMode.textContent='Cash';
-      var advAmt=mk('span');advAmt.style.cssText='font-weight:700;color:#166534';advAmt.textContent=rupee(advance);
-      app(advRight,[advMode,advAmt]);
+      var advAmt=mk('span');advAmt.style.cssText='font-weight:700;color:#B45309';advAmt.textContent=rupee(advance);
+      var removeAdv=mk('button');removeAdv.textContent='× Remove';
+      removeAdv.style.cssText='font-size:11px;padding:2px 8px;border:1px solid #FCA5A5;background:#FEF2F2;color:#991B1B;border-radius:4px;cursor:pointer';
+      removeAdv.onclick=function(){
+        if(!confirm('Remove this legacy advance of '+rupee(advance)+' from invoice '+inv.invoiceNo+'? Only do this if the advance was not actually collected.'))return;
+        dbSave('invoices',Object.assign({},inv,{advancePaid:0}));
+        closeModal();
+        alert('Legacy advance removed. Invoice updated.');
+      };
+      app(advRight,[advAmt,removeAdv]);
       app(advRow,[advLeft,advRight]);payBox.appendChild(advRow);
     }
     // Show all payments
@@ -6292,6 +6286,7 @@ function cleanupOrphanedCashBookEntries(){
   orphans.forEach(function(e){dbDel('expenses',e.id);});
   alert(orphans.length+' entr'+(orphans.length===1?'y':'ies')+' cleaned up.');
 }
+
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
