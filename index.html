@@ -6172,6 +6172,7 @@ function viewInvoice(id){
   var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
   var services=inv.services||[];
   var payments=inv.payments||[];
+  var advance=0; // advancePaid always 0 — all payments via Invoice+Collect
   var totalCollected=payments.reduce(function(a,p){return a+Number(p.amount||0);},0);
   var total=Number(inv.total||0);
   var balance=total-totalCollected;
@@ -6235,7 +6236,7 @@ function viewInvoice(id){
 
   var payBox=mk('div');payBox.style.cssText='border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
 
-  if(!advance&&!payments.length){
+  if(!payments.length){
     var noPay=mk('div');noPay.style.cssText='padding:16px;text-align:center;color:#aaa;font-size:13px';noPay.textContent='No payments collected yet.';
     payBox.appendChild(noPay);
   } else {
