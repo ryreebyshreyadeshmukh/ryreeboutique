@@ -5709,7 +5709,9 @@ function pgInvoices(){
 
     var tr=mk('tr');tr.className='inv-row2';
     tr.setAttribute('data-search',((inv.invoiceNo||'')+' '+(cl?cl.name:inv.clientName||'')).toLowerCase());
+    var srTd=mk('td');srTd.style.cssText='color:#aaa;font-size:12px';srTd.textContent=String(invSrNo);
     [
+      srTd,
       mk('td',null,inv.invoiceNo||'—'),
       mk('td',null,cl?cl.name:inv.clientName||'—'),
       mk('td',null,rupee(inv.total||0)),
