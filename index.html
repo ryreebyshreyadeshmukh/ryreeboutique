@@ -2403,7 +2403,7 @@ function printOrderReceipt(o,cl,paidNow,mode,note,recNo,today,totalPaidSoFar){
     '<div class="row"><span class="label">Total collected so far</span><span style="font-weight:600">'+rupee(newAdv)+'</span></div>'+
     '<div class="balance-row"><span style="font-weight:600">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</span></div>'+
     (note&&note!=='Payment'?'<div style="font-size:12px;color:#888;margin-top:8px;padding:8px 12px;background:#fafafa;border-radius:6px">Note: '+note+'</div>':'')+
-    '</div><div class="footer">Ryree by Shreya Deshmukh &middot; Thank you!</div></div></body></html>';
+    '</div><div class="footer">Thank you!</div></div></body></html>';
   var win=window.open('','_blank','width=500,height=700');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
@@ -5650,6 +5650,7 @@ function pgInvoices(){
     };
 
     var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
+    var viewBtn2=mkBtn('View',function(){viewInvoice(inv.id);},'btn btn-xs');
     var collectBtn2=mkBtn('+ Collect',function(){openInvoiceCollect(inv.id);},'btn btn-xs btn-primary');
     if(Number(inv.total||0)-Number(inv.advancePaid||0)-(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)<=0)collectBtn2.style.opacity='0.4';
     var printBtn=mkBtn('Print',function(){printInvoice(inv.id);},'btn btn-xs');
@@ -5658,7 +5659,7 @@ function pgInvoices(){
     delBtn.onclick=function(){
       if(confirm('Delete this invoice?'))dbDel('invoices',this.getAttribute('data-iid'));
     };
-    app(acts,[collectBtn2,printBtn,delBtn]);
+    app(acts,[viewBtn2,collectBtn2,printBtn,delBtn]);
 
     var balTd=mk('td');balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
     balTd.textContent=balance>0?rupee(balance):'Paid \u2713';
@@ -5945,7 +5946,7 @@ function printInvoiceReceipt(inv,cl,paidNow,mode,note,recNo,today,totalPaidSoFar
   var modeBg=mode==='Cash'?'#F0FDF4':mode==='UPI'?'#EFF6FF':'#F5F3FF';
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#fff;padding:30px}@media print{body{padding:15px}}.container{max-width:420px;margin:0 auto;border:2px solid #2D6B5E;border-radius:12px;overflow:hidden}.header{background:#2D6B5E;padding:20px 24px;display:flex;justify-content:space-between}.brand{color:#C9A84C;font-size:18px;font-weight:800}.brand-sub{color:rgba(201,168,76,.7);font-size:10px;margin-top:2px}.rec-no{text-align:right;color:rgba(201,168,76,.8);font-size:11px}.body{padding:20px 24px}.client-name{font-size:18px;font-weight:700;margin-bottom:2px}.client-phone{font-size:12px;color:#888;margin-bottom:16px}hr{border:none;border-top:1px solid #f0f0f0;margin:14px 0}.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}.label{color:#888}.paid-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 16px;margin:16px 0;text-align:center}.paid-label{font-size:11px;color:#166534;font-weight:600;letter-spacing:.05em;margin-bottom:4px}.paid-amount{font-size:28px;font-weight:800;color:#166534}.mode-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-top:6px}.balance-row{display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #f0f0f0;font-size:14px}.footer{background:#f9f9f9;padding:12px 24px;text-align:center;font-size:10px;color:#aaa;border-top:1px solid #f0f0f0}</style></head><body>'
-    +'<div class="container"><div class="header"><div><div class="brand">RYREE</div><div class="brand-sub">by Shreya Deshmukh</div></div><div class="rec-no"><div>RECEIPT</div><div>'+recNo+'</div><div style="margin-top:3px">'+today+'</div></div></div>'
+    +'<div class="container"><div class="header"><div><div class="brand">RECEIPT</div></div><div class="rec-no"><div>'+recNo+'</div><div style="margin-top:3px">'+today+'</div></div></div>'
     +'<div class="body"><div class="client-name">'+(cl?cl.name:inv.clientName||'Client')+'</div>'
     +'<div class="client-phone">'+(cl&&cl.phone?cl.phone:inv.clientPhone||'')+'</div>'
     +'<div class="row"><span class="label">Invoice</span><span style="font-weight:600">'+inv.invoiceNo+'</span></div>'
@@ -5955,7 +5956,7 @@ function printInvoiceReceipt(inv,cl,paidNow,mode,note,recNo,today,totalPaidSoFar
     +'<div class="row"><span class="label">Total collected</span><span style="font-weight:600">'+rupee(totalPaidSoFar)+'</span></div>'
     +'<div class="balance-row"><span style="font-weight:600">Balance due</span><span style="font-weight:800;color:'+(balance>0?'#991B1B':'#166534')+'">'+rupee(balance)+'</span></div>'
     +(note&&note!=='Payment'?'<div style="font-size:12px;color:#888;margin-top:8px;padding:8px 12px;background:#fafafa;border-radius:6px">Note: '+note+'</div>':'')
-    +'</div><div class="footer">Ryree by Shreya Deshmukh &middot; Thank you!</div></div></body></html>';
+    +'</div><div class="footer">Thank you!</div></div></body></html>';
   var win=window.open('','_blank','width=500,height=700');
   if(win){win.document.write(html);win.document.close();setTimeout(function(){win.print();},500);}
   else alert('Allow popups to print.');
@@ -6141,6 +6142,131 @@ function updateStorageIndicator(){
   setTimeout(calcStorageUsage,100);
 }
 
+
+// ── VIEW INVOICE ──────────────────────────────────────────────────────────
+function viewInvoice(id){
+  var inv=DB.invoices.find(function(x){return x.id===id;});if(!inv)return;
+  var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
+  var services=inv.services||[];
+  var payments=inv.payments||[];
+  var advance=Number(inv.advancePaid||0);
+  var totalCollected=payments.reduce(function(a,p){return a+Number(p.amount||0);},0)+advance;
+  var total=Number(inv.total||0);
+  var balance=total-totalCollected;
+  var discAmt=Number(inv.discountAmt||0);
+  var subtotal=Number(inv.subtotal||total);
+
+  var wrap=mk('div');
+
+  // Header
+  var hdrRow=mk('div');hdrRow.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #f0f0f0';
+  var left=mk('div');
+  var invNo=mk('div');invNo.style.cssText='font-size:18px;font-weight:800;color:#1a1a1a';invNo.textContent=inv.invoiceNo||'Invoice';
+  var clName=mk('div');clName.style.cssText='font-size:14px;color:#2D6B5E;font-weight:600;margin-top:3px';clName.textContent=cl?cl.name:inv.clientName||'';
+  var clPhone=mk('div');clPhone.style.cssText='font-size:12px;color:#888;margin-top:2px';clPhone.textContent=(cl&&cl.phone)||inv.clientPhone||'';
+  app(left,[invNo,clName,clPhone]);
+  var right=mk('div');right.style.textAlign='right';
+  var statusBadge=mk('span','badge');
+  var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
+  var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
+  statusBadge.style.cssText='background:'+(statusBgs[inv.status]||'#f5f5f5')+';color:'+(statusColors[inv.status]||'#888')+';font-size:12px;padding:4px 10px';
+  statusBadge.textContent=inv.status||'Draft';
+  var dateEl=mk('div');dateEl.style.cssText='font-size:12px;color:#aaa;margin-top:6px';dateEl.textContent=inv.date||'';
+  app(right,[statusBadge,dateEl]);
+  app(hdrRow,[left,right]);
+  wrap.appendChild(mk('div','modal-title','Invoice'));
+  wrap.appendChild(hdrRow);
+
+  // Items
+  var itemsBox=mk('div');itemsBox.style.cssText='background:#fafafa;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
+  services.forEach(function(s,i){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+    var lft=mk('div');
+    var nm=mk('div');nm.style.fontWeight='600';nm.textContent=(i+1)+'. '+s.name;
+    lft.appendChild(nm);
+    if(s.delivery){var del=mk('div');del.style.cssText='font-size:11px;color:#888;margin-top:2px';del.textContent='Delivery by: '+s.delivery;lft.appendChild(del);}
+    if(s.itemNotes){var nt=mk('div');nt.style.cssText='font-size:11px;color:#666;margin-top:2px';nt.textContent=s.itemNotes;lft.appendChild(nt);}
+    var amt=mk('div');amt.style.cssText='font-weight:700;color:#2D6B5E;white-space:nowrap;margin-left:12px';amt.textContent=s.price?rupee(s.price):'—';
+    app(row,[lft,amt]);itemsBox.appendChild(row);
+  });
+  // Totals rows inside items box
+  if(discAmt>0){
+    var subRow=mk('div');subRow.style.cssText='display:flex;justify-content:space-between;padding:8px 14px;font-size:13px;border-bottom:1px solid #f0f0f0';
+    var sl=mk('span');sl.style.color='#888';sl.textContent='Subtotal';
+    var sv=mk('span');sv.style.fontWeight='600';sv.textContent=rupee(subtotal);
+    app(subRow,[sl,sv]);itemsBox.appendChild(subRow);
+    var discRow=mk('div');discRow.style.cssText='display:flex;justify-content:space-between;padding:8px 14px;font-size:13px;border-bottom:1px solid #f0f0f0';
+    var dl=mk('span');dl.style.color='#166534';dl.textContent='Discount'+(inv.discountType==='pct'&&inv.discountVal?' ('+inv.discountVal+'%)':'');
+    var dv=mk('span');dv.style.cssText='font-weight:600;color:#166534';dv.textContent='- '+rupee(discAmt);
+    app(discRow,[dl,dv]);itemsBox.appendChild(discRow);
+  }
+  var totalRow=mk('div');totalRow.style.cssText='display:flex;justify-content:space-between;padding:10px 14px;font-size:14px;font-weight:700;background:#e6f0ee';
+  var tl=mk('span');tl.textContent='Total';
+  var tv=mk('span');tv.style.color='#2D6B5E';tv.textContent=rupee(total);
+  app(totalRow,[tl,tv]);itemsBox.appendChild(totalRow);
+  wrap.appendChild(itemsBox);
+
+  // Payment history
+  var payTitle=mk('div');payTitle.style.cssText='font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';
+  payTitle.textContent='Payment history';
+  wrap.appendChild(payTitle);
+
+  var payBox=mk('div');payBox.style.cssText='border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
+
+  if(!advance&&!payments.length){
+    var noPay=mk('div');noPay.style.cssText='padding:16px;text-align:center;color:#aaa;font-size:13px';noPay.textContent='No payments collected yet.';
+    payBox.appendChild(noPay);
+  } else {
+    // Show advance if any
+    if(advance>0){
+      var advRow=mk('div');advRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+      var advLeft=mk('div');
+      var advNote=mk('div');advNote.style.fontWeight='500';advNote.textContent='Advance (at order)';
+      var advDate=mk('div');advDate.style.cssText='font-size:11px;color:#aaa;margin-top:2px';advDate.textContent=inv.date||'';
+      app(advLeft,[advNote,advDate]);
+      var advRight=mk('div');advRight.style.cssText='display:flex;align-items:center;gap:8px';
+      var advMode=mk('span','badge');advMode.style.cssText='font-size:10px;background:#F0FDF4;color:#166534';advMode.textContent='Cash';
+      var advAmt=mk('span');advAmt.style.cssText='font-weight:700;color:#166534';advAmt.textContent=rupee(advance);
+      app(advRight,[advMode,advAmt]);
+      app(advRow,[advLeft,advRight]);payBox.appendChild(advRow);
+    }
+    // Show all payments
+    payments.forEach(function(p){
+      var pRow=mk('div');pRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+      var pLeft=mk('div');
+      var pNote=mk('div');pNote.style.fontWeight='500';pNote.textContent=p.note||'Payment';
+      var pDate=mk('div');pDate.style.cssText='font-size:11px;color:#aaa;margin-top:2px';pDate.textContent=p.date||'';
+      app(pLeft,[pNote,pDate]);
+      var pRight=mk('div');pRight.style.cssText='display:flex;align-items:center;gap:8px';
+      var modeBadge=mk('span','badge');
+      modeBadge.style.cssText='font-size:10px;background:'+(p.mode==='Cash'?'#F0FDF4':p.mode==='UPI'?'#EFF6FF':'#F5F3FF')+';color:'+(p.mode==='Cash'?'#166534':p.mode==='UPI'?'#1D4ED8':'#6D28D9');
+      modeBadge.textContent=p.mode||'Cash';
+      var pAmt=mk('span');pAmt.style.cssText='font-weight:700;color:#166534';pAmt.textContent=rupee(p.amount);
+      app(pRight,[modeBadge,pAmt]);
+      app(pRow,[pLeft,pRight]);payBox.appendChild(pRow);
+    });
+  }
+
+  // Summary footer inside payBox
+  var summaryRow=mk('div');summaryRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:'+(balance>0?'#FEF2F2':'#F0FDF4');
+  var sumLeft=mk('div');
+  var collected=mk('div');collected.style.cssText='font-size:13px;color:#888';collected.textContent='Total collected: '+rupee(totalCollected);
+  var balLabel=mk('div');balLabel.style.cssText='font-size:14px;font-weight:700;margin-top:2px;color:'+(balance>0?'#991B1B':'#166534');
+  balLabel.textContent=balance>0?'Balance due: '+rupee(balance):'Fully paid ✓';
+  app(sumLeft,[collected,balLabel]);
+  summaryRow.appendChild(sumLeft);
+  payBox.appendChild(summaryRow);
+  wrap.appendChild(payBox);
+
+  // Actions
+  wrap.appendChild(mkActions([
+    mkBtn('Close',closeModal),
+    balance>0?mkBtn('+ Collect',function(){closeModal();setTimeout(function(){openInvoiceCollect(id);},100);},'btn btn-primary'):null,
+    mkBtn('Print',function(){printInvoice(id);},'btn btn-sm')
+  ].filter(Boolean)));
+
+  showM(wrap);
+}
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
