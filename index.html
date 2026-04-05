@@ -2874,8 +2874,19 @@ function pgQuotations(){
     var viewBtn=mkBtn('View',function(){viewQuotation(q.id);},'btn btn-xs');
     var editBtn=mkBtn('Edit',function(){openQuotationModal(q.id);},'btn btn-xs');
     var printBtn=mkBtn('Print',function(){printQuotation(q.id);},'btn btn-xs');
-    var invBtn=mkBtn('Generate Invoice',function(){generateInvoiceFromQuotation(q.id);},'btn btn-xs');
-    invBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+    var invBtn=mkBtn('Generate Invoice',function(){
+      if(q.status!=='Accepted'){
+        alert('Please mark this quotation as Accepted first before generating an invoice.');
+        return;
+      }
+      generateInvoiceFromQuotation(q.id);
+    },'btn btn-xs');
+    if(q.status==='Accepted'){
+      invBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+    } else {
+      invBtn.style.cssText+='color:#aaa;border-color:#e0e0e0;cursor:not-allowed;opacity:0.5';
+      invBtn.title='Mark quotation as Accepted first';
+    }
     var delBtn=mk('button','btn-danger','Del');delBtn.setAttribute('data-qid',q.id);
     delBtn.onclick=function(){if(confirm('Delete quotation?'))dbDel('quotations',this.getAttribute('data-qid'));};
     app(acts,[viewBtn,editBtn,printBtn,invBtn,delBtn]);
