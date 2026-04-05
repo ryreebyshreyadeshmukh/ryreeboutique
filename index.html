@@ -2261,7 +2261,23 @@ function openExpenseModal(){
   app(invFg,[invLabel,invRow]);
 
   // Show/hide vendor based on entry type
-  var vendorFg=mkFg('Vendor / Supplier',vendorSel);vendorFg.id='e-vendor-fg';
+  // Vendor row with inline "+ New Vendor" button
+  var vendorRow=mk('div');vendorRow.style.cssText='display:flex;gap:8px;align-items:center';
+  vendorSel.style.flex='1';
+  var newVendorBtn=mkBtn('+ New',function(){
+    var vname=prompt('Vendor name:');
+    if(!vname||!vname.trim())return;
+    var vcategory=prompt('Category (optional, e.g. Fabric, Zari, Labour):');
+    var newVendor={id:uid(),name:vname.trim(),category:(vcategory||'').trim(),phone:'',created:Date.now()};
+    dbSave('vendors',newVendor);
+    var newOpt=mk('option',null,newVendor.name+(newVendor.category?' ('+newVendor.category+')':''));
+    newOpt.value=newVendor.id;
+    vendorSel.appendChild(newOpt);
+    vendorSel.value=newVendor.id;
+  },'btn btn-xs');
+  newVendorBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E;white-space:nowrap';
+  app(vendorRow,[vendorSel,newVendorBtn]);
+  var vendorFg=mkFg('Vendor / Supplier',vendorRow);vendorFg.id='e-vendor-fg';
   function updateExpFields(){
     var isCashIn=typeSel.value==='cash-in';
     var isRawMat=catSel.value==='Raw material purchase';
