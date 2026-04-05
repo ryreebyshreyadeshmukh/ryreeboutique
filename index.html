@@ -5607,18 +5607,20 @@ function clearModalDraft(key){
 // ── INVOICES MODULE ───────────────────────────────────────────────────────
 function pgInvoices(){
   var wrap=mk('div');
-  var total=DB.invoices.length;
-  var paid=DB.invoices.filter(function(i){return i.status==='Paid';}).length;
-  var sent=DB.invoices.filter(function(i){return i.status==='Sent';}).length;
-  var draft=DB.invoices.filter(function(i){return i.status==='Draft';}).length;
+
+  // Stats — total amount, collected, balance
+  var totalAmt=DB.invoices.reduce(function(a,inv){return a+Number(inv.total||0);},0);
+  var totalCollectedAll=DB.invoices.reduce(function(a,inv){
+    return a+(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0);
+  },0);
+  var totalBalanceAll=totalAmt-totalCollectedAll;
 
   function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
-  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(3,1fr);margin-bottom:20px';
   app(stats,[
-    sc('Total',total),
-    sc('Draft',draft,'#B45309','#FFFBEB'),
-    sc('Sent',sent,'#1D4ED8','#EFF6FF'),
-    sc('Paid',paid,'#166534','#F0FDF4')
+    sc('Total invoiced',rupee(totalAmt),'#1a1a1a'),
+    sc('Total collected',rupee(totalCollectedAll),'#166534','#F0FDF4'),
+    sc('Total balance',rupee(totalBalanceAll),totalBalanceAll>0?'#991B1B':'#166534',totalBalanceAll>0?'#FEF2F2':'#F0FDF4')
   ]);
 
   wrap.appendChild(mkPageHeader('Invoices','All generated invoices'));
@@ -5627,9 +5629,9 @@ function pgInvoices(){
   if(!DB.invoices.length){
     var empty=mk('div','card');
     var msg=mk('div');msg.style.cssText='text-align:center;padding:32px';
-    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No invoices yet.';
-    var s=mk('div');s.style.cssText='font-size:13px;color:#888';s.textContent='Generate invoices from the Quotations module after a quotation is approved.';
-    app(msg,[t,s]);app(empty,[msg]);wrap.appendChild(empty);
+    var tt=mk('div');tt.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';tt.textContent='No invoices yet.';
+    var ss=mk('div');ss.style.cssText='font-size:13px;color:#888';ss.textContent='Generate invoices from the Quotations module or via Quick Invoice on an order.';
+    app(msg,[tt,ss]);app(empty,[msg]);wrap.appendChild(empty);
     return wrap;
   }
 
@@ -5641,16 +5643,21 @@ function pgInvoices(){
   }));
 
   var tw=mk('div','card-p0');
-  var t=mkTable(['Invoice No.','Client','Amount','Collected','Balance','Date','Status','']);
+  var t=mkTable(['Invoice No.','Client','Total','Collected','Balance','Date','Status','']);
+
   DB.invoices.slice().reverse().forEach(function(inv){
     var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
     var invCollected=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
     var balance=Number(inv.total||0)-invCollected;
-    var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
-    var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
 
-    var statusSel=mk('select');statusSel.style.cssText='border:none;background:transparent;cursor:pointer;font-size:11px;font-weight:600;outline:none;color:#555';
-    ['Draft','Sent','Paid'].forEach(function(s){var op=mk('option',null,s);op.value=s;if(inv.status===s)op.selected=true;statusSel.appendChild(op);});
+    // Status dropdown
+    var statusSel=mk('select');
+    statusSel.style.cssText='border:none;background:transparent;cursor:pointer;font-size:11px;font-weight:600;outline:none;color:#555';
+    ['Draft','Sent','Paid'].forEach(function(s){
+      var op=mk('option',null,s);op.value=s;
+      if(inv.status===s)op.selected=true;
+      statusSel.appendChild(op);
+    });
     statusSel.setAttribute('data-iid',inv.id);
     statusSel.onchange=function(){
       var iid=this.getAttribute('data-iid');
@@ -5658,27 +5665,34 @@ function pgInvoices(){
       if(invoice)dbSave('invoices',Object.assign({},invoice,{status:this.value}));
     };
 
+    // Action buttons — use IIFE to capture inv.id
+    var invId=inv.id;
     var acts=mkRow('display:flex;gap:5px;flex-wrap:wrap');
-    var viewBtn2=mkBtn('View',function(){viewInvoice(inv.id);},'btn btn-xs');
-    var editInvBtn=mkBtn('Edit',function(){openEditInvoice(inv.id);},'btn btn-xs');
-    var collectBtn2=mkBtn('+ Collect',function(){openInvoiceCollect(inv.id);},'btn btn-xs btn-primary');
-    if(Number(inv.total||0)-(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)<=0)collectBtn2.style.opacity='0.4';
-    var printBtn=mkBtn('Print',function(){printInvoice(inv.id);},'btn btn-xs');
+
+    var viewBtn=mkBtn('View',(function(iid){return function(){viewInvoice(iid);};})(invId),'btn btn-xs');
+    var editBtn=mkBtn('Edit',(function(iid){return function(){openEditInvoice(iid);};})(invId),'btn btn-xs');
+    var collectBtn=mkBtn('+ Collect',(function(iid){return function(){openInvoiceCollect(iid);};})(invId),'btn btn-xs btn-primary');
+    if(balance<=0)collectBtn.style.opacity='0.4';
+    var printBtn=mkBtn('Print',(function(iid){return function(){printInvoice(iid);};})(invId),'btn btn-xs');
+
     var delBtn=mk('button','btn-danger','Del');delBtn.style.padding='3px 8px';
-    delBtn.setAttribute('data-iid',inv.id);
+    delBtn.setAttribute('data-iid',invId);
     delBtn.onclick=function(){
       var iid=this.getAttribute('data-iid');
       if(!confirm('Delete this invoice? All linked cash book entries will also be deleted.'))return;
-      // Delete linked Cash Book entries first
-      var linkedExpenses=DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===iid;});
-      linkedExpenses.forEach(function(e){dbDel('expenses',e.id);});
-      // Then delete the invoice
+      DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===iid;})
+        .forEach(function(e){dbDel('expenses',e.id);});
       dbDel('invoices',iid);
     };
-    app(acts,[viewBtn2,editInvBtn,collectBtn2,printBtn,delBtn]);
 
-    var balTd=mk('td');balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
-    balTd.textContent=balance>0?rupee(balance):'Paid \u2713';
+    app(acts,[viewBtn,editBtn,collectBtn,printBtn,delBtn]);
+
+    var balTd=mk('td');
+    balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
+    balTd.textContent=balance>0?rupee(balance):'Paid ✓';
+
+    var statusTd=mk('td');statusTd.appendChild(statusSel);
+    var actsTd=mk('td');actsTd.appendChild(acts);
 
     var tr=mk('tr');tr.className='inv-row2';
     tr.setAttribute('data-search',((inv.invoiceNo||'')+' '+(cl?cl.name:inv.clientName||'')).toLowerCase());
@@ -5689,11 +5703,12 @@ function pgInvoices(){
       mk('td',null,rupee(invCollected)),
       balTd,
       mk('td',null,inv.date||'—'),
-      (function(){var td=mk('td');td.appendChild(statusSel);return td;})(),
-      (function(){var td=mk('td');td.appendChild(acts);return td;})()
+      statusTd,
+      actsTd
     ].forEach(function(td){tr.appendChild(td);});
     t._body.appendChild(tr);
   });
+
   tw.appendChild(t);wrap.appendChild(tw);
   return wrap;
 }
