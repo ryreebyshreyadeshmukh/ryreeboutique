@@ -928,7 +928,8 @@ function pgClients(){
   var tw=mk('div','card-p0');
   if(!list.length){tw.appendChild(mk('div','empty','No clients found.'));}
   else{
-    var t=mkTable(['Client','Phone','Measurements','Actions']);
+    var t=mkTable(['#','Client','Phone','Measurements','Actions']);
+    var clientSrNo=0;
     list.forEach(function(c){
       var mc2=Object.keys(c.measurements||{}).length;
       var names=Object.keys(c.measurements||{}).map(function(cid){var cl2=DB.clothing.find(function(x){return x.id===cid;});return cl2?cl2.name:null;}).filter(Boolean);
@@ -983,7 +984,9 @@ function pgClients(){
       var phoneTd=mk('td');phoneTd.style.color='#666';phoneTd.textContent=c.phone||'—';
       var measTd=mk('td');measTd.appendChild(measEl);
       var actTd=mk('td');actTd.appendChild(acts);
-      var tr=mk('tr');app(tr,[nameTd,phoneTd,measTd,actTd]);
+      clientSrNo++;
+      var srTdC=mk('td');srTdC.style.cssText='color:#aaa;font-size:12px;width:32px';srTdC.textContent=String(clientSrNo);
+      var tr=mk('tr');app(tr,[srTdC,nameTd,phoneTd,measTd,actTd]);
       t._body.appendChild(tr);
     });
     tw.appendChild(t);
