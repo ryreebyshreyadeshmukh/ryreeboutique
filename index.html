@@ -164,6 +164,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-appointments" data-page="appointments">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
     </div>
+    <div class="nav-item" id="nav-leads" data-page="leads">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5" stroke-linecap="round"/></svg>Lead Bank
+    </div>
     <div class="nav-item" id="nav-expenses" data-page="expenses">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
     </div>
@@ -356,7 +359,7 @@ function showApp(){
   loadEstConfig();
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -600,7 +603,7 @@ function render(){
     renderDuesTable('all');return;
   }
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -964,7 +967,7 @@ function pgClients(){
     DB.quotations.filter(function(q){return q.linkedOrderId===o.id;}).forEach(function(q){
       DB.invoices.filter(function(i){return i.quotationId===q.id;}).forEach(function(i){
         DB.expenses.filter(function(e){return e.source==='invoice'&&e.invoiceId===i.id;}).forEach(function(e){dbDel('expenses',e.id);});
-        dbDel('invoices',i.id);
+        dbDel('invoices','leads','leads',i.id);
       });
       dbDel('quotations',q.id);
     });
@@ -1776,7 +1779,20 @@ function pgDashboard(){
     app(c,[l,v]);return c;
   }
   var stats=mk('div','stats-row');
+  var todayStr=new Date().toISOString().split('T')[0];
+  var leadsDue=DB.leads.filter(function(l){return l.followUpDate&&l.followUpDate<=todayStr&&l.status!=='Converted'&&l.status!=='Cold';}).length;
   app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Today\'s appointments',todayA,'#2D6B5E'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
+  if(leadsDue>0){
+    var leadAlert=mk('div');leadAlert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
+    var laLeft=mk('div');
+    var laTitle=mk('div');laTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B';laTitle.textContent=leadsDue+' lead'+(leadsDue!==1?'s':'')+' due for follow-up';
+    var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
+    app(laLeft,[laTitle,laSub]);
+    var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='→';
+    app(leadAlert,[laLeft,laArrow]);
+    leadAlert.onclick=function(){nav('leads');};
+    wrap.appendChild(leadAlert);
+  }
   var oc=mk('div','card-p0');
   if(!recentO.length)oc.appendChild(mk('div','empty','No orders yet.'));
   else recentO.forEach(function(o){
@@ -6574,6 +6590,194 @@ function makeSortable(table){
     };
   });
 }
+
+// -- LEAD BANK -------------------------------------------------------------
+var LEAD_STATUSES=['New','Contacted','Interested','Converted','Cold'];
+var LEAD_SOURCES=['Walk-in','Instagram','Referral','WhatsApp','Exhibition','Other'];
+var LEAD_STATUS_COLORS={'New':'#1D4ED8','Contacted':'#B45309','Interested':'#166534','Converted':'#166534','Cold':'#6B7280'};
+var LEAD_STATUS_BGS={'New':'#EFF6FF','Contacted':'#FFFBEB','Interested':'#F0FDF4','Converted':'#DCFCE7','Cold':'#F3F4F6'};
+
+function pgLeads(){
+  var wrap=mk('div');
+  var today=new Date().toISOString().split('T')[0];
+  var total=DB.leads.length;
+  var followupToday=DB.leads.filter(function(l){return l.followUpDate<=today&&l.status!=='Converted'&&l.status!=='Cold';}).length;
+  var interested=DB.leads.filter(function(l){return l.status==='Interested';}).length;
+  var converted=DB.leads.filter(function(l){return l.status==='Converted';}).length;
+
+  function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';
+  app(stats,[
+    sc('Total leads',total),
+    sc('Follow up due',followupToday,followupToday>0?'#991B1B':'#888',followupToday>0?'#FEF2F2':'#fff'),
+    sc('Interested',interested,'#166534','#F0FDF4'),
+    sc('Converted',converted,'#166534','#DCFCE7')
+  ]);
+
+  var newBtn=mkBtn('+ Add Lead',function(){openLeadModal();},'btn btn-primary');
+  wrap.appendChild(mkPageHeader('Lead Bank','Walk-ins & enquiries to follow up',newBtn));
+  wrap.appendChild(stats);
+
+  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
+  var activeFilter='All';
+  var filterBtns={};
+
+  function setFilter(f){
+    activeFilter=f;
+    Object.keys(filterBtns).forEach(function(fi){
+      var btn=filterBtns[fi];
+      btn.style.background=fi===f?'#2D6B5E':'#fff';
+      btn.style.color=fi===f?'#fff':'#555';
+    });
+    renderLeadCards();
+  }
+
+  ['All'].concat(LEAD_STATUSES).forEach(function(f){
+    var btn=mkBtn(f,function(){setFilter(this._f);},'btn btn-xs');
+    btn._f=f;
+    btn.style.background=f==='All'?'#2D6B5E':'#fff';
+    btn.style.color=f==='All'?'#fff':'#555';
+    btn.style.borderColor='#e0e0e0';
+    filterBtns[f]=btn;
+    filterRow.appendChild(btn);
+  });
+  wrap.appendChild(filterRow);
+
+  var cardsWrap=mk('div');cardsWrap.id='leads-cards';
+  wrap.appendChild(cardsWrap);
+
+  function renderLeadCards(){
+    var cw=document.getElementById('leads-cards');if(!cw)return;
+    cw.innerHTML='';
+    var leads=DB.leads.slice().sort(function(a,b){
+      var aDue=a.followUpDate&&a.followUpDate<=today&&a.status!=='Converted'&&a.status!=='Cold'?0:1;
+      var bDue=b.followUpDate&&b.followUpDate<=today&&b.status!=='Converted'&&b.status!=='Cold'?0:1;
+      if(aDue!==bDue)return aDue-bDue;
+      if(a.followUpDate&&b.followUpDate)return a.followUpDate.localeCompare(b.followUpDate);
+      return (b.created||0)-(a.created||0);
+    });
+    if(activeFilter!=='All')leads=leads.filter(function(l){return l.status===activeFilter;});
+    if(!leads.length){
+      var empty=mk('div');empty.style.cssText='text-align:center;color:#aaa;padding:40px;font-size:13px;background:#fafafa;border-radius:8px';
+      empty.textContent=activeFilter==='All'?'No leads yet. Add your first walk-in!':'No '+activeFilter.toLowerCase()+' leads.';
+      cw.appendChild(empty);return;
+    }
+    var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px';
+    leads.forEach(function(lead){
+      var isDue=lead.followUpDate&&lead.followUpDate<=today&&lead.status!=='Converted'&&lead.status!=='Cold';
+      var isOverdue=isDue&&lead.followUpDate<today;
+      var card=mk('div');
+      card.style.cssText='background:#fff;border:1px solid '+(isDue?'#FCA5A5':'#f0f0f0')+';border-radius:10px;padding:14px;position:relative';
+
+      var statusBadge=mk('span','badge');
+      statusBadge.style.cssText='position:absolute;top:12px;right:12px;font-size:10px;background:'+(LEAD_STATUS_BGS[lead.status]||'#f5f5f5')+';color:'+(LEAD_STATUS_COLORS[lead.status]||'#888');
+      statusBadge.textContent=lead.status||'New';
+      card.appendChild(statusBadge);
+
+      var nameEl=mk('div');nameEl.style.cssText='font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:2px;padding-right:80px';nameEl.textContent=lead.name||'Unknown';
+      card.appendChild(nameEl);
+
+      var phoneEl=mk('div');phoneEl.style.cssText='font-size:12px;color:#2D6B5E;margin-bottom:8px';phoneEl.textContent=lead.phone||'No phone';
+      card.appendChild(phoneEl);
+
+      if(lead.interest){
+        var intEl=mk('div');intEl.style.cssText='font-size:12px;color:#555;margin-bottom:6px;padding:4px 8px;background:#f9f9f9;border-radius:4px';
+        intEl.textContent=lead.interest;card.appendChild(intEl);
+      }
+
+      var metaRow=mk('div');metaRow.style.cssText='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap';
+      if(lead.source){
+        var srcBadge=mk('span','badge');srcBadge.style.cssText='font-size:10px;background:#F5F3FF;color:#6D28D9';srcBadge.textContent=lead.source;
+        metaRow.appendChild(srcBadge);
+      }
+      if(lead.followUpDate){
+        var daysOff=Math.round((new Date(lead.followUpDate)-new Date(today))/(1000*60*60*24));
+        var fuBadge=mk('span','badge');
+        fuBadge.style.cssText='font-size:10px;background:'+(isDue?'#FEF2F2':'#F0FDF4')+';color:'+(isDue?'#991B1B':'#166534');
+        fuBadge.textContent=lead.followUpDate===today?'Follow up today':isOverdue?'Overdue '+Math.abs(daysOff)+'d':'Follow up: '+lead.followUpDate;
+        metaRow.appendChild(fuBadge);
+      }
+      card.appendChild(metaRow);
+
+      if(lead.notes){
+        var notesEl=mk('div');notesEl.style.cssText='font-size:11px;color:#888;margin-bottom:8px;font-style:italic';
+        notesEl.textContent=lead.notes.length>80?lead.notes.slice(0,80)+'...':lead.notes;
+        card.appendChild(notesEl);
+      }
+
+      var acts=mk('div');acts.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+      var editBtn=mkBtn('Edit',(function(lid){return function(){openLeadModal(lid);};})(lead.id),'btn btn-xs');
+      var convertBtn=mkBtn('Convert to Client',(function(lid){return function(){convertLeadToClient(lid);};})(lead.id),'btn btn-xs');
+      convertBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+      if(lead.status==='Converted'){convertBtn.style.opacity='0.5';convertBtn.disabled=true;}
+      var delBtn=mk('button','btn-danger','Del');delBtn.style.cssText='padding:2px 8px;font-size:11px';
+      delBtn.setAttribute('data-lid',lead.id);
+      delBtn.onclick=function(){if(confirm('Delete this lead?'))dbDel('leads',this.getAttribute('data-lid'));};
+      app(acts,[editBtn,convertBtn,delBtn]);
+      card.appendChild(acts);
+      grid.appendChild(card);
+    });
+    cw.appendChild(grid);
+  }
+  setTimeout(function(){renderLeadCards();},0);
+  return wrap;
+}
+
+function openLeadModal(leadId){
+  var lead=leadId?DB.leads.find(function(x){return x.id===leadId;}):null;
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',lead?'Edit Lead':'New Lead'));
+  var nameInp=mkInput('ld-name','text','Full name',lead?lead.name:'');
+  var phoneInp=mkInput('ld-phone','tel','Phone number',lead?lead.phone:'');
+  var intInp=mkInput('ld-interest','text','e.g. Bridal lehenga, blouse work, saree...',lead?lead.interest:'');
+  var sourceSel=mkSelect('ld-source',LEAD_SOURCES.map(function(s){return {value:s,label:s};}),lead?lead.source:'Walk-in');
+  var statusSel=mkSelect('ld-status',LEAD_STATUSES.map(function(s){return {value:s,label:s};}),lead?lead.status:'New');
+  var followInp=mkInput('ld-followup','date','',lead?lead.followUpDate:'');
+  var notesTA=mk('textarea','form-input');notesTA.id='ld-notes';notesTA.rows=3;
+  notesTA.placeholder='Budget, occasion, preferences...';
+  notesTA.value=lead?lead.notes||'':'';
+  app(wrap,[
+    mkFg('Name *',nameInp),
+    mkFg('Phone',phoneInp),
+    mkFg('Interested in',intInp),
+    app(mk('div','form-row'),[mkFg('Source',sourceSel),mkFg('Status',statusSel)]),
+    mkFg('Follow up date',followInp),
+    mkFg('Notes',notesTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(lead?'Save':'Add Lead',function(){
+        var name=(document.getElementById('ld-name')||{}).value||'';
+        if(!name.trim()){alert('Name is required.');return;}
+        var data={
+          id:lead?lead.id:uid(),name:name.trim(),
+          phone:(document.getElementById('ld-phone')||{}).value||'',
+          interest:(document.getElementById('ld-interest')||{}).value||'',
+          source:(document.getElementById('ld-source')||{}).value||'Walk-in',
+          status:(document.getElementById('ld-status')||{}).value||'New',
+          followUpDate:(document.getElementById('ld-followup')||{}).value||'',
+          notes:(document.getElementById('ld-notes')||{}).value||'',
+          created:lead?lead.created:Date.now()
+        };
+        dbSave('leads',data);closeModal();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+function convertLeadToClient(leadId){
+  var lead=DB.leads.find(function(x){return x.id===leadId;});if(!lead)return;
+  if(lead.status==='Converted'){alert('Already converted.');return;}
+  if(lead.phone&&DB.clients.find(function(c){return c.phone===lead.phone;})){
+    if(!confirm('A client with this phone already exists. Convert anyway?'))return;
+  }
+  if(!confirm('Convert '+lead.name+' to a client?'))return;
+  var newClient={id:uid(),name:lead.name,phone:lead.phone||'',email:'',address:'',notes:lead.interest?'Interest: '+lead.interest:'',created:Date.now()};
+  dbSave('clients',newClient);
+  dbSave('leads',Object.assign({},lead,{status:'Converted',convertedClientId:newClient.id}));
+  alert(lead.name+' added as a client! You can now create orders for them.');
+}
+
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
