@@ -369,7 +369,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
