@@ -923,7 +923,13 @@ function pgClients(){
   sw.innerHTML='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#aaa" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="M11 11l3 3"/></svg>';
   var si=mk('input');si.id='cl-search';si.placeholder='Search by name or phone...';si.value=searchVal;
   si.className='form-input';si.style.cssText='width:100%;max-width:320px';
-  si.oninput=function(){render();};
+  si.oninput=function(){
+    var q=this.value.toLowerCase();
+    document.querySelectorAll('.client-row').forEach(function(row){
+      var txt=(row.getAttribute('data-search')||'').toLowerCase();
+      row.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  };
   sw.appendChild(si);wrap.appendChild(sw);
   var tw=mk('div','card-p0');
   if(!list.length){tw.appendChild(mk('div','empty','No clients found.'));}
@@ -986,7 +992,9 @@ function pgClients(){
       var actTd=mk('td');actTd.appendChild(acts);
       clientSrNo++;
       var srTdC=mk('td');srTdC.style.cssText='color:#aaa;font-size:12px;width:32px';srTdC.textContent=String(clientSrNo);
-      var tr=mk('tr');app(tr,[srTdC,nameTd,phoneTd,measTd,actTd]);
+      var tr=mk('tr');tr.className='client-row';
+      tr.setAttribute('data-search',((c.name||'')+' '+(c.phone||'')).toLowerCase());
+      app(tr,[srTdC,nameTd,phoneTd,measTd,actTd]);
       t._body.appendChild(tr);
     });
     tw.appendChild(t);
@@ -2007,7 +2015,32 @@ function openInventoryModal(id){
   var minQty=mkInput('inv-min','number','Alert below',item?(item.minQty||''):'');
   var price=mkInput('inv-price','number','Cost per unit (₹)',item?(item.price||''):'');
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' inventory item'),mkFg('Item name *',nm),app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Unit',unitSel)]),app(mk('div','form-row'),[mkFg('Current qty',qty),mkFg('Low stock alert',minQty)]),mkFg('Cost per unit (₹)',price),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
+  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' inventory item'),mkFg('Item name *',nm),app(mk('div','form-row'),[(function(){
+    var _catRow=mk('div');_catRow.style.cssText='display:flex;gap:6px;align-items:center';
+    catSel.style.flex='1';
+    var _newCatBtn=mkBtn('+ New',function(){
+      var name=prompt('New category name:');
+      if(!name||!name.trim())return;
+      name=name.trim();
+      var existing=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats=(existing&&existing.cats)||[];
+      if(_defaultCats.indexOf(name)<0&&cats.indexOf(name)<0){
+        cats.push(name);
+        dbSave('settings',{id:'expCats',cats:cats});
+      }
+      var opt=mk('option',null,name);opt.value=name;catSel.appendChild(opt);catSel.value=name;
+    },'btn btn-xs');
+    _newCatBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E;white-space:nowrap';
+    var _manCatBtn=mkBtn('Manage',function(){
+      var existing2=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats2=(existing2&&existing2.cats)||[];
+      if(!cats2.length){alert('No custom categories yet.');return;}
+      openManageCategoriesModal(cats2,catSel);
+    },'btn btn-xs');
+    _manCatBtn.style.cssText+='color:#991B1B;border-color:#FCA5A5;white-space:nowrap';
+    app(_catRow,[catSel,_newCatBtn,_manCatBtn]);
+    return mkFg('Category',_catRow);
+  })(),mkFg('Unit',unitSel)]),app(mk('div','form-row'),[mkFg('Current qty',qty),mkFg('Low stock alert',minQty)]),mkFg('Cost per unit (₹)',price),mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
     var name=document.getElementById('inv-name').value.trim();if(!name)return;
     clearModalDraft('inventory');
       dbSave('inventory',{id:id||uid(),name:name,category:document.getElementById('inv-cat').value,qty:document.getElementById('inv-qty').value,unit:document.getElementById('inv-unit').value,minQty:document.getElementById('inv-min').value,price:document.getElementById('inv-price').value});closeModal();
@@ -2403,7 +2436,32 @@ function openExpenseModal(){
     mk('div','modal-title','Add Cash Book Entry'),
     mkFg('Entry type',typeSel),
     app(mk('div','form-row'),[mkFg('Date',dateInp),mkFg('Amount (₹) *',amtInp)]),
-    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Payment mode',modeSel)]),
+    app(mk('div','form-row'),[(function(){
+    var _catRow=mk('div');_catRow.style.cssText='display:flex;gap:6px;align-items:center';
+    catSel.style.flex='1';
+    var _newCatBtn=mkBtn('+ New',function(){
+      var name=prompt('New category name:');
+      if(!name||!name.trim())return;
+      name=name.trim();
+      var existing=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats=(existing&&existing.cats)||[];
+      if(_defaultCats.indexOf(name)<0&&cats.indexOf(name)<0){
+        cats.push(name);
+        dbSave('settings',{id:'expCats',cats:cats});
+      }
+      var opt=mk('option',null,name);opt.value=name;catSel.appendChild(opt);catSel.value=name;
+    },'btn btn-xs');
+    _newCatBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E;white-space:nowrap';
+    var _manCatBtn=mkBtn('Manage',function(){
+      var existing2=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats2=(existing2&&existing2.cats)||[];
+      if(!cats2.length){alert('No custom categories yet.');return;}
+      openManageCategoriesModal(cats2,catSel);
+    },'btn btn-xs');
+    _manCatBtn.style.cssText+='color:#991B1B;border-color:#FCA5A5;white-space:nowrap';
+    app(_catRow,[catSel,_newCatBtn,_manCatBtn]);
+    return mkFg('Category',_catRow);
+  })(),mkFg('Payment mode',modeSel)]),
     vendorFg,
     mkFg('Description',descInp),
     invFg,
@@ -2446,7 +2504,10 @@ function openExpenseModal(){
 }
 function openEditExpenseModal(id){
   var e=DB.expenses.find(function(x){return x.id===id;});if(!e)return;
-  var catOpts=[{value:'Raw material purchase',label:'Raw material purchase'},{value:'Staff salary',label:'Staff salary'},{value:'Rent & utilities',label:'Rent & utilities'},{value:'Transport',label:'Transport'},{value:'Miscellaneous',label:'Miscellaneous'},{value:'Other income',label:'Other income'},{value:'Other',label:'Other'}];
+  var _defaultCats=['Raw material purchase','Staff salary','Rent & utilities','Transport','Miscellaneous','Other income','Other'];
+  var _customCats=(DB.settings.find(function(s){return s.id==='expCats';})||{}).cats||[];
+  var _allCats=_defaultCats.concat(_customCats.filter(function(c){return _defaultCats.indexOf(c)<0;}));
+  var catOpts=_allCats.map(function(c){return {value:c,label:c};});
   var modeOpts=PAY_MODES.map(function(m){return {value:m,label:m};});
   var typeOpts=[{value:'expense',label:'Expense (money out)'},{value:'cash-in',label:'Cash in'}];
   var vendorOpts=[{value:'',label:'— None —'}].concat(DB.vendors.map(function(v){return {value:v.id,label:v.name};}));
@@ -3545,7 +3606,32 @@ function openServiceModal(id){
     mk('div','modal-title',(id?'Edit':'Add')+' service'),
     mk('div','modal-sub','This will appear in orders and quotations.'),
     mkFg('Service name *',nm),
-    app(mk('div','form-row'),[mkFg('Category',catSel),mkFg('Price (₹)',price)]),
+    app(mk('div','form-row'),[(function(){
+    var _catRow=mk('div');_catRow.style.cssText='display:flex;gap:6px;align-items:center';
+    catSel.style.flex='1';
+    var _newCatBtn=mkBtn('+ New',function(){
+      var name=prompt('New category name:');
+      if(!name||!name.trim())return;
+      name=name.trim();
+      var existing=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats=(existing&&existing.cats)||[];
+      if(_defaultCats.indexOf(name)<0&&cats.indexOf(name)<0){
+        cats.push(name);
+        dbSave('settings',{id:'expCats',cats:cats});
+      }
+      var opt=mk('option',null,name);opt.value=name;catSel.appendChild(opt);catSel.value=name;
+    },'btn btn-xs');
+    _newCatBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E;white-space:nowrap';
+    var _manCatBtn=mkBtn('Manage',function(){
+      var existing2=DB.settings.find(function(s){return s.id==='expCats';});
+      var cats2=(existing2&&existing2.cats)||[];
+      if(!cats2.length){alert('No custom categories yet.');return;}
+      openManageCategoriesModal(cats2,catSel);
+    },'btn btn-xs');
+    _manCatBtn.style.cssText+='color:#991B1B;border-color:#FCA5A5;white-space:nowrap';
+    app(_catRow,[catSel,_newCatBtn,_manCatBtn]);
+    return mkFg('Category',_catRow);
+  })(),mkFg('Price (₹)',price)]),
     mkFg('Description',desc),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var name=document.getElementById('svc-name').value.trim();if(!name)return;
@@ -6925,6 +7011,44 @@ function openManageCategoriesModal(cats,catSel,defaultCats){
   }
 
   renderCatList(cats);
+  wrap.appendChild(listBox);
+  wrap.appendChild(mkActions([mkBtn('Close',closeModal2)]));
+  showM2(wrap);
+}
+
+// ── MANAGE EXPENSE CATEGORIES ─────────────────────────────────────────────
+function openManageCategoriesModal(cats,catSel){
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Manage Custom Categories'));
+  var listBox=mk('div');listBox.style.cssText='border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
+
+  function renderList(currentCats){
+    listBox.innerHTML='';
+    if(!currentCats.length){
+      var empty=mk('div');empty.style.cssText='padding:16px;text-align:center;color:#aaa;font-size:13px';
+      empty.textContent='No custom categories.';listBox.appendChild(empty);return;
+    }
+    currentCats.forEach(function(cat){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+      var nm=mk('span');nm.textContent=cat;nm.style.flex='1';
+      var delBtn=mkBtn('Delete',function(){
+        var c2=this._cat;
+        if(!confirm('Delete category: '+c2+'?'))return;
+        var existing=DB.settings.find(function(s){return s.id==='expCats';});
+        var updated=((existing&&existing.cats)||[]).filter(function(x){return x!==c2;});
+        dbSave('settings',{id:'expCats',cats:updated});
+        if(catSel){
+          var opt=Array.from(catSel.options).find(function(o){return o.value===c2;});
+          if(opt)catSel.removeChild(opt);
+        }
+        renderList(updated);
+      },'btn-danger');
+      delBtn._cat=cat;delBtn.style.cssText='padding:3px 10px;font-size:11px';
+      app(row,[nm,delBtn]);listBox.appendChild(row);
+    });
+  }
+
+  renderList(cats);
   wrap.appendChild(listBox);
   wrap.appendChild(mkActions([mkBtn('Close',closeModal2)]));
   showM2(wrap);
