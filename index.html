@@ -7167,6 +7167,48 @@ function toggleStaffAccount(email,currentActive){
     });
   });
 }
+
+// ── MANAGE EXPENSE CATEGORIES ─────────────────────────────────────────────
+function openManageCategoriesModal(cats,catSel,defaultCats){
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Manage Categories'));
+  wrap.appendChild(mk('div','modal-sub','Delete custom categories. Default categories cannot be removed.'));
+
+  var listBox=mk('div');listBox.id='cat-manage-list';
+  listBox.style.cssText='border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:16px';
+
+  function renderCatList(currentCats){
+    listBox.innerHTML='';
+    if(!currentCats.length){
+      var empty=mk('div');empty.style.cssText='padding:16px;text-align:center;color:#aaa;font-size:13px';
+      empty.textContent='No custom categories.';listBox.appendChild(empty);return;
+    }
+    currentCats.forEach(function(cat){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:13px';
+      var nm=mk('span');nm.textContent=cat;nm.style.flex='1';
+      var delBtn=mkBtn('Delete',function(){
+        var catToDelete=this._cat;
+        if(!confirm('Delete category: '+catToDelete+'? Existing entries keep it but it will not appear in future dropdowns.'))return;
+        var existing=DB.settings.find(function(s){return s.id==='expCats';});
+        var updatedCats=((existing&&existing.cats)||[]).filter(function(c){return c!==catToDelete;});
+        dbSave('settings',{id:'expCats',cats:updatedCats});
+        // Remove from expense modal dropdown if open
+        if(catSel){
+          var opt=Array.from(catSel.options).find(function(o){return o.value===catToDelete;});
+          if(opt)catSel.removeChild(opt);
+        }
+        renderCatList(updatedCats);
+      },'btn-danger');
+      delBtn._cat=cat;delBtn.style.cssText='padding:3px 10px;font-size:11px';
+      app(row,[nm,delBtn]);listBox.appendChild(row);
+    });
+  }
+
+  renderCatList(cats);
+  wrap.appendChild(listBox);
+  wrap.appendChild(mkActions([mkBtn('Close',closeModal2)]));
+  showM2(wrap);
+}
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
