@@ -2279,7 +2279,7 @@ function pgExpenses(){
     var modeF=document.getElementById('exp-fil-mode').value;
     var catF=document.getElementById('exp-fil-cat').value;
     renderExpTableFiltered(fromDate,toDate,typeF,modeF,catF);
-    updateExpStatsFiltered(fromDate,toDate);
+    updateExpStatsFiltered(fromDate,toDate,typeF,modeF,catF);
   }
 
   // Set today by default
@@ -2344,12 +2344,19 @@ function renderExpTableFiltered(fromDate,toDate,typeF,modeF,catF){
   tw.appendChild(t);
 }
 function updateExpStats(dateVal){
-  updateExpStatsFiltered(dateVal,dateVal);
+  updateExpStatsFiltered(dateVal,dateVal,'','','');
 }
-function updateExpStatsFiltered(fromDate,toDate){
+function updateExpStatsFiltered(fromDate,toDate,typeF,modeF,catF){
   var sd=document.getElementById('exp-stats');if(!sd)return;
   sd.innerHTML='';
-  var filtered=DB.expenses.filter(function(e){if(fromDate&&e.date<fromDate)return false;if(toDate&&e.date>toDate)return false;return true;});
+  var filtered=DB.expenses.filter(function(e){
+    if(fromDate&&e.date<fromDate)return false;
+    if(toDate&&e.date>toDate)return false;
+    if(typeF&&e.entryType!==typeF)return false;
+    if(modeF&&e.mode!==modeF)return false;
+    if(catF&&(e.category||'')!==catF)return false;
+    return true;
+  });
   var invoiceCashIn=filtered.filter(function(e){return e.entryType==='cash-in'&&e.source==='invoice';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   var manualCashIn=filtered.filter(function(e){return e.entryType==='cash-in'&&e.source!=='invoice';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   var cashIn=invoiceCashIn+manualCashIn;
