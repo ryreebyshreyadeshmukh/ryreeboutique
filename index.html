@@ -2678,12 +2678,21 @@ function getPLData(){
   var cardExp=exps.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
   var catMap={};exps.forEach(function(e){var cat=e.category||'Other';catMap[cat]=(catMap[cat]||0)+Number(e.amount||0);});
 
+  // Income by payment mode
+  var incCashAmt=invoicePayments.filter(function(x){return (x.payment.mode||'Cash')==='Cash';}).reduce(function(a,x){return a+Number(x.payment.amount||0);},0)
+    +cashIns.filter(function(e){return (e.mode||'Cash')==='Cash';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var incUpiAmt=invoicePayments.filter(function(x){return x.payment.mode==='UPI';}).reduce(function(a,x){return a+Number(x.payment.amount||0);},0)
+    +cashIns.filter(function(e){return e.mode==='UPI';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+  var incCardAmt=invoicePayments.filter(function(x){return x.payment.mode==='Card';}).reduce(function(a,x){return a+Number(x.payment.amount||0);},0)
+    +cashIns.filter(function(e){return e.mode==='Card';}).reduce(function(a,e){return a+Number(e.amount||0);},0);
+
   return {
     m:m,y:y,months:months,prefix:prefix,
     invoicePayments:invoicePayments,invoicePayTotal:invoicePayTotal,
     legacyOrderPayments:legacyOrderPayments,legacyOrderTotal:legacyOrderTotal,
     cashIns:cashIns,cashInTotal:cashInTotal,
     totalIncome:totalIncome,
+    incCashAmt:incCashAmt,incUpiAmt:incUpiAmt,incCardAmt:incCardAmt,
     exps:exps,totalExp:totalExp,
     cashExp:cashExp,upiExp:upiExp,cardExp:cardExp,
     catMap:catMap,
@@ -2757,15 +2766,18 @@ function renderPLContent(){
   var imh=mk('div');imh.style.cssText='padding:8px 14px;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;background:#fafafa;border-bottom:1px solid #f0f0f0;border-top:1px solid #f0f0f0';
   imh.textContent='By payment mode';incCard.appendChild(imh);
   [{label:'Cash',val:d.incCashAmt},{label:'UPI',val:d.incUpiAmt},{label:'Card',val:d.incCardAmt}].forEach(function(item){
-    if(!item.val)return;
     var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #f5f5f5;font-size:13px';
-    var lbl=mk('span');lbl.textContent=item.label;
+    var lbl=mk('span');lbl.style.color='#555';lbl.textContent=item.label;
     var rght=mk('div');rght.style.cssText='display:flex;align-items:center;gap:8px';
     var val=mk('span');val.style.cssText='font-weight:600;color:#166534';val.textContent=rupee(item.val);
     var pct=d.totalIncome>0?Math.round(item.val/d.totalIncome*100):0;
-    var ps=mk('span');ps.style.cssText='font-size:11px;color:#aaa';ps.textContent=pct+'%';
+    var ps=mk('span');ps.style.cssText='font-size:11px;color:#aaa;min-width:32px;text-align:right';ps.textContent=pct+'%';
     app(rght,[val,ps]);app(row,[lbl,rght]);incCard.appendChild(row);
   });
+  var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#e6f0ee;font-size:13px;font-weight:700';
+  var totLbl=mk('span');totLbl.textContent='Total income';
+  var totVal=mk('span');totVal.style.color='#2D6B5E';totVal.textContent=rupee(d.totalIncome);
+  app(totRow,[totLbl,totVal]);incCard.appendChild(totRow);
   incCol.appendChild(incCard);
 
   // Expenses column
