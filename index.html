@@ -1724,16 +1724,15 @@ function pgAppointments(){
   var past=DB.appointments.filter(function(a){return a.date<today;}).sort(function(a,b){return b.date.localeCompare(a.date);});
   function makeTbl(list,dim){
     var apptSrNo=0;
-    var t=mkTable(['#','Client','Date','Time','Purpose','']);
+    var t=mkTable(['#','Client','Phone','Date','Time','Purpose','']);
     list.forEach(function(a){
       var cl=DB.clients.find(function(x){return x.id===a.clientId;});
       var cc=mkRow('align-items:center;gap:6px');
       var av=mkAvatar(cl?cl.name:'?',28);
-      var cInfo=mk('div');
-      var cn=mk('div');cn.style.fontWeight='500';cn.textContent=cl?cl.name:'?';
-      var cph=mk('div');cph.style.cssText='font-size:11px;color:#888';cph.textContent=(cl&&cl.phone)||'';
-      app(cInfo,[cn,cph]);app(cc,[av,cInfo]);
+      var cn=mk('span');cn.style.fontWeight='500';cn.textContent=cl?cl.name:'?';
+      app(cc,[av,cn]);
       var ccTd=mk('td');ccTd.appendChild(cc);
+      var phoneTd=mk('td');phoneTd.style.cssText='color:#555;font-size:13px';phoneTd.textContent=(cl&&cl.phone)||'—';
       var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
       var tmTd=mk('td');tmTd.style.color='#888';tmTd.textContent=a.time||'—';
       var puTd=mk('td');puTd.textContent=a.purpose||'—';
@@ -1748,7 +1747,7 @@ function pgAppointments(){
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
-      app(tr,[srTdA,ccTd,dtTd,tmTd,puTd,acTd]);t._body.appendChild(tr);
+      app(tr,[srTdA,ccTd,phoneTd,dtTd,tmTd,puTd,acTd]);t._body.appendChild(tr);
     });
     makeSortable(t);
     return t;
