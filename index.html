@@ -1727,7 +1727,12 @@ function pgAppointments(){
     var t=mkTable(['#','Client','Date','Time','Purpose','']);
     list.forEach(function(a){
       var cl=DB.clients.find(function(x){return x.id===a.clientId;});
-      var cc=mkRow();var av=mkAvatar(cl?cl.name:'?',28);var cn=document.createTextNode(cl?cl.name:'?');app(cc,[av,cn]);
+      var cc=mkRow('align-items:center;gap:6px');
+      var av=mkAvatar(cl?cl.name:'?',28);
+      var cInfo=mk('div');
+      var cn=mk('div');cn.style.fontWeight='500';cn.textContent=cl?cl.name:'?';
+      var cph=mk('div');cph.style.cssText='font-size:11px;color:#888';cph.textContent=(cl&&cl.phone)||'';
+      app(cInfo,[cn,cph]);app(cc,[av,cInfo]);
       var ccTd=mk('td');ccTd.appendChild(cc);
       var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
       var tmTd=mk('td');tmTd.style.color='#888';tmTd.textContent=a.time||'—';
