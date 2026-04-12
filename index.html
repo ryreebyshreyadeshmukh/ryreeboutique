@@ -456,37 +456,48 @@ function mkClientSelect(id, selectedVal){
   dropdown.id = id+'-dropdown';
   dropdown.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ccc;border-top:none;border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.12)';
 
-  function renderDropdown(query){
+  function renderDropdown(query, showAll){
     dropdown.innerHTML='';
     var q=(query||'').toLowerCase().trim();
-    var filtered = q
-      ? DB.clients.filter(function(c){return c.name.toLowerCase().includes(q)||(c.phone&&c.phone.includes(q));})
-      : DB.clients;
 
-    if(!filtered.length && q){
-      var noRes=mk('div');noRes.style.cssText='padding:10px 14px;font-size:13px;color:#aaa';noRes.textContent='No client found';
-      dropdown.appendChild(noRes);
-    } else {
-      filtered.slice(0,20).forEach(function(c){
-        var item=mk('div');item.style.cssText='padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center';
-        var nm=mk('span');nm.style.fontWeight='500';nm.textContent=c.name;
-        var ph=mk('span');ph.style.cssText='font-size:11px;color:#888';ph.textContent=c.phone||'';
-        item.appendChild(nm);item.appendChild(ph);
-        item.onmousedown=function(e){
-          e.preventDefault();
-          inp.value=c.name+(c.phone?' ('+c.phone+')':'');
-          hidden.value=c.id;
-          dropdown.style.display='none';
-        };
-        item.onmouseenter=function(){this.style.background='#e6f0ee';};
-        item.onmouseleave=function(){this.style.background='';};
-        dropdown.appendChild(item);
+    if(q){
+      // Show filtered results
+      var filtered=DB.clients.filter(function(c){
+        return c.name.toLowerCase().includes(q)||(c.phone&&c.phone.includes(q));
       });
+      if(!filtered.length){
+        var noRes=mk('div');noRes.style.cssText='padding:10px 14px;font-size:13px;color:#aaa';
+        noRes.textContent='No client found for "'+query+'"';
+        dropdown.appendChild(noRes);
+      } else {
+        filtered.slice(0,10).forEach(function(c){
+          var item=mk('div');item.style.cssText='padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center';
+          var nm=mk('span');nm.style.fontWeight='500';nm.textContent=c.name;
+          var ph=mk('span');ph.style.cssText='font-size:11px;color:#888';ph.textContent=c.phone||'';
+          item.appendChild(nm);item.appendChild(ph);
+          item.onmousedown=function(e){
+            e.preventDefault();
+            inp.value=c.name+(c.phone?' ('+c.phone+')':'');
+            hidden.value=c.id;
+            dropdown.style.display='none';
+          };
+          item.onmouseenter=function(){this.style.background='#e6f0ee';};
+          item.onmouseleave=function(){this.style.background='';};
+          dropdown.appendChild(item);
+        });
+      }
+    } else {
+      // No query — just show hint
+      var hint=mk('div');hint.style.cssText='padding:10px 14px;font-size:12px;color:#aaa';
+      hint.textContent='Type to search clients...';
+      dropdown.appendChild(hint);
     }
 
-    // Add new client option always at bottom
+    // Add new client always at bottom
     var addItem=mk('div');addItem.style.cssText='padding:10px 14px;cursor:pointer;font-size:13px;color:#2D6B5E;font-weight:600;background:#f9fffe;border-top:1px solid #e8e8e8';
-    addItem.textContent='+ Add new client...';
+    addItem.textContent='+ Add new client';
+    addItem.onmouseenter=function(){this.style.background='#e6f0ee';};
+    addItem.onmouseleave=function(){this.style.background='#f9fffe';};
     addItem.onmousedown=function(e){
       e.preventDefault();
       dropdown.style.display='none';
@@ -1721,7 +1732,14 @@ function pgAppointments(){
       var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
       var tmTd=mk('td');tmTd.style.color='#888';tmTd.textContent=a.time||'—';
       var puTd=mk('td');puTd.textContent=a.purpose||'—';
-      var acTd=mk('td');acTd.appendChild(mkBtn('Delete',function(){dbDel('appointments',a.id);},'btn-danger'));
+      var acTd=mk('td');acTd.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+      var editApptBtn=mkBtn('Edit',(function(aid){return function(){openApptModal(aid);};})(a.id),'btn btn-xs');
+      var leadBtn=mkBtn('→ Lead Bank',(function(appt,client){return function(){sendApptToLead(appt,client);};})(a,cl),'btn btn-xs');
+      leadBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
+      var delApptBtn=mk('button','btn-danger','Del');delApptBtn.style.padding='3px 8px';
+      delApptBtn.setAttribute('data-aid',a.id);
+      delApptBtn.onclick=function(){if(confirm('Delete this appointment?'))dbDel('appointments',this.getAttribute('data-aid'));};
+      app(acTd,[editApptBtn,leadBtn,delApptBtn]);
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
@@ -1746,27 +1764,37 @@ function pgAppointments(){
   if(!past.length)pw.appendChild(mk('div','empty','No past appointments.'));else pw.appendChild(makeTbl(past.slice(0,20),true));
   app(wrap,[utt,uw,ptt,pw]);return wrap;
 }
-function openApptModal(){
-  var clSel=mkClientSelect('m-client','');
-  var dateInp=mkInput('m-date','date','',new Date().toISOString().split('T')[0]);
-  var timeInp=mkInput('m-time','time');
-  var purpInp=mkInput('m-purpose','text','e.g. First fitting, Trial, Delivery');
+function openApptModal(apptId){
+  var appt=apptId?DB.appointments.find(function(x){return x.id===apptId;}):null;
+  var clSel=mkClientSelect('m-client',appt?appt.clientId:'');
+  var dateInp=mkInput('m-date','date','',appt?appt.date:new Date().toISOString().split('T')[0]);
+  var timeInp=mkInput('m-time','time','',appt?appt.time:'');
+  var purpInp=mkInput('m-purpose','text','e.g. First fitting, Trial, Delivery',appt?appt.purpose:'');
+  var notesInp=mkInput('m-appt-notes','text','Any notes...',appt?appt.notes||'':'');
   var wrap=mk('div');
   app(wrap,[
-    mk('div','modal-title','Schedule appointment'),
+    mk('div','modal-title',appt?'Edit appointment':'Schedule appointment'),
     mkFg('Client *',clSel),
     app(mk('div','form-row'),[mkFg('Date *',dateInp),mkFg('Time',timeInp)]),
     mkFg('Purpose',purpInp),
-    mkActions([mkBtn('Cancel',closeModal),mkBtn('Schedule',function(){
-      var cid=document.getElementById('m-client').value;
-      var date=document.getElementById('m-date').value;
-      if(!cid||!date)return;
-      clearModalDraft('appt');
-      dbSave('appointments',{id:uid(),clientId:cid,date:date,
-        time:document.getElementById('m-time').value,
-        purpose:document.getElementById('m-purpose').value});
-      closeModal();
-    },'btn btn-primary')])
+    mkFg('Notes',notesInp),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(appt?'Save':'Schedule',function(){
+        var cid=document.getElementById('m-client').value;
+        var date=document.getElementById('m-date').value;
+        if(!cid||!date){alert('Client and date are required.');return;}
+        dbSave('appointments',{
+          id:appt?appt.id:uid(),
+          clientId:cid,
+          date:date,
+          time:document.getElementById('m-time').value,
+          purpose:document.getElementById('m-purpose').value,
+          notes:document.getElementById('m-appt-notes').value
+        });
+        closeModal();
+      },'btn btn-primary')
+    ])
   ]);
   showM(wrap,true);
 }
@@ -6795,7 +6823,7 @@ function makeSortable(table){
 
 // -- LEAD BANK -------------------------------------------------------------
 var LEAD_STATUSES=['New','Contacted','Interested','Converted','Cold'];
-var LEAD_SOURCES=['Walk-in','Instagram','Referral','WhatsApp','Exhibition','Other'];
+var LEAD_SOURCES=['Walk-in','Instagram','Referral','WhatsApp','Exhibition','Appointment','Other'];
 var LEAD_STATUS_COLORS={'New':'#1D4ED8','Contacted':'#B45309','Interested':'#166534','Converted':'#166534','Cold':'#6B7280'};
 var LEAD_STATUS_BGS={'New':'#EFF6FF','Contacted':'#FFFBEB','Interested':'#F0FDF4','Converted':'#DCFCE7','Cold':'#F3F4F6'};
 
@@ -7071,6 +7099,176 @@ function openManageCategoriesModal(cats,catSel){
   wrap.appendChild(listBox);
   wrap.appendChild(mkActions([mkBtn('Close',closeModal2)]));
   showM2(wrap);
+}
+
+// ── SEND APPOINTMENT TO LEAD BANK ─────────────────────────────────────────
+function sendApptToLead(appt, cl){
+  // Check if lead already exists for this client
+  var existing=DB.leads.find(function(l){
+    return l.phone&&cl&&l.phone===cl.phone&&l.status!=='Converted'&&l.status!=='Cold';
+  });
+  if(existing){
+    if(!confirm((cl?cl.name:'This client')+' already has an active lead in Lead Bank. Add another one?'))return;
+  }
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','→ Send to Lead Bank'));
+  wrap.appendChild(mk('div','modal-sub','Create a follow-up lead from this appointment.'));
+
+  var nameInp=mkInput('sl-name','text','Name',cl?cl.name:'');
+  var phoneInp=mkInput('sl-phone','tel','Phone',cl?cl.phone||'':'');
+  var intInp=mkInput('sl-interest','text','Interested in',appt.purpose||'');
+
+  var statusOpts=LEAD_STATUSES.map(function(s){return {value:s,label:s};});
+  var statusSel=mkSelect('sl-status',statusOpts,'Contacted');
+
+  var followInp=mkInput('sl-followup','date','Follow up date','');
+  // Default follow-up to 3 days from now
+  var followDefault=new Date(Date.now()+3*24*60*60*1000).toISOString().split('T')[0];
+  followInp.value=followDefault;
+
+  var notesTA=mk('textarea','form-input');notesTA.id='sl-notes';notesTA.rows=2;
+  notesTA.placeholder='Notes from the appointment...';
+  notesTA.value=appt.notes||'';
+
+  app(wrap,[
+    mkFg('Name',nameInp),
+    mkFg('Phone',phoneInp),
+    mkFg('Interested in',intInp),
+    app(mk('div','form-row'),[mkFg('Status',statusSel),mkFg('Follow up date',followInp)]),
+    mkFg('Notes',notesTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Send to Lead Bank',function(){
+        var name=(document.getElementById('sl-name')||{}).value||'';
+        if(!name.trim()){alert('Name is required.');return;}
+        var lead={
+          id:uid(),
+          name:name.trim(),
+          phone:(document.getElementById('sl-phone')||{}).value||'',
+          interest:(document.getElementById('sl-interest')||{}).value||'',
+          source:'Appointment',
+          status:(document.getElementById('sl-status')||{}).value||'Contacted',
+          followUpDate:(document.getElementById('sl-followup')||{}).value||'',
+          notes:(document.getElementById('sl-notes')||{}).value||'',
+          linkedApptId:appt.id,
+          created:Date.now()
+        };
+        dbSave('leads',lead);
+        closeModal();
+        alert(name+' added to Lead Bank with follow-up on '+lead.followUpDate+'.');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+// ── SEND APPOINTMENT TO LEAD BANK ─────────────────────────────────────────
+function sendApptToLeadBank(apptId){
+  var appt=DB.appointments.find(function(x){return x.id===apptId;});if(!appt)return;
+  var cl=appt.clientId?DB.clients.find(function(x){return x.id===appt.clientId;}):null;
+  // Check if lead already exists for this client
+  var existing=cl?DB.leads.find(function(l){return l.clientId===cl.id||(cl.phone&&l.phone===cl.phone);}):null;
+  if(existing){
+    if(!confirm((cl?cl.name:'This client')+' already has a lead entry ('+existing.status+'). Create another one?'))return;
+  }
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','→ Send to Lead Bank'));
+  wrap.appendChild(mk('div','modal-sub',(cl?cl.name:'Client')+' — '+appt.date));
+
+  var intInp=mkInput('sal-interest','text','What are they interested in?',appt.purpose||'');
+  var followInp=mkInput('sal-followup','date','Follow up date','');
+  // Default follow up to 3 days from now
+  var d3=new Date();d3.setDate(d3.getDate()+3);
+  followInp.value=d3.toISOString().split('T')[0];
+  var notesTA=mk('textarea','form-input');notesTA.id='sal-notes';notesTA.rows=2;
+  notesTA.placeholder='What happened at the appointment?';
+  notesTA.value='Appointment on '+appt.date+(appt.notes?' — '+appt.notes:'');
+
+  app(wrap,[
+    mkFg('Interested in',intInp),
+    mkFg('Follow up date',followInp),
+    mkFg('Notes',notesTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Send to Lead Bank',function(){
+        var lead={
+          id:uid(),
+          name:cl?cl.name:'',
+          phone:cl?cl.phone||'':'',
+          clientId:cl?cl.id:'',
+          interest:(document.getElementById('sal-interest')||{}).value||'',
+          source:'Appointment',
+          status:'Contacted',
+          followUpDate:(document.getElementById('sal-followup')||{}).value||'',
+          notes:(document.getElementById('sal-notes')||{}).value||'',
+          created:Date.now()
+        };
+        dbSave('leads',lead);
+        closeModal();
+        alert((cl?cl.name:'Client')+' sent to Lead Bank with status Contacted.');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+// ── SEND APPOINTMENT TO LEAD BANK ─────────────────────────────────────────
+function sendApptToLeadBank(apptId){
+  var appt=DB.appointments.find(function(x){return x.id===apptId;});if(!appt)return;
+  var cl=appt.clientId?DB.clients.find(function(x){return x.id===appt.clientId;}):null;
+  if(!cl){alert('No client linked to this appointment.');return;}
+
+  // Check if lead already exists for this client
+  var existing=DB.leads.find(function(l){return l.clientId===cl.id||l.phone===cl.phone;});
+  if(existing){
+    if(!confirm(cl.name+' is already in Lead Bank (status: '+existing.status+'). Add another lead entry?'))return;
+  }
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','→ Send to Lead Bank'));
+  wrap.appendChild(mk('div','modal-sub','Pre-filled from appointment. Review and save.'));
+
+  var intInp=mkInput('lb-interest','text','What are they interested in?',appt.purpose||'');
+  var followInp=mkInput('lb-followup','date','',
+    new Date(Date.now()+7*24*60*60*1000).toISOString().split('T')[0]);
+  var notesTA=mk('textarea','form-input');notesTA.id='lb-notes';notesTA.rows=3;
+  notesTA.placeholder='What happened in the appointment?';
+  notesTA.value='Appointment on '+appt.date+(appt.notes?' — '+appt.notes:'');
+
+  // Client info preview
+  var preview=mk('div');preview.style.cssText='background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px';
+  var pName=mk('div');pName.style.cssText='font-weight:700;color:#2D6B5E';pName.textContent=cl.name;
+  var pPhone=mk('div');pPhone.style.cssText='font-size:12px;color:#888;margin-top:2px';pPhone.textContent=cl.phone||'No phone';
+  app(preview,[pName,pPhone]);
+  wrap.appendChild(preview);
+
+  app(wrap,[
+    mkFg('Interested in',intInp),
+    mkFg('Follow up date',followInp),
+    mkFg('Notes',notesTA),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Send to Lead Bank',function(){
+        var lead={
+          id:uid(),
+          name:cl.name,
+          phone:cl.phone||'',
+          clientId:cl.id,
+          interest:(document.getElementById('lb-interest')||{}).value||'',
+          source:'Appointment',
+          status:'Contacted',
+          followUpDate:(document.getElementById('lb-followup')||{}).value||'',
+          notes:(document.getElementById('lb-notes')||{}).value||'',
+          created:Date.now()
+        };
+        dbSave('leads',lead);
+        closeModal();
+        alert(cl.name+' sent to Lead Bank with status Contacted.');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
 }
 // ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
 function toggleSidebar(){
