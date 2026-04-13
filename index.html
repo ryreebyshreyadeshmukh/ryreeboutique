@@ -6877,17 +6877,6 @@ function pgLeads(){
   };
   wrap.appendChild(leadSearchInp);
 
-  var leadSearchInp=mk('input','form-input');
-  leadSearchInp.placeholder='Search by name, phone or interest...';
-  leadSearchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
-  leadSearchInp.oninput=function(){
-    var q=this.value.toLowerCase();
-    document.querySelectorAll('.lead-card').forEach(function(card){
-      var txt=(card.getAttribute('data-search')||'').toLowerCase();
-      card.style.display=(!q||txt.includes(q))?'':'none';
-    });
-  };
-  wrap.appendChild(leadSearchInp);
 
     var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
   var activeFilter='All';
