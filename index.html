@@ -6852,7 +6852,44 @@ function pgLeads(){
   wrap.appendChild(mkPageHeader('Lead Bank','Walk-ins & enquiries to follow up',newBtn));
   wrap.appendChild(stats);
 
-  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
+  // Search bar
+  var searchInp=mk('input','form-input');
+  searchInp.placeholder='Search by name or phone...';
+  searchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
+  searchInp.oninput=function(){
+    var q=this.value.toLowerCase();
+    document.querySelectorAll('.lead-card').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  };
+  wrap.appendChild(searchInp);
+
+  var leadSearchInp=mk('input','form-input');
+  leadSearchInp.placeholder='Search by name, phone or interest...';
+  leadSearchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
+  leadSearchInp.oninput=function(){
+    var q=this.value.toLowerCase();
+    document.querySelectorAll('.lead-card').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  };
+  wrap.appendChild(leadSearchInp);
+
+  var leadSearchInp=mk('input','form-input');
+  leadSearchInp.placeholder='Search by name, phone or interest...';
+  leadSearchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
+  leadSearchInp.oninput=function(){
+    var q=this.value.toLowerCase();
+    document.querySelectorAll('.lead-card').forEach(function(card){
+      var txt=(card.getAttribute('data-search')||'').toLowerCase();
+      card.style.display=(!q||txt.includes(q))?'':'none';
+    });
+  };
+  wrap.appendChild(leadSearchInp);
+
+    var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
   var activeFilter='All';
   var filterBtns={};
 
@@ -6902,6 +6939,12 @@ function pgLeads(){
       var isOverdue=isDue&&lead.followUpDate<today;
       var card=mk('div');
       card.style.cssText='background:#fff;border:1px solid '+(isDue?'#FCA5A5':'#f0f0f0')+';border-radius:10px;padding:14px;position:relative';
+      card.className='lead-card';
+      card.setAttribute('data-search',((lead.name||'')+' '+(lead.phone||'')+' '+(lead.interest||'')).toLowerCase());
+      card.className='lead-card';
+      card.setAttribute('data-search',((lead.name||'')+' '+(lead.phone||'')+' '+(lead.interest||'')).toLowerCase());
+      card.className='lead-card';
+      card.setAttribute('data-search',((lead.name||'')+' '+(lead.phone||'')+' '+(lead.interest||'')).toLowerCase());
 
       var statusBadge=mk('span','badge');
       statusBadge.style.cssText='position:absolute;top:12px;right:12px;font-size:10px;background:'+(LEAD_STATUS_BGS[lead.status]||'#f5f5f5')+';color:'+(LEAD_STATUS_COLORS[lead.status]||'#888');
