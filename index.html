@@ -6853,32 +6853,18 @@ function pgLeads(){
   wrap.appendChild(stats);
 
   // Search bar
-  var searchInp=mk('input','form-input');
-  searchInp.placeholder='Search by name or phone...';
-  searchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
-  searchInp.oninput=function(){
-    var q=this.value.toLowerCase();
-    document.querySelectorAll('.lead-card').forEach(function(card){
-      var txt=(card.getAttribute('data-search')||'').toLowerCase();
-      card.style.display=(!q||txt.includes(q))?'':'none';
-    });
-  };
-  wrap.appendChild(searchInp);
-
-  var leadSearchInp=mk('input','form-input');
-  leadSearchInp.placeholder='Search by name, phone or interest...';
+    var leadSearchInp=mk('input','form-input');
+  leadSearchInp.placeholder='Search by name or phone...';
   leadSearchInp.style.cssText='width:100%;max-width:360px;margin-bottom:12px';
   leadSearchInp.oninput=function(){
     var q=this.value.toLowerCase();
-    document.querySelectorAll('.lead-card').forEach(function(card){
-      var txt=(card.getAttribute('data-search')||'').toLowerCase();
-      card.style.display=(!q||txt.includes(q))?'':'none';
+    document.querySelectorAll('.lead-card').forEach(function(c){
+      var txt=(c.getAttribute('data-search')||'').toLowerCase();
+      c.style.display=(!q||txt.includes(q))?'':'none';
     });
   };
   wrap.appendChild(leadSearchInp);
-
-
-    var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
+  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap';
   var activeFilter='All';
   var filterBtns={};
 
