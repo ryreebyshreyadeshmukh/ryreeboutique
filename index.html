@@ -165,6 +165,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-leads" data-page="leads">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5" stroke-linecap="round"/></svg>Lead Bank
     </div>
+    <div class="nav-item" id="nav-collabs" data-page="collabs">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h8m0 0l-3-3m3 3l-3 3M14 4v8" stroke-linecap="round" stroke-linejoin="round"/></svg>Collaborations
+    </div>
     <div class="nav-item" id="nav-expenses" data-page="expenses">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
     </div>
@@ -596,6 +599,143 @@ function nav(p){
   var el=document.getElementById('nav-'+p);if(el)el.classList.add('active');
   render();
 }
+
+// -- COLLABORATION TRACKER ------------------------------------------------
+var COLLAB_STATUSES=['Active','Reel Posted','Returned','Closed'];
+
+function pgCollabs(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Collaborations','Track stylist outfit loans & deliverables',
+    mkBtn('+ New Collaboration',function(){openCollabModal();},'btn btn-primary')));
+  var today=new Date().toISOString().split('T')[0];
+  var active=(DB.collabs||[]).filter(function(c){return c.status==='Active';}).length;
+  var overdue=(DB.collabs||[]).filter(function(c){return c.status==='Active'&&c.returnDate&&c.returnDate<today;}).length;
+  var reelPending=(DB.collabs||[]).filter(function(c){return c.status==='Active'||c.status==='Returned';}).length;
+  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
+  function sc(l,v,col,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(col)val.style.color=col;app(card,[lbl,val]);return card;}
+  app(stats,[sc('Active',active,'#2D6B5E','#e6f0ee'),sc('Overdue returns',overdue,overdue>0?'#991B1B':'#555',overdue>0?'#FEF2F2':'#fff'),sc('Reels pending',reelPending,'#B45309','#FFFBEB')]);
+  wrap.appendChild(stats);
+  if(!(DB.collabs||[]).length){var em=mk('div','card');em.appendChild(mk('div','empty','No collaborations yet.'));wrap.appendChild(em);return wrap;}
+  var sorted=(DB.collabs||[]).slice().sort(function(a,b){
+    var aO=a.status==='Active'&&a.returnDate&&a.returnDate<today;
+    var bO=b.status==='Active'&&b.returnDate&&b.returnDate<today;
+    if(aO&&!bO)return -1;if(!aO&&bO)return 1;
+    return (a.returnDate||'9999').localeCompare(b.returnDate||'9999');
+  });
+  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px';
+  sorted.forEach(function(c){
+    var isOverdue=c.status==='Active'&&c.returnDate&&c.returnDate<today;
+    var card=mk('div');card.style.cssText='background:#fff;border:1px solid '+(isOverdue?'#FCA5A5':'#f0f0f0')+';border-radius:12px;padding:16px;position:relative';
+    var stColors={'Active':'#EFF6FF|#1D4ED8','Reel Posted':'#F0FDF4|#166534','Returned':'#FFFBEB|#B45309','Closed':'#F9FAFB|#6B7280'};
+    var stP=(stColors[c.status]||'#F9FAFB|#6B7280').split('|');
+    var stBadge=mk('div');stBadge.style.cssText='position:absolute;top:12px;right:12px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+stP[0]+';color:'+stP[1];stBadge.textContent=c.status;card.appendChild(stBadge);
+    var nameDiv=mk('div');nameDiv.style.cssText='font-size:15px;font-weight:700;margin-bottom:2px';nameDiv.textContent=c.stylistName||'Unknown';
+    var igDiv=mk('div');igDiv.style.cssText='font-size:12px;color:#6D28D9;margin-bottom:4px';igDiv.textContent=c.instagram?'@'+c.instagram.replace('@',''):'';
+    var phoneDiv=mk('div');phoneDiv.style.cssText='font-size:12px;color:#888;margin-bottom:10px';phoneDiv.textContent=c.phone||'';
+    var outfitDiv=mk('div');outfitDiv.style.cssText='font-size:12px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px;padding:8px 10px;margin-bottom:10px';
+    var otitle=mk('div');otitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:4px;font-size:11px;text-transform:uppercase';otitle.textContent='Outfits ('+(c.outfits||[]).length+')';outfitDiv.appendChild(otitle);
+    (c.outfits||[]).forEach(function(o){var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:2px 0';var nm=mk('span');nm.textContent=o.name||'';var cond=mk('span');cond.style.cssText='font-size:10px;color:#888';cond.textContent=o.condition||'';app(row,[nm,cond]);outfitDiv.appendChild(row);});
+    var datesDiv=mk('div');datesDiv.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px';
+    function df(label,val,warn){var d=mk('div');var l=mk('div');l.style.cssText='font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase';l.textContent=label;var v=mk('div');v.style.cssText='font-weight:600;color:'+(warn?'#991B1B':'#1a1a1a');v.textContent=val||'--';app(d,[l,v]);return d;}
+    app(datesDiv,[df('Handover',c.handoverDate),df('Return by',c.returnDate,isOverdue)]);
+    if(isOverdue){var od=mk('div');od.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;color:#991B1B;margin-bottom:10px';od.textContent='Return overdue';card.appendChild(od);}
+    if(c.deliverable){var delDiv=mk('div');delDiv.style.cssText='font-size:12px;color:#555;margin-bottom:10px';var dlbl=mk('span');dlbl.style.fontWeight='700';dlbl.textContent='Deliverable: ';delDiv.appendChild(dlbl);delDiv.appendChild(document.createTextNode(c.deliverable));card.appendChild(delDiv);}
+    app(card,[nameDiv,igDiv,phoneDiv,outfitDiv,datesDiv]);
+    var acts=mk('div');acts.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
+    var editBtn=mkBtn('Edit',(function(cid){return function(){openCollabModal(cid);};})(c.id),'btn btn-xs');
+    var docBtn=mkBtn('Handover Doc',(function(cid){return function(){printCollabDoc(cid);};})(c.id),'btn btn-xs');docBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
+    var waBtn=mkBtn('WhatsApp',(function(co){return function(){
+      if(!co.phone){alert('No phone number saved.');return;}
+      getWATemplates(function(t){
+        var msg=fillWATemplate(t.collab,{stylistName:co.stylistName,returnDate:co.returnDate||'--'});
+        openWhatsApp(co.phone,msg);
+      });
+    };})(c),'btn btn-xs');waBtn.style.cssText+='color:#25D366;border-color:#25D366';
+    var delBtn=mkBtn('Del',(function(cid){return function(){if(confirm('Delete this collaboration?'))dbDel('collabs',cid);};})(c.id),'btn-danger');delBtn.style.padding='3px 8px';
+    app(acts,[editBtn,docBtn,waBtn,delBtn]);card.appendChild(acts);grid.appendChild(card);
+  });
+  wrap.appendChild(grid);return wrap;
+}
+
+function openCollabModal(collabId){
+  var c=collabId?(DB.collabs||[]).find(function(x){return x.id===collabId;}):null;
+  var today=new Date().toISOString().split('T')[0];
+  var retDef=new Date(Date.now()+14*24*60*60*1000).toISOString().split('T')[0];
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',c?'Edit Collaboration':'New Collaboration'));
+  var nameInp=mkInput('col-name','text','Stylist / Celebrity name',c?c.stylistName:'');
+  var igInp=mkInput('col-ig','text','Instagram handle (without @)',c?c.instagram||'':'');
+  var phoneInp=mkInput('col-phone','tel','Phone number',c?c.phone||'':'');
+  var handInp=mkInput('col-hand','date','',c?c.handoverDate:today);
+  var retInp=mkInput('col-ret','date','',c?c.returnDate:retDef);
+  var delInp=mkInput('col-del','text','e.g. 1 Instagram Reel tagged @ryreeboutique',c?c.deliverable||'':'');
+  var stOpts=COLLAB_STATUSES.map(function(s){return {value:s,label:s};});
+  var stSel=mkSelect('col-status',stOpts,c?c.status:'Active');
+  var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name,condition:o.condition||'New'};}):[{name:'',condition:'New'}];
+  var outfitSec=mk('div');
+  function renderOutfits(){
+    outfitSec.innerHTML='';
+    var hdr=mk('div');hdr.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';hdr.textContent='Outfits / Garments';outfitSec.appendChild(hdr);
+    outfits.forEach(function(o,i){
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+      var ni=mk('input','form-input');ni.placeholder='Outfit name / description';ni.value=o.name||'';ni.oninput=function(){outfits[i].name=this.value;};
+      var cs=mk('select','form-input');cs.style.padding='6px 8px';
+      ['New','Excellent','Good','Minor wear'].forEach(function(opt){var op=mk('option',null,opt);op.value=opt;if(opt===o.condition)op.selected=true;cs.appendChild(op);});
+      cs.onchange=function(){outfits[i].condition=this.value;};
+      var rb=mkBtn('x',function(){outfits.splice(i,1);renderOutfits();},'btn-danger');rb.style.cssText='padding:4px 8px;font-size:12px';
+      app(row,[ni,cs,rb]);outfitSec.appendChild(row);
+    });
+    var addBtn=mkBtn('+ Add outfit',function(){outfits.push({name:'',condition:'New'});renderOutfits();},'btn btn-xs');addBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E';outfitSec.appendChild(addBtn);
+  }
+  renderOutfits();
+  var notesTA=mk('textarea','form-input');notesTA.rows=2;notesTA.placeholder='Any notes...';notesTA.value=c?c.notes||'':'';
+  app(wrap,[mkFg('Stylist Name *',nameInp),app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),mkFg('Deliverable',delInp),mkFg('Status',stSel),outfitSec,mkFg('Notes',notesTA),mkActions([mkBtn('Cancel',closeModal),mkBtn(c?'Save':'Create',function(){
+    var nm=(document.getElementById('col-name')||{}).value||'';
+    if(!nm.trim()){alert('Stylist name is required.');return;}
+    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),notes:notesTA.value||'',created:c?c.created:Date.now()});
+    closeModal();
+  },'btn btn-primary')])]);
+  showM(wrap,true);
+}
+
+function printCollabDoc(collabId){
+  var c=(DB.collabs||[]).find(function(x){return x.id===collabId;});if(!c)return;
+  var docNo='COLLAB-'+new Date(c.created||Date.now()).getFullYear()+'-'+String((DB.collabs||[]).findIndex(function(x){return x.id===collabId;})+1).padStart(3,'0');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Collaboration Handover</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}'
+    +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #2D6B5E;margin-bottom:20px}'
+    +'.brand{font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}'
+    +'.title{font-size:22px;font-weight:800;color:#2D6B5E}.sec{margin-bottom:20px}'
+    +'.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f0f0}'
+    +'.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fld{margin-bottom:10px}'
+    +'.fld-l{font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:2px}.fld-v{font-size:13px;font-weight:600}'
+    +'table{width:100%;border-collapse:collapse}th{background:#f9fffe;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#2D6B5E;border-bottom:2px solid #e6f0ee}'
+    +'td{padding:8px 12px;border-bottom:1px solid #f5f5f5;font-size:13px}'
+    +'.clause{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:12px;font-size:12px;color:#991B1B;margin-top:12px}'
+    +'.sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}'
+    +'.sig-box{border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
+    +'@media print{body{padding:15px}}</style></head><body>'
+    +'<div class="hdr"><div><div class="brand">Ryree by Shreya Deshmukh</div><div class="title">Outfit Collaboration Handover</div></div>'
+    +'<div style="font-size:12px;color:#888;text-align:right">Doc: '+docNo+'<br>Date: '+c.handoverDate+'</div></div>'
+    +'<div class="sec"><div class="sec-title">Collaborator Details</div><div class="g2">'
+    +'<div class="fld"><div class="fld-l">Name</div><div class="fld-v">'+c.stylistName+'</div></div>'
+    +'<div class="fld"><div class="fld-l">Instagram</div><div class="fld-v">'+(c.instagram?'@'+c.instagram.replace('@',''):'--')+'</div></div>'
+    +'<div class="fld"><div class="fld-l">Phone</div><div class="fld-v">'+(c.phone||'--')+'</div></div>'
+    +'<div class="fld"><div class="fld-l">Return By</div><div class="fld-v" style="color:#991B1B;font-weight:700">'+c.returnDate+'</div></div>'
+    +'</div></div>'
+    +'<div class="sec"><div class="sec-title">Outfits Handed Over</div>'
+    +'<table><thead><tr><th>#</th><th>Outfit</th><th>Condition</th></tr></thead><tbody>'
+    +(c.outfits||[]).map(function(o,i){return '<tr><td>'+(i+1)+'</td><td>'+o.name+'</td><td>'+o.condition+'</td></tr>';}).join('')
+    +'</tbody></table></div>'
+    +'<div class="sec"><div class="sec-title">Agreed Deliverable</div>'
+    +'<div style="font-size:13px;font-weight:600;padding:10px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px">'+(c.deliverable||'As mutually agreed')+'</div></div>'
+    +'<div class="clause">The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date above, in the same condition as received. Any damage, loss or delay is the responsibility of the recipient.</div>'
+    +'<div class="sig"><div class="sig-box">Signature (Ryree by Shreya Deshmukh)<br><br><br>Shreya Deshmukh<br>Date: _______</div>'
+    +'<div class="sig-box">Signature (Collaborator)<br><br><br>'+c.stylistName+'<br>Date: _______</div></div>'
+    +'</body></html>';
+  var w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
+}
+
 function render(){
   var mc=document.getElementById('main-content');if(!mc)return;
   // Smart refresh - update only table, not entire page
@@ -7393,468 +7533,156 @@ function sendApptToLeadBank(apptId){
   showM(wrap,true);
 }
 
-// -- WHATSAPP NOTIFICATIONS ------------------------------------------------
+
+
 function getClientPhone(clientId){
   var cl=DB.clients.find(function(x){return x.id===clientId;});
   return cl?cl.phone||'':'';
 }
+
 function openWhatsApp(phone,message){
   if(!phone){alert('No phone number saved for this client.');return;}
   var clean=phone.replace(/[^0-9]/g,'');
   if(clean.length===10)clean='91'+clean;
   window.open('https://wa.me/'+clean+'?text='+encodeURIComponent(message),'_blank');
 }
+
+function whatsappBirthday(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});
+  if(!cl)return;
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.birthday,{name:cl.name});
+    openWhatsApp(cl.phone||'',msg);
+  });
+}
+
+// -- WHATSAPP TEMPLATES ----------------------------------------------------
+var _waTemplates = null;
+
+var WA_DEFAULT_TEMPLATES = {
+  invoice:   'Hi {name},\n\nYour invoice {invoiceNo} from Ryree by Shreya Deshmukh is ready.\nTotal: {total}\nPaid: {paid}\nBalance due: {balance}\n\nThank you!\n- Ryree by Shreya Deshmukh',
+  orderReady:'Hi {name},\n\nGreat news! Your order is ready for pickup.\n{item}Please contact us to schedule pickup or delivery.\n\n- Ryree by Shreya Deshmukh',
+  appointment:'Hi {name},\n\nReminder for your appointment at Ryree by Shreya Deshmukh.\nDate: {date}\nTime: {time}\n{purpose}\nSee you soon!\n- Shreya',
+  dueReminder:'Hi {name},\n\nGentle reminder of your outstanding balance of {balance} on invoice {invoiceNo}.\n\nKindly arrange payment at your earliest convenience.\n\nThank you\n- Ryree by Shreya Deshmukh',
+  birthday:   'Hi {name}, wishing you a very Happy Birthday!\n\nHope your day is as beautiful as you are. Thank you for being a valued part of the Ryree family.\n\n- Shreya, Ryree by Shreya Deshmukh',
+  collab:     'Hi {stylistName}, this is a reminder regarding the outfit(s) borrowed from Ryree by Shreya Deshmukh.\nKindly ensure the outfits are returned by {returnDate} in original condition.\n\nThank you!\n- Shreya'
+};
+
+var WA_TEMPLATE_LABELS = {
+  invoice:    'Invoice Ready',
+  orderReady: 'Order Ready for Pickup',
+  appointment:'Appointment Reminder',
+  dueReminder:'Payment Due Reminder',
+  birthday:   'Birthday Wish',
+  collab:     'Collaboration Return Reminder'
+};
+
+var WA_TEMPLATE_HINTS = {
+  invoice:    '{name} {invoiceNo} {total} {paid} {balance}',
+  orderReady: '{name} {item}',
+  appointment:'{name} {date} {time} {purpose}',
+  dueReminder:'{name} {invoiceNo} {balance}',
+  birthday:   '{name}',
+  collab:     '{stylistName} {returnDate}'
+};
+
+function getWATemplates(cb){
+  if(_waTemplates){cb(_waTemplates);return;}
+  db.collection('settings').doc('waTemplates').get().then(function(doc){
+    _waTemplates = (doc.exists&&doc.data())||{};
+    // Fill missing with defaults
+    Object.keys(WA_DEFAULT_TEMPLATES).forEach(function(k){
+      if(!_waTemplates[k])_waTemplates[k]=WA_DEFAULT_TEMPLATES[k];
+    });
+    cb(_waTemplates);
+  }).catch(function(){_waTemplates=Object.assign({},WA_DEFAULT_TEMPLATES);cb(_waTemplates);});
+}
+
+function fillWATemplate(template, vars){
+  return template.replace(/\{(\w+)\}/g, function(_, key){ return vars[key]||''; });
+}
+
+function openWATemplateSettings(){
+  getWATemplates(function(tmpls){
+    var wrap=mk('div');
+    wrap.appendChild(mk('div','modal-title','WhatsApp Message Templates'));
+    wrap.appendChild(mk('div','modal-sub','Customise the pre-filled messages. Use placeholders shown below each template.'));
+
+    var areas={};
+    Object.keys(WA_TEMPLATE_LABELS).forEach(function(key){
+      var sec=mk('div');sec.style.marginBottom='14px';
+      var lbl=mk('div');lbl.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;margin-bottom:4px';lbl.textContent=WA_TEMPLATE_LABELS[key];
+      var hint=mk('div');hint.style.cssText='font-size:10px;color:#aaa;margin-bottom:4px';hint.textContent='Placeholders: '+WA_TEMPLATE_HINTS[key];
+      var ta=mk('textarea','form-input');ta.rows=4;ta.style.fontSize='12px';ta.value=tmpls[key]||WA_DEFAULT_TEMPLATES[key];
+      areas[key]=ta;
+      app(sec,[lbl,hint,ta]);wrap.appendChild(sec);
+    });
+
+    app(wrap,[mkActions([
+      mkBtn('Reset to defaults',function(){
+        Object.keys(areas).forEach(function(k){areas[k].value=WA_DEFAULT_TEMPLATES[k];});
+      },'btn btn-sm'),
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save',function(){
+        var updated={};
+        Object.keys(areas).forEach(function(k){updated[k]=areas[k].value;});
+        _waTemplates=updated;
+        db.collection('settings').doc('waTemplates').set(updated).then(function(){
+          closeModal();
+          alert('WhatsApp templates saved!');
+        });
+      },'btn btn-primary')
+    ])]);
+    showM(wrap,true);
+  });
+}
+
 function waMsgInvoice(inv){
   var cl=DB.clients.find(function(x){return x.id===inv.clientId;});
   var name=(cl&&cl.name)||inv.clientName||'there';
   var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
   var bal=Number(inv.total||0)-tp;
-  var msg='Hi '+name+',\n\nYour invoice '+inv.invoiceNo+' from Ryree by Shreya Deshmukh is ready.\nTotal: '+rupee(inv.total||0)+'\nPaid: '+rupee(tp)+'\nBalance due: '+rupee(bal)+'\n\nThank you!\n- Ryree by Shreya Deshmukh';
-  openWhatsApp(getClientPhone(inv.clientId),msg);
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.invoice,{name:name,invoiceNo:inv.invoiceNo||'',total:rupee(inv.total||0),paid:rupee(tp),balance:rupee(bal)});
+    openWhatsApp(getClientPhone(inv.clientId),msg);
+  });
 }
+
 function waMsgOrderReady(order){
   var cl=DB.clients.find(function(x){return x.id===order.clientId;});
   var name=(cl&&cl.name)||'there';
-  var msg='Hi '+name+',\n\nGreat news! Your order is ready for pickup.\n'+(order.item?'Item: '+order.item+'\n':'')+'Please contact us to schedule pickup or delivery.\n\n- Ryree by Shreya Deshmukh';
-  openWhatsApp(getClientPhone(order.clientId),msg);
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.orderReady,{name:name,item:order.item?'Item: '+order.item+'\n':''});
+    openWhatsApp(getClientPhone(order.clientId),msg);
+  });
 }
+
 function waMsgAppointment(appt){
   var cl=DB.clients.find(function(x){return x.id===appt.clientId;});
   var name=(cl&&cl.name)||'there';
-  var msg='Hi '+name+',\n\nReminder for your appointment at Ryree by Shreya Deshmukh.\nDate: '+appt.date+'\nTime: '+(appt.time||'TBD')+(appt.purpose?'\nPurpose: '+appt.purpose:'')+'\n\nSee you soon!\n- Shreya';
-  openWhatsApp(getClientPhone(appt.clientId),msg);
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.appointment,{name:name,date:appt.date||'',time:appt.time||'TBD',purpose:appt.purpose?'Purpose: '+appt.purpose+'\n':''});
+    openWhatsApp(getClientPhone(appt.clientId),msg);
+  });
 }
+
 function waMsgDueReminder(inv){
   var cl=DB.clients.find(function(x){return x.id===inv.clientId;});
   var name=(cl&&cl.name)||inv.clientName||'there';
   var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
   var bal=Number(inv.total||0)-tp;
-  var msg='Hi '+name+',\n\nGentle reminder of your outstanding balance of '+rupee(bal)+' on invoice '+inv.invoiceNo+'.\n\nKindly arrange payment at your earliest convenience.\n\nThank you\n- Ryree by Shreya Deshmukh';
-  openWhatsApp(getClientPhone(inv.clientId),msg);
-}
-
-// -- COLLABORATION TRACKER -------------------------------------------------
-var COLLAB_STATUSES=['Active','Reel Posted','Returned','Closed'];
-
-function pgCollabs(){
-  var wrap=mk('div');
-  wrap.appendChild(mkPageHeader('Collaborations','Track stylist outfit loans & deliverables',
-    mkBtn('+ New Collaboration',function(){openCollabModal();},'btn btn-primary')));
-
-  // Stats
-  var active=DB.collabs.filter(function(c){return c.status==='Active';}).length;
-  var overdue=DB.collabs.filter(function(c){
-    var today=new Date().toISOString().split('T')[0];
-    return c.status==='Active'&&c.returnDate&&c.returnDate<today;
-  }).length;
-  var reelPending=DB.collabs.filter(function(c){return c.status==='Active'||c.status==='Returned';}).length;
-  var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
-  function sc(l,v,col,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(col)val.style.color=col;app(card,[lbl,val]);return card;}
-  app(stats,[
-    sc('Active collaborations',active,'#2D6B5E','#e6f0ee'),
-    sc('Overdue returns',overdue,overdue>0?'#991B1B':'#2D6B5E',overdue>0?'#FEF2F2':'#fff'),
-    sc('Reels pending',reelPending,'#B45309','#FFFBEB')
-  ]);
-  wrap.appendChild(stats);
-
-  if(!DB.collabs.length){
-    var empty=mk('div','card');empty.appendChild(mk('div','empty','No collaborations yet. Add your first one!'));
-    wrap.appendChild(empty);return wrap;
-  }
-
-  // Sort: overdue first, then by return date
-  var today=new Date().toISOString().split('T')[0];
-  var sorted=DB.collabs.slice().sort(function(a,b){
-    var aOver=a.status==='Active'&&a.returnDate&&a.returnDate<today;
-    var bOver=b.status==='Active'&&b.returnDate&&b.returnDate<today;
-    if(aOver&&!bOver)return -1;if(!aOver&&bOver)return 1;
-    return (a.returnDate||'9999').localeCompare(b.returnDate||'9999');
-  });
-
-  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px';
-
-  sorted.forEach(function(c){
-    var isOverdue=c.status==='Active'&&c.returnDate&&c.returnDate<today;
-    var card=mk('div');
-    card.style.cssText='background:#fff;border:1px solid '+(isOverdue?'#FCA5A5':'#f0f0f0')+';border-radius:12px;padding:16px;position:relative';
-
-    // Status badge
-    var stColors={Active:'#EFF6FF:#1D4ED8','Reel Posted':'#F0FDF4:#166534',Returned:'#FFFBEB:#B45309',Closed:'#F9FAFB:#6B7280'};
-    var stParts=(stColors[c.status]||'#F9FAFB:#6B7280').split(':');
-    var stBadge=mk('div');stBadge.style.cssText='position:absolute;top:12px;right:12px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+stParts[0]+';color:'+stParts[1];
-    stBadge.textContent=c.status;
-    card.appendChild(stBadge);
-
-    // Stylist info
-    var nameDiv=mk('div');nameDiv.style.cssText='font-size:15px;font-weight:700;color:#1a1a1a;margin-bottom:2px';nameDiv.textContent=c.stylistName||'Unknown';
-    var igDiv=mk('div');igDiv.style.cssText='font-size:12px;color:#6D28D9;margin-bottom:8px';igDiv.textContent=c.instagram?'@'+c.instagram.replace('@',''):'';
-    var phoneDiv=mk('div');phoneDiv.style.cssText='font-size:12px;color:#888;margin-bottom:10px';phoneDiv.textContent=c.phone||'';
-
-    // Outfits
-    var outfitDiv=mk('div');outfitDiv.style.cssText='font-size:12px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px;padding:8px 10px;margin-bottom:10px';
-    var outfitTitle=mk('div');outfitTitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em';outfitTitle.textContent='Outfits ('+(c.outfits||[]).length+')';
-    outfitDiv.appendChild(outfitTitle);
-    (c.outfits||[]).forEach(function(o){
-      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:2px 0;font-size:12px';
-      var nm=mk('span');nm.textContent=o.name||'Outfit';
-      var cond=mk('span');cond.style.cssText='font-size:10px;color:#888';cond.textContent=o.condition||'';
-      app(row,[nm,cond]);outfitDiv.appendChild(row);
-    });
-
-    // Dates
-    var datesDiv=mk('div');datesDiv.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px';
-    function dateField(label,val,warn){
-      var d=mk('div');
-      var l=mk('div');l.style.cssText='font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase';l.textContent=label;
-      var v=mk('div');v.style.cssText='font-weight:600;color:'+(warn?'#991B1B':'#1a1a1a');v.textContent=val||'—';
-      app(d,[l,v]);return d;
-    }
-    app(datesDiv,[
-      dateField('Handover',c.handoverDate),
-      dateField('Return by',c.returnDate,isOverdue)
-    ]);
-
-    // Deliverable
-    if(c.deliverable){
-      var delDiv=mk('div');delDiv.style.cssText='font-size:12px;color:#555;margin-bottom:10px';
-      var delLabel=mk('span');delLabel.style.cssText='font-weight:700;color:#888';delLabel.textContent='Deliverable: ';
-      delDiv.appendChild(delLabel);delDiv.appendChild(document.createTextNode(c.deliverable));
-      card.appendChild(delDiv);
-    }
-
-    // Overdue alert
-    if(isOverdue){
-      var overdueDiv=mk('div');overdueDiv.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;color:#991B1B;margin-bottom:10px';
-      overdueDiv.textContent='Return overdue by '+Math.ceil((new Date(today)-new Date(c.returnDate))/(1000*60*60*24))+' day(s)';
-      card.appendChild(overdueDiv);
-    }
-
-    app(card,[nameDiv,igDiv,phoneDiv,outfitDiv,datesDiv]);
-
-    // Actions
-    var acts=mk('div');acts.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
-    var editBtn=mkBtn('Edit',(function(cid){return function(){openCollabModal(cid);};})(c.id),'btn btn-xs');
-    var docBtn=mkBtn('Handover Doc',(function(cid){return function(){printCollabDoc(cid);};})(c.id),'btn btn-xs');
-    docBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
-    var waBtn=mkBtn('WhatsApp',(function(cobj){return function(){
-      if(!cobj.phone){alert('No phone number saved.');return;}
-      var msg='Hi '+cobj.stylistName+', this is a reminder regarding the outfit(s) borrowed from Ryree by Shreya Deshmukh.\nKindly ensure the outfits are returned by '+cobj.returnDate+' in original condition.\n\nThank you!\n- Shreya';
-      openWhatsApp(cobj.phone,msg);
-    };})(c),'btn btn-xs');
-    waBtn.style.cssText+='color:#25D366;border-color:#25D366';
-    var delBtn=mkBtn('Del',(function(cid){return function(){if(confirm('Delete this collaboration?'))dbDel('collabs',cid);};})(c.id),'btn-danger');
-    delBtn.style.padding='3px 8px';
-    app(acts,[editBtn,docBtn,waBtn,delBtn]);
-    card.appendChild(acts);
-    grid.appendChild(card);
-  });
-
-  wrap.appendChild(grid);
-  return wrap;
-}
-
-function openCollabModal(collabId){
-  var c=collabId?DB.collabs.find(function(x){return x.id===collabId;}):null;
-  var today=new Date().toISOString().split('T')[0];
-  var returnDefault=new Date(Date.now()+14*24*60*60*1000).toISOString().split('T')[0];
-
-  var wrap=mk('div');
-  wrap.appendChild(mk('div','modal-title',c?'Edit Collaboration':'New Collaboration'));
-
-  // Stylist details
-  var nameInp=mkInput('col-name','text','Stylist / Celebrity name',c?c.stylistName:'');
-  var igInp=mkInput('col-ig','text','Instagram handle (without @)',c?c.instagram||'':'');
-  var phoneInp=mkInput('col-phone','tel','Phone number',c?c.phone||'':'');
-
-  // Dates
-  var handInp=mkInput('col-hand','date','',c?c.handoverDate:today);
-  var retInp=mkInput('col-ret','date','',c?c.returnDate:returnDefault);
-
-  // Deliverable
-  var delInp=mkInput('col-del','text','e.g. 1 Instagram Reel tagged @ryreeboutique',c?c.deliverable||'':'');
-
-  // Status
-  var stOpts=COLLAB_STATUSES.map(function(s){return {value:s,label:s};});
-  var stSel=mkSelect('col-status',stOpts,c?c.status:'Active');
-
-  // Outfits list
-  var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name,condition:o.condition,notes:o.notes};}):[{name:'',condition:'New',notes:''}];
-  var outfitSection=mk('div');
-
-  function renderOutfitRows(){
-    outfitSection.innerHTML='';
-    var header=mk('div');header.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
-    header.textContent='Outfits / Garments';outfitSection.appendChild(header);
-    outfits.forEach(function(o,i){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
-      var nInp=mk('input','form-input');nInp.placeholder='Outfit name / description';nInp.value=o.name||'';
-      nInp.oninput=function(){outfits[i].name=this.value;};
-      var condSel=mk('select','form-input');condSel.style.padding='6px 8px';
-      ['New','Excellent','Good','Minor wear'].forEach(function(opt){
-        var op=mk('option',null,opt);op.value=opt;if(opt===o.condition)op.selected=true;condSel.appendChild(op);
-      });
-      condSel.onchange=function(){outfits[i].condition=this.value;};
-      var rmBtn=mkBtn('x',function(){outfits.splice(i,1);renderOutfitRows();},'btn-danger');
-      rmBtn.style.cssText='padding:4px 8px;font-size:12px';
-      app(row,[nInp,condSel,rmBtn]);outfitSection.appendChild(row);
-    });
-    var addBtn=mkBtn('+ Add outfit',function(){outfits.push({name:'',condition:'New',notes:''});renderOutfitRows();},'btn btn-xs');
-    addBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E';
-    outfitSection.appendChild(addBtn);
-  }
-  renderOutfitRows();
-
-  var notesTA=mk('textarea','form-input');notesTA.rows=2;notesTA.placeholder='Any notes...';notesTA.value=c?c.notes||'':'';
-
-  app(wrap,[
-    mkFg('Stylist Name *',nameInp),
-    app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),
-    app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),
-    mkFg('Deliverable',delInp),
-    mkFg('Status',stSel),
-    outfitSection,
-    mkFg('Notes',notesTA),
-    mkActions([
-      mkBtn('Cancel',closeModal),
-      mkBtn(c?'Save':'Create',function(){
-        var name=(document.getElementById('col-name')||{}).value||'';
-        if(!name.trim()){alert('Stylist name is required.');return;}
-        var rec={
-          id:c?c.id:uid(),
-          stylistName:name.trim(),
-          instagram:(document.getElementById('col-ig')||{}).value||'',
-          phone:(document.getElementById('col-phone')||{}).value||'',
-          handoverDate:(document.getElementById('col-hand')||{}).value||'',
-          returnDate:(document.getElementById('col-ret')||{}).value||'',
-          deliverable:(document.getElementById('col-del')||{}).value||'',
-          status:(document.getElementById('col-status')||{}).value||'Active',
-          outfits:outfits.filter(function(o){return o.name.trim();}),
-          notes:notesTA.value||'',
-          created:c?c.created:Date.now()
-        };
-        dbSave('collabs',rec);closeModal();
-      },'btn btn-primary')
-    ])
-  ]);
-  showM(wrap,true);
-}
-
-function printCollabDoc(collabId){
-  var c=DB.collabs.find(function(x){return x.id===collabId;});if(!c)return;
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Collaboration Handover</title>'
-    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}'
-    +'.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #2D6B5E;margin-bottom:20px}'
-    +'.brand{font-size:10px;color:#aaa;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}'
-    +'.title{font-size:22px;font-weight:800;color:#2D6B5E}'
-    +'.doc-no{font-size:12px;color:#888;text-align:right}'
-    +'.section{margin-bottom:20px}'
-    +'.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f0f0f0}'
-    +'.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}'
-    +'.field{margin-bottom:10px}'
-    +'.field-label{font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:2px}'
-    +'.field-value{font-size:13px;font-weight:600}'
-    +'table{width:100%;border-collapse:collapse;margin-top:8px}'
-    +'th{background:#f9fffe;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#2D6B5E;text-transform:uppercase;border-bottom:2px solid #e6f0ee}'
-    +'td{padding:8px 12px;border-bottom:1px solid #f5f5f5;font-size:13px}'
-    +'.clause{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:12px;font-size:12px;color:#991B1B;margin-top:12px}'
-    +'.sig-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}'
-    +'.sig-box{border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
-    +'@media print{body{padding:15px}}</style></head><body>'
-    +'<div class="header">'
-    +'<div><div class="brand">Ryree by Shreya Deshmukh</div><div class="title">Outfit Collaboration Handover</div></div>'
-    +'<div class="doc-no">Doc #: COLLAB-'+new Date(c.created||Date.now()).getFullYear()+'-'+String(DB.collabs.indexOf(c)+1).padStart(3,'0')+'<br>Date: '+c.handoverDate+'</div>'
-    +'</div>'
-    +'<div class="section"><div class="section-title">Stylist / Collaborator Details</div>'
-    +'<div class="grid-2">'
-    +'<div class="field"><div class="field-label">Name</div><div class="field-value">'+c.stylistName+'</div></div>'
-    +'<div class="field"><div class="field-label">Instagram</div><div class="field-value">'+(c.instagram?'@'+c.instagram.replace('@',''):'—')+'</div></div>'
-    +'<div class="field"><div class="field-label">Phone</div><div class="field-value">'+(c.phone||'—')+'</div></div>'
-    +'<div class="field"><div class="field-label">Return By</div><div class="field-value" style="color:#991B1B;font-weight:700">'+c.returnDate+'</div></div>'
-    +'</div></div>'
-    +'<div class="section"><div class="section-title">Outfits / Garments Handed Over</div>'
-    +'<table><thead><tr><th>#</th><th>Outfit Description</th><th>Condition at Handover</th><th>Notes</th></tr></thead><tbody>'
-    +(c.outfits||[]).map(function(o,i){return '<tr><td>'+(i+1)+'</td><td>'+o.name+'</td><td>'+o.condition+'</td><td>'+(o.notes||'—')+'</td></tr>';}).join('')
-    +'</tbody></table></div>'
-    +'<div class="section"><div class="section-title">Agreed Deliverable</div>'
-    +'<div style="font-size:13px;font-weight:600;padding:10px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px">'+(c.deliverable||'As mutually agreed')+'</div></div>'
-    +'<div class="clause">The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date mentioned above, in the same condition as received. Any damage, loss or delay shall be the sole responsibility of the recipient. This document serves as proof of handover.</div>'
-    +'<div class="sig-row">'
-    +'<div class="sig-box">Signature (Ryree by Shreya Deshmukh)<br><br><br>Shreya Deshmukh<br>Date: _____________</div>'
-    +'<div class="sig-box">Signature (Collaborator)<br><br><br>'+c.stylistName+'<br>Date: _____________</div>'
-    +'</div>'
-    +'</body></html>';
-  var w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
-}
-// ── MOBILE SIDEBAR ───────────────────────────────────────────────────────
-function toggleSidebar(){
-  var sb=document.querySelector('.sidebar');
-  var ov=document.getElementById('sb-overlay');
-  if(sb){sb.classList.toggle('open');}
-  if(ov){ov.classList.toggle('show');}
-}
-document.querySelectorAll('.nav-item').forEach(function(el){
-  el.addEventListener('click',function(){
-    if(window.innerWidth<=700){
-      var sb=document.querySelector('.sidebar');
-      var ov=document.getElementById('sb-overlay');
-      if(sb)sb.classList.remove('open');
-      if(ov)ov.classList.remove('show');
-    }
-  });
-});
-
-// ── DATA EXPORT ───────────────────────────────────────────────────────────
-document.getElementById('export-btn').addEventListener('click', exportAllData);
-
-function exportAllData(){
-  showM(buildExportModal());
-}
-
-function buildExportModal(){
-  var wrap=mk('div');
-  app(wrap,[
-    mk('div','modal-title','Export & Backup'),
-    mk('div','modal-sub','Last auto-save: '+(getLastBackupTime()||'not yet')),
-  ]);
-  var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px';
-
-  function exportCard(title,desc,fn){
-    var card=mk('div');card.style.cssText='border:1px solid #e8e8e8;border-radius:10px;padding:14px;text-align:center';
-    var t=mk('div');t.style.cssText='font-weight:600;font-size:13px;margin-bottom:4px';t.textContent=title;
-    var d=mk('div');d.style.cssText='font-size:11px;color:#aaa;margin-bottom:10px';d.textContent=desc;
-    var btn2=mkBtn('Download CSV',fn,'btn btn-primary btn-sm');btn2.style.width='100%';
-    app(card,[t,d,btn2]);return card;
-  }
-
-  app(grid,[
-    exportCard('Clients',DB.clients.length+' records',function(){exportCSV('clients',['Name','Phone','Email','Birthday','Notes'],DB.clients.map(function(c){return [c.name,c.phone||'',c.email||'',c.birthday||'',c.notes||''];}));closeModal();}),
-    exportCard('Orders',DB.orders.length+' records',function(){exportCSV('orders',['Client','Item','Total','Paid','Balance','Delivery','Status'],DB.orders.map(function(o){var cl=DB.clients.find(function(x){return x.id===o.clientId;});var paid=(o.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0)||Number(o.advance||0);return [cl?cl.name:'?',o.item,o.amount||0,paid,Number(o.amount||0)-paid,o.delivery||'',o.status||''];}));closeModal();}),
-    exportCard('Cash Book',DB.expenses.length+' records',function(){exportCSV('cashbook',['Date','Type','Category','Amount','Mode','Vendor','Description'],DB.expenses.map(function(e){return [e.date||'',e.entryType==='cash-in'?'Cash In':'Expense',e.category||'',e.amount||0,e.mode||'',e.vendorName||'',e.description||''];}));closeModal();}),
-    exportCard('Inventory',DB.inventory.length+' records',function(){exportCSV('inventory',['Name','Category','Qty','Unit','Min Qty','Cost/Unit'],DB.inventory.map(function(i){return [i.name,i.category||'',i.qty||0,i.unit||'',i.minQty||0,i.price||0];}));closeModal();}),
-    exportCard('Measurements','All client measurements',function(){
-      var rows=[];
-      DB.clients.forEach(function(c){
-        var measKeys=Object.keys(c.measurements||{});
-        if(!measKeys.length){rows.push([c.name,'—','—','—']);return;}
-        measKeys.forEach(function(cid){
-          var cloth=DB.clothing.find(function(x){return x.id===cid;});
-          var vals=c.measurements[cid]||{};
-          Object.keys(vals).forEach(function(k){rows.push([c.name,cloth?cloth.name:'?',k,vals[k]]);});
-        });
-      });
-      exportCSV('measurements',['Client','Clothing Item','Measurement','Value'],rows);closeModal();
-    }),
-    exportCard('Full backup','All data as JSON',function(){
-      var data={exportDate:new Date().toISOString(),clients:DB.clients,orders:DB.orders,expenses:DB.expenses,inventory:DB.inventory,staff:DB.staff,vendors:DB.vendors,clothing:DB.clothing,measitems:DB.measitems,appointments:DB.appointments,quotations:DB.quotations,services:DB.services,tasks:DB.tasks};
-      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-      var url=URL.createObjectURL(blob);var a=document.createElement('a');
-      a.href=url;a.download='ryree-backup-'+new Date().toISOString().split('T')[0]+'.json';
-      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-      closeModal();
-    })
-  ]);
-  wrap.appendChild(grid);
-  var restoreBtn=mkBtn('Restore from local backup',restoreFromLocalBackup,'btn btn-sm');
-  restoreBtn.style.color='#B45309';restoreBtn.style.borderColor='#FDE68A';
-  var cleanupBtn=mkBtn('Clean orphaned entries',cleanupOrphanedCashBookEntries,'btn btn-sm');
-  cleanupBtn.style.color='#991B1B';cleanupBtn.style.borderColor='#FCA5A5';
-  cleanupBtn.title='Remove Cash Book entries from deleted invoices';
-  var actRow=mk('div');actRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:16px;border-top:1px solid #f0f0f0';
-  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa';hint.textContent='Auto-saves every 2 min & on sign out';
-  var btns=mk('div');btns.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
-  app(btns,[cleanupBtn,restoreBtn,mkBtn('Close',closeModal)]);
-  actRow.appendChild(hint);actRow.appendChild(btns);
-  wrap.appendChild(actRow);
-  return wrap;
-}
-
-function exportCSV(filename,headers,rows){
-  var lines=[headers.join(',')];
-  rows.forEach(function(row){
-    lines.push(row.map(function(cell){
-      var s=String(cell||'');s=s.replace(/"/g,'""');
-      var needsQuote=s.indexOf(',')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0;
-      return needsQuote?'"'+s+'"':s;
-    }).join(','));
-  });
-  var bom='\uFEFF';
-  var blob=new Blob([bom+lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob);var a=document.createElement('a');
-  a.href=url;a.download='ryree-'+filename+'-'+new Date().toISOString().split('T')[0]+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-}
-
-// ── AUTO BACKUP ───────────────────────────────────────────────────────────
-var _lastBackupHash='';
-
-function autoSaveToLocalStorage(){
-  try{
-    var snapshot={savedAt:new Date().toISOString(),clients:DB.clients,orders:DB.orders,expenses:DB.expenses,inventory:DB.inventory,vendors:DB.vendors,staff:DB.staff,clothing:DB.clothing,measitems:DB.measitems,appointments:DB.appointments,quotations:DB.quotations,services:DB.services,tasks:DB.tasks};
-    localStorage.setItem('ryree_backup',JSON.stringify(snapshot));
-    localStorage.setItem('ryree_backup_time',new Date().toISOString());
-  }catch(e){console.warn('Auto-backup failed:',e);}
-}
-
-function getLastBackupTime(){
-  var t=localStorage.getItem('ryree_backup_time');
-  if(!t)return null;
-  return new Date(t).toLocaleString('en-IN');
-}
-
-setInterval(function(){if(isLoggedIn())autoSaveToLocalStorage();},120000);
-
-function restoreFromLocalBackup(){
-  try{
-    var raw=localStorage.getItem('ryree_backup');
-    if(!raw){alert('No local backup found.');return;}
-    var data=JSON.parse(raw);
-    var time=getLastBackupTime();
-    if(!confirm('Restore backup from '+time+'?'))return;
-    var cols=['clients','orders','expenses','inventory','vendors','staff','clothing','measitems','appointments','quotations','services','tasks'];
-    cols.forEach(function(col){if(data[col]){data[col].forEach(function(item){dbSave(col,item);});}});
-    alert('Restore complete!');
-  }catch(e){alert('Restore failed: '+e.message);}
-}
-
-// ── MANUAL SYNC ──────────────────────────────────────────────────────────
-function manualSync(){
-  var btn=document.getElementById('sync-btn');
-  var icon=document.getElementById('sync-icon');
-  var txt=document.getElementById('sync-text');
-  if(btn){btn.style.opacity='0.5';btn.disabled=true;}
-  if(icon){icon.style.animation='spin .7s linear infinite';}
-  if(txt){txt.textContent='Syncing...';}
-  // Re-fetch all collections from Firebase
-  var cols2=['measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig'];
-  var pending=cols2.length;
-  cols2.forEach(function(col){
-    db.collection(col).get().then(function(snap){
-      DB[col]=snap.docs.map(function(d){return d.data();});
-      pending--;
-      if(pending===0){
-        if(btn){btn.style.opacity='1';btn.disabled=false;}
-        if(icon){icon.style.animation='';}
-        setSync('ok');
-        render();
-      }
-    }).catch(function(){
-      pending--;
-      if(pending===0){
-        if(btn){btn.style.opacity='1';btn.disabled=false;}
-        if(icon){icon.style.animation='';}
-        setSync('error');
-      }
-    });
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.dueReminder,{name:name,invoiceNo:inv.invoiceNo||'',balance:rupee(bal)});
+    openWhatsApp(getClientPhone(inv.clientId),msg);
   });
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────
-if(isLoggedIn()){showApp();}
-else{document.getElementById('login-wrap').style.display='flex';}
+function whatsappBirthday(clientId){
+  var cl=DB.clients.find(function(x){return x.id===clientId;});
+  if(!cl)return;
+  getWATemplates(function(t){
+    var msg=fillWATemplate(t.birthday,{name:cl.name});
+    openWhatsApp(cl.phone||'',msg);
+  });
+}
 
-// Update storage indicator whenever render is called
-var _origRender=render;
-render=function(){var r=_origRender.apply(this,arguments);updateStorageIndicator();return r;};
-</script>
-</body>
-</html>
