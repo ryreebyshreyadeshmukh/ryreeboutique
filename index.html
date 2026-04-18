@@ -651,8 +651,35 @@ function pgCollabs(){
     }
     
     var outfitDiv=mk('div');outfitDiv.style.cssText='font-size:12px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px;padding:8px 10px;margin-bottom:10px';
-    var otitle=mk('div');otitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:4px;font-size:11px;text-transform:uppercase';otitle.textContent='Outfits ('+(c.outfits||[]).length+')';outfitDiv.appendChild(otitle);
-    (c.outfits||[]).forEach(function(o){var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:2px 0';var nm=mk('span');nm.textContent=o.name||'';var cond=mk('span');cond.style.cssText='font-size:10px;color:#888';cond.textContent=o.condition||'';app(row,[nm,cond]);outfitDiv.appendChild(row);});
+    var otitle=mk('div');otitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:6px;font-size:11px;text-transform:uppercase';otitle.textContent='Outfits ('+(c.outfits||[]).length+')';outfitDiv.appendChild(otitle);
+    (c.outfits||[]).forEach(function(o,idx){
+      var oCard=mk('div');oCard.style.cssText='background:#fff;border:1px solid #e6f0ee;border-radius:6px;padding:8px;margin-bottom:6px;display:grid;grid-template-columns:auto 1fr;gap:10px';
+      
+      // Photo thumbnail
+      if(o.photo){
+        var oImg=mk('img');oImg.src=o.photo;oImg.style.cssText='width:50px;height:50px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e8';
+        oCard.appendChild(oImg);
+      } else {
+        var placeholder=mk('div');placeholder.style.cssText='width:50px;height:50px;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aaa';
+        placeholder.textContent='No photo';
+        oCard.appendChild(placeholder);
+      }
+      
+      // Details
+      var details=mk('div');
+      var nameDiv=mk('div');nameDiv.style.cssText='font-weight:600;font-size:12px;margin-bottom:2px';nameDiv.textContent=o.name||'Unnamed';
+      var metaDiv=mk('div');metaDiv.style.cssText='font-size:10px;color:#888;display:flex;gap:8px;flex-wrap:wrap';
+      var condSpan=mk('span');condSpan.textContent='Condition: '+o.condition;
+      metaDiv.appendChild(condSpan);
+      if(o.price){
+        var priceSpan=mk('span');priceSpan.style.cssText='color:#2D6B5E;font-weight:600';
+        priceSpan.textContent='₹'+Number(o.price).toLocaleString('en-IN');
+        metaDiv.appendChild(priceSpan);
+      }
+      app(details,[nameDiv,metaDiv]);
+      oCard.appendChild(details);
+      outfitDiv.appendChild(oCard);
+    });
     var datesDiv=mk('div');datesDiv.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;font-size:12px';
     function df(label,val,warn){var d=mk('div');var l=mk('div');l.style.cssText='font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase';l.textContent=label;var v=mk('div');v.style.cssText='font-weight:600;color:'+(warn?'#991B1B':'#1a1a1a');v.textContent=val||'--';app(d,[l,v]);return d;}
     app(datesDiv,[df('Handover',c.handoverDate),df('Return by',c.returnDate,isOverdue)]);
@@ -720,21 +747,64 @@ function openCollabModal(collabId){
   var photoBtn=mkBtn('+ Add Photos',function(){photoInput.click();},'btn btn-xs');
   app(photoSec,[photoLabel,photoPreview,photoBtn,photoInput]);
   
-  var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name,condition:o.condition||'New'};}):[{name:'',condition:'New'}];
+  var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name||'',condition:o.condition||'New',price:o.price||'',photo:o.photo||''};}):[{name:'',condition:'New',price:'',photo:''}];
   var outfitSec=mk('div');
   function renderOutfits(){
     outfitSec.innerHTML='';
-    var hdr=mk('div');hdr.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';hdr.textContent='Outfits / Garments';outfitSec.appendChild(hdr);
+    var hdr=mk('div');hdr.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E;text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px';hdr.textContent='Outfits / Garments';outfitSec.appendChild(hdr);
+    
     outfits.forEach(function(o,i){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+      var card=mk('div');card.style.cssText='background:#f9fffe;border:1px solid #e6f0ee;border-radius:8px;padding:12px;margin-bottom:12px';
+      
+      // Row 1: Name and Condition
+      var row1=mk('div');row1.style.cssText='display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px';
       var ni=mk('input','form-input');ni.placeholder='Outfit name / description';ni.value=o.name||'';ni.oninput=function(){outfits[i].name=this.value;};
       var cs=mk('select','form-input');cs.style.padding='6px 8px';
       ['New','Excellent','Good','Minor wear'].forEach(function(opt){var op=mk('option',null,opt);op.value=opt;if(opt===o.condition)op.selected=true;cs.appendChild(op);});
       cs.onchange=function(){outfits[i].condition=this.value;};
-      var rb=mkBtn('x',function(){outfits.splice(i,1);renderOutfits();},'btn-danger');rb.style.cssText='padding:4px 8px;font-size:12px';
-      app(row,[ni,cs,rb]);outfitSec.appendChild(row);
+      app(row1,[ni,cs]);
+      
+      // Row 2: Price
+      var row2=mk('div');row2.style.cssText='display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px';
+      var pi=mk('input','form-input');pi.type='number';pi.placeholder='Price (₹)';pi.value=o.price||'';pi.oninput=function(){outfits[i].price=this.value;};
+      row2.appendChild(pi);
+      
+      // Row 3: Photo
+      var row3=mk('div');row3.style.cssText='margin-bottom:8px';
+      var photoPreview=mk('div');photoPreview.style.cssText='margin-bottom:6px';
+      if(o.photo){
+        var photoBox=mk('div');photoBox.style.cssText='position:relative;display:inline-block';
+        var img=mk('img');img.src=o.photo;img.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8';
+        var delPhotoBtn=mk('button');delPhotoBtn.textContent='×';delPhotoBtn.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1';
+        delPhotoBtn.onclick=function(){outfits[i].photo='';renderOutfits();};
+        app(photoBox,[img,delPhotoBtn]);
+        photoPreview.appendChild(photoBox);
+      }
+      var photoInput=mk('input');photoInput.type='file';photoInput.accept='image/*';photoInput.style.display='none';
+      photoInput.onchange=function(){
+        var file=this.files[0];
+        if(file){
+          var reader=new FileReader();
+          reader.onload=function(e){outfits[i].photo=e.target.result;renderOutfits();};
+          reader.readAsDataURL(file);
+        }
+      };
+      var photoBtn=mkBtn(o.photo?'Change Photo':'+ Add Photo',function(){photoInput.click();},'btn btn-xs');
+      photoBtn.style.cssText+='font-size:11px;padding:4px 8px';
+      app(row3,[photoPreview,photoBtn,photoInput]);
+      
+      // Delete button
+      var delRow=mk('div');delRow.style.cssText='display:flex;justify-content:flex-end;padding-top:8px;border-top:1px solid #e6f0ee';
+      var rb=mkBtn('Remove Outfit',function(){outfits.splice(i,1);renderOutfits();},'btn-danger');rb.style.cssText='padding:4px 10px;font-size:11px';
+      delRow.appendChild(rb);
+      
+      app(card,[row1,row2,row3,delRow]);
+      outfitSec.appendChild(card);
     });
-    var addBtn=mkBtn('+ Add outfit',function(){outfits.push({name:'',condition:'New'});renderOutfits();},'btn btn-xs');addBtn.style.cssText+='color:#2D6B5E;border-color:#2D6B5E';outfitSec.appendChild(addBtn);
+    
+    var addBtn=mkBtn('+ Add Another Outfit',function(){outfits.push({name:'',condition:'New',price:'',photo:''});renderOutfits();},'btn btn-sm btn-primary');
+    addBtn.style.cssText+='margin-top:8px';
+    outfitSec.appendChild(addBtn);
   }
   renderOutfits();
   var notesTA=mk('textarea','form-input');notesTA.rows=2;notesTA.placeholder='Any notes...';notesTA.value=c?c.notes||'':'';
@@ -781,8 +851,10 @@ function printCollabDoc(collabId){
     +'<div class="fld"><div class="fld-l">Return By</div><div class="fld-v" style="color:#991B1B;font-weight:700">'+c.returnDate+'</div></div>'
     +'</div></div>'
     +'<div class="sec"><div class="sec-title">Outfits Handed Over</div>'
-    +'<table><thead><tr><th>#</th><th>Outfit</th><th>Condition</th></tr></thead><tbody>'
-    +(c.outfits||[]).map(function(o,i){return '<tr><td>'+(i+1)+'</td><td>'+o.name+'</td><td>'+o.condition+'</td></tr>';}).join('')
+    +'<table><thead><tr><th>Photo</th><th>Outfit</th><th>Condition</th><th>Price</th></tr></thead><tbody>'
+    +(c.outfits||[]).map(function(o,i){
+      return '<tr><td>'+(o.photo?'<img src="'+o.photo+'" style="width:40px;height:40px;object-fit:cover;border-radius:4px">':'—')+'</td><td>'+o.name+'</td><td>'+o.condition+'</td><td>'+(o.price?'₹'+Number(o.price).toLocaleString('en-IN'):'—')+'</td></tr>';
+    }).join('')
     +'</tbody></table></div>'
     +'<div class="sec"><div class="sec-title">Agreed Deliverable</div>'
     +'<div style="font-size:13px;font-weight:600;padding:10px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px">'+(c.deliverable||'As mutually agreed')+'</div></div>'
@@ -3158,7 +3230,11 @@ function pgDues(){
   wrap.appendChild(mkPageHeader('Outstanding Dues','Invoices with pending balance'));
   wrap.appendChild(stats);
   var tableWrap=mk('div','card-p0');tableWrap.id='dues-table';wrap.appendChild(tableWrap);
-  renderDuesTable('all');return wrap;
+  
+  // Render table after DOM is ready
+  setTimeout(function(){renderDuesTable('all');},0);
+  
+  return wrap;
 }
 function renderDuesTable(filter){
   var tw=document.getElementById('dues-table');if(!tw)return;tw.innerHTML='';
