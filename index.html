@@ -1748,6 +1748,12 @@ function pgAppointments(){
       var delApptBtn=mk('button','btn-danger','Del');delApptBtn.style.padding='3px 8px';
       delApptBtn.setAttribute('data-aid',a.id);
       delApptBtn.onclick=function(){if(confirm('Delete this appointment?'))dbDel('appointments',this.getAttribute('data-aid'));};
+      var waApptBtn=mkBtn('WhatsApp',(function(aobj){return function(){waMsgAppointment(aobj);};})(a),'btn btn-xs');
+      waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
+      var waApptBtn=mkBtn('WhatsApp',(function(ao){return function(){waMsgAppointment(ao);};})(a),'btn btn-xs');
+      waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
+            var waApptBtn=mkBtn('WhatsApp',(function(ao){return function(){waMsgAppointment(ao);};})(a),'btn btn-xs');
+      waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
       app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
