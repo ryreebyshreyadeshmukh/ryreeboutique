@@ -636,19 +636,9 @@ function pgCollabs(){
     var igDiv=mk('div');igDiv.style.cssText='font-size:12px;color:#6D28D9;margin-bottom:4px';igDiv.textContent=c.instagram?'@'+c.instagram.replace('@',''):'';
     var phoneDiv=mk('div');phoneDiv.style.cssText='font-size:12px;color:#888;margin-bottom:4px';phoneDiv.textContent=c.phone||'';
     
-    // Price display
-    if(c.price){var priceDiv=mk('div');priceDiv.style.cssText='font-size:13px;color:#2D6B5E;font-weight:700;margin-bottom:10px';priceDiv.textContent='Value: '+rupee(c.price);phoneDiv.appendChild(document.createElement('br'));app(card,[nameDiv,igDiv,phoneDiv,priceDiv]);}else{app(card,[nameDiv,igDiv,phoneDiv]);}
-    
-    // Photos display
-    if(c.photos&&c.photos.length){
-      var photosDiv=mk('div');photosDiv.style.cssText='display:flex;gap:6px;margin-bottom:10px;overflow-x:auto';
-      c.photos.forEach(function(url){
-        var img=mk('img');img.src=url;img.style.cssText='width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8;flex-shrink:0;cursor:pointer';
-        img.onclick=function(){window.open(url,'_blank');};
-        photosDiv.appendChild(img);
-      });
-      card.appendChild(photosDiv);
-    }
+    // Total price display (calculated from outfits)
+    var totalPrice=(c.outfits||[]).reduce(function(sum,o){return sum+Number(o.price||0);},0);
+    if(totalPrice>0){var priceDiv=mk('div');priceDiv.style.cssText='font-size:13px;color:#2D6B5E;font-weight:700;margin-bottom:10px';priceDiv.textContent='Total Value: '+rupee(totalPrice);app(card,[nameDiv,igDiv,phoneDiv,priceDiv]);}else{app(card,[nameDiv,igDiv,phoneDiv]);}
     
     var outfitDiv=mk('div');outfitDiv.style.cssText='font-size:12px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px;padding:8px 10px;margin-bottom:10px';
     var otitle=mk('div');otitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:6px;font-size:11px;text-transform:uppercase';otitle.textContent='Outfits ('+(c.outfits||[]).length+')';outfitDiv.appendChild(otitle);
@@ -711,41 +701,11 @@ function openCollabModal(collabId){
   var nameInp=mkInput('col-name','text','Stylist / Celebrity name',c?c.stylistName:'');
   var igInp=mkInput('col-ig','text','Instagram handle (without @)',c?c.instagram||'':'');
   var phoneInp=mkInput('col-phone','tel','Phone number',c?c.phone||'':'');
-  var priceInp=mkInput('col-price','number','Total outfit value (₹)',c?c.price||'':'');
-  priceInp.placeholder='e.g. 25000';
   var handInp=mkInput('col-hand','date','',c?c.handoverDate:today);
   var retInp=mkInput('col-ret','date','',c?c.returnDate:retDef);
   var delInp=mkInput('col-del','text','e.g. 1 Instagram Reel tagged @ryreeboutique',c?c.deliverable||'':'');
   var stOpts=COLLAB_STATUSES.map(function(s){return {value:s,label:s};});
   var stSel=mkSelect('col-status',stOpts,c?c.status:'Active');
-  
-  // Photo upload section
-  var photoSec=mk('div');photoSec.style.marginBottom='14px';
-  var photoLabel=mk('div','form-label','Photos');
-  var photoPreview=mk('div');photoPreview.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px';
-  var currentPhotos=c?(c.photos||[]):[];
-  function renderPhotos(){
-    photoPreview.innerHTML='';
-    currentPhotos.forEach(function(url,i){
-      var box=mk('div');box.style.cssText='position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:1px solid #e8e8e8';
-      var img=mk('img');img.src=url;img.style.cssText='width:100%;height:100%;object-fit:cover';
-      var delBtn=mk('button');delBtn.textContent='×';delBtn.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1';
-      delBtn.onclick=function(){currentPhotos.splice(i,1);renderPhotos();};
-      app(box,[img,delBtn]);photoPreview.appendChild(box);
-    });
-  }
-  renderPhotos();
-  var photoInput=mk('input');photoInput.type='file';photoInput.accept='image/*';photoInput.multiple=true;photoInput.style.display='none';
-  photoInput.onchange=function(){
-    Array.from(this.files).forEach(function(file){
-      var reader=new FileReader();
-      reader.onload=function(e){currentPhotos.push(e.target.result);renderPhotos();};
-      reader.readAsDataURL(file);
-    });
-    this.value='';
-  };
-  var photoBtn=mkBtn('+ Add Photos',function(){photoInput.click();},'btn btn-xs');
-  app(photoSec,[photoLabel,photoPreview,photoBtn,photoInput]);
   
   var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name||'',condition:o.condition||'New',price:o.price||'',photo:o.photo||''};}):[{name:'',condition:'New',price:'',photo:''}];
   var outfitSec=mk('div');
@@ -814,10 +774,14 @@ function openCollabModal(collabId){
   var defaultTC='The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date above, in the same condition as received. Any damage, loss or delay is the responsibility of the recipient.';
   tcTA.value=c?(c.termsConditions||defaultTC):defaultTC;
   
-  app(wrap,[mkFg('Stylist Name *',nameInp),app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),mkFg('Outfit Value (₹)',priceInp),app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),mkFg('Deliverable',delInp),mkFg('Status',stSel),photoSec,outfitSec,mkFg('Notes',notesTA),mkFg('Terms & Conditions (for handover document)',tcTA),mkActions([mkBtn('Cancel',closeModal),mkBtn(c?'Save':'Create',function(){
+  app(wrap,[mkFg('Stylist Name *',nameInp),app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),mkFg('Deliverable',delInp),mkFg('Status',stSel),outfitSec,mkFg('Notes',notesTA),mkFg('Terms & Conditions (for handover document)',tcTA),mkActions([mkBtn('Cancel',closeModal),mkBtn(c?'Save':'Create',function(){
     var nm=(document.getElementById('col-name')||{}).value||'';
     if(!nm.trim()){alert('Stylist name is required.');return;}
-    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',price:Number((document.getElementById('col-price')||{}).value||0),handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),photos:currentPhotos,notes:notesTA.value||'',termsConditions:document.getElementById('col-tc').value||defaultTC,created:c?c.created:Date.now()});
+    
+    // Calculate total price from outfits
+    var totalPrice=outfits.reduce(function(sum,o){return sum+Number(o.price||0);},0);
+    
+    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',price:totalPrice,handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),notes:notesTA.value||'',termsConditions:document.getElementById('col-tc').value||defaultTC,created:c?c.created:Date.now()});
     closeModal();
   },'btn btn-primary')])]);
   showM(wrap,true);
