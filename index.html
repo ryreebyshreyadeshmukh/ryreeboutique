@@ -7687,6 +7687,42 @@ function whatsappBirthday(clientId){
   });
 }
 
+// -- EXPORT DATA --------------------------------------------------------------
+function exportAllData(){
+  var data={
+    exportDate:new Date().toISOString(),
+    clients:DB.clients||[],
+    orders:DB.orders||[],
+    invoices:DB.invoices||[],
+    quotations:DB.quotations||[],
+    appointments:DB.appointments||[],
+    tasks:DB.tasks||[],
+    leads:DB.leads||[],
+    collabs:DB.collabs||[],
+    expenses:DB.expenses||[],
+    inventory:DB.inventory||[],
+    vendors:DB.vendors||[],
+    staff:DB.staff||[],
+    services:DB.services||[],
+    clothing:DB.clothing||[],
+    measitems:DB.measitems||[],
+    tctemplates:DB.tctemplates||[],
+    tasktemplates:DB.tasktemplates||[],
+    estgarments:DB.estgarments||[],
+    estcols:DB.estcols||[],
+    estconfig:DB.estconfig||[]
+  };
+  var json=JSON.stringify(data,null,2);
+  var blob=new Blob([json],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='ryree-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  alert('Data exported successfully!');
+}
+
 // -- LOCAL STORAGE BACKUP (for logout safety) --------------------------------
 function autoSaveToLocalStorage(){
   try{
