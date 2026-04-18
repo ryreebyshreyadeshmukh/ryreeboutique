@@ -634,7 +634,22 @@ function pgCollabs(){
     var stBadge=mk('div');stBadge.style.cssText='position:absolute;top:12px;right:12px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:'+stP[0]+';color:'+stP[1];stBadge.textContent=c.status;card.appendChild(stBadge);
     var nameDiv=mk('div');nameDiv.style.cssText='font-size:15px;font-weight:700;margin-bottom:2px';nameDiv.textContent=c.stylistName||'Unknown';
     var igDiv=mk('div');igDiv.style.cssText='font-size:12px;color:#6D28D9;margin-bottom:4px';igDiv.textContent=c.instagram?'@'+c.instagram.replace('@',''):'';
-    var phoneDiv=mk('div');phoneDiv.style.cssText='font-size:12px;color:#888;margin-bottom:10px';phoneDiv.textContent=c.phone||'';
+    var phoneDiv=mk('div');phoneDiv.style.cssText='font-size:12px;color:#888;margin-bottom:4px';phoneDiv.textContent=c.phone||'';
+    
+    // Price display
+    if(c.price){var priceDiv=mk('div');priceDiv.style.cssText='font-size:13px;color:#2D6B5E;font-weight:700;margin-bottom:10px';priceDiv.textContent='Value: '+rupee(c.price);phoneDiv.appendChild(document.createElement('br'));app(card,[nameDiv,igDiv,phoneDiv,priceDiv]);}else{app(card,[nameDiv,igDiv,phoneDiv]);}
+    
+    // Photos display
+    if(c.photos&&c.photos.length){
+      var photosDiv=mk('div');photosDiv.style.cssText='display:flex;gap:6px;margin-bottom:10px;overflow-x:auto';
+      c.photos.forEach(function(url){
+        var img=mk('img');img.src=url;img.style.cssText='width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e8e8e8;flex-shrink:0;cursor:pointer';
+        img.onclick=function(){window.open(url,'_blank');};
+        photosDiv.appendChild(img);
+      });
+      card.appendChild(photosDiv);
+    }
+    
     var outfitDiv=mk('div');outfitDiv.style.cssText='font-size:12px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px;padding:8px 10px;margin-bottom:10px';
     var otitle=mk('div');otitle.style.cssText='font-weight:700;color:#2D6B5E;margin-bottom:4px;font-size:11px;text-transform:uppercase';otitle.textContent='Outfits ('+(c.outfits||[]).length+')';outfitDiv.appendChild(otitle);
     (c.outfits||[]).forEach(function(o){var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:2px 0';var nm=mk('span');nm.textContent=o.name||'';var cond=mk('span');cond.style.cssText='font-size:10px;color:#888';cond.textContent=o.condition||'';app(row,[nm,cond]);outfitDiv.appendChild(row);});
@@ -643,7 +658,7 @@ function pgCollabs(){
     app(datesDiv,[df('Handover',c.handoverDate),df('Return by',c.returnDate,isOverdue)]);
     if(isOverdue){var od=mk('div');od.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;color:#991B1B;margin-bottom:10px';od.textContent='Return overdue';card.appendChild(od);}
     if(c.deliverable){var delDiv=mk('div');delDiv.style.cssText='font-size:12px;color:#555;margin-bottom:10px';var dlbl=mk('span');dlbl.style.fontWeight='700';dlbl.textContent='Deliverable: ';delDiv.appendChild(dlbl);delDiv.appendChild(document.createTextNode(c.deliverable));card.appendChild(delDiv);}
-    app(card,[nameDiv,igDiv,phoneDiv,outfitDiv,datesDiv]);
+    card.appendChild(outfitDiv);card.appendChild(datesDiv);
     var acts=mk('div');acts.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
     var editBtn=mkBtn('Edit',(function(cid){return function(){openCollabModal(cid);};})(c.id),'btn btn-xs');
     var docBtn=mkBtn('Handover Doc',(function(cid){return function(){printCollabDoc(cid);};})(c.id),'btn btn-xs');docBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
@@ -669,11 +684,42 @@ function openCollabModal(collabId){
   var nameInp=mkInput('col-name','text','Stylist / Celebrity name',c?c.stylistName:'');
   var igInp=mkInput('col-ig','text','Instagram handle (without @)',c?c.instagram||'':'');
   var phoneInp=mkInput('col-phone','tel','Phone number',c?c.phone||'':'');
+  var priceInp=mkInput('col-price','number','Total outfit value (₹)',c?c.price||'':'');
+  priceInp.placeholder='e.g. 25000';
   var handInp=mkInput('col-hand','date','',c?c.handoverDate:today);
   var retInp=mkInput('col-ret','date','',c?c.returnDate:retDef);
   var delInp=mkInput('col-del','text','e.g. 1 Instagram Reel tagged @ryreeboutique',c?c.deliverable||'':'');
   var stOpts=COLLAB_STATUSES.map(function(s){return {value:s,label:s};});
   var stSel=mkSelect('col-status',stOpts,c?c.status:'Active');
+  
+  // Photo upload section
+  var photoSec=mk('div');photoSec.style.marginBottom='14px';
+  var photoLabel=mk('div','form-label','Photos');
+  var photoPreview=mk('div');photoPreview.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px';
+  var currentPhotos=c?(c.photos||[]):[];
+  function renderPhotos(){
+    photoPreview.innerHTML='';
+    currentPhotos.forEach(function(url,i){
+      var box=mk('div');box.style.cssText='position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:1px solid #e8e8e8';
+      var img=mk('img');img.src=url;img.style.cssText='width:100%;height:100%;object-fit:cover';
+      var delBtn=mk('button');delBtn.textContent='×';delBtn.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:14px;line-height:1';
+      delBtn.onclick=function(){currentPhotos.splice(i,1);renderPhotos();};
+      app(box,[img,delBtn]);photoPreview.appendChild(box);
+    });
+  }
+  renderPhotos();
+  var photoInput=mk('input');photoInput.type='file';photoInput.accept='image/*';photoInput.multiple=true;photoInput.style.display='none';
+  photoInput.onchange=function(){
+    Array.from(this.files).forEach(function(file){
+      var reader=new FileReader();
+      reader.onload=function(e){currentPhotos.push(e.target.result);renderPhotos();};
+      reader.readAsDataURL(file);
+    });
+    this.value='';
+  };
+  var photoBtn=mkBtn('+ Add Photos',function(){photoInput.click();},'btn btn-xs');
+  app(photoSec,[photoLabel,photoPreview,photoBtn,photoInput]);
+  
   var outfits=c?(c.outfits||[]).map(function(o){return {name:o.name,condition:o.condition||'New'};}):[{name:'',condition:'New'}];
   var outfitSec=mk('div');
   function renderOutfits(){
@@ -692,10 +738,16 @@ function openCollabModal(collabId){
   }
   renderOutfits();
   var notesTA=mk('textarea','form-input');notesTA.rows=2;notesTA.placeholder='Any notes...';notesTA.value=c?c.notes||'':'';
-  app(wrap,[mkFg('Stylist Name *',nameInp),app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),mkFg('Deliverable',delInp),mkFg('Status',stSel),outfitSec,mkFg('Notes',notesTA),mkActions([mkBtn('Cancel',closeModal),mkBtn(c?'Save':'Create',function(){
+  
+  // Terms & Conditions
+  var tcTA=mk('textarea','form-input');tcTA.id='col-tc';tcTA.rows=3;tcTA.placeholder='Default T&C will be used if left blank';
+  var defaultTC='The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date above, in the same condition as received. Any damage, loss or delay is the responsibility of the recipient.';
+  tcTA.value=c?(c.termsConditions||defaultTC):defaultTC;
+  
+  app(wrap,[mkFg('Stylist Name *',nameInp),app(mk('div','form-row'),[mkFg('Instagram',igInp),mkFg('Phone',phoneInp)]),mkFg('Outfit Value (₹)',priceInp),app(mk('div','form-row'),[mkFg('Handover Date',handInp),mkFg('Return By',retInp)]),mkFg('Deliverable',delInp),mkFg('Status',stSel),photoSec,outfitSec,mkFg('Notes',notesTA),mkFg('Terms & Conditions (for handover document)',tcTA),mkActions([mkBtn('Cancel',closeModal),mkBtn(c?'Save':'Create',function(){
     var nm=(document.getElementById('col-name')||{}).value||'';
     if(!nm.trim()){alert('Stylist name is required.');return;}
-    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),notes:notesTA.value||'',created:c?c.created:Date.now()});
+    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',price:Number((document.getElementById('col-price')||{}).value||0),handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),photos:currentPhotos,notes:notesTA.value||'',termsConditions:document.getElementById('col-tc').value||defaultTC,created:c?c.created:Date.now()});
     closeModal();
   },'btn btn-primary')])]);
   showM(wrap,true);
@@ -704,6 +756,8 @@ function openCollabModal(collabId){
 function printCollabDoc(collabId){
   var c=(DB.collabs||[]).find(function(x){return x.id===collabId;});if(!c)return;
   var docNo='COLLAB-'+new Date(c.created||Date.now()).getFullYear()+'-'+String((DB.collabs||[]).findIndex(function(x){return x.id===collabId;})+1).padStart(3,'0');
+  var defaultTC='The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date above, in the same condition as received. Any damage, loss or delay is the responsibility of the recipient.';
+  var tc=c.termsConditions||defaultTC;
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Collaboration Handover</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}'
     +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:2px solid #2D6B5E;margin-bottom:20px}'
@@ -714,7 +768,7 @@ function printCollabDoc(collabId){
     +'.fld-l{font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:2px}.fld-v{font-size:13px;font-weight:600}'
     +'table{width:100%;border-collapse:collapse}th{background:#f9fffe;text-align:left;padding:8px 12px;font-size:11px;font-weight:700;color:#2D6B5E;border-bottom:2px solid #e6f0ee}'
     +'td{padding:8px 12px;border-bottom:1px solid #f5f5f5;font-size:13px}'
-    +'.clause{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:12px;font-size:12px;color:#991B1B;margin-top:12px}'
+    +'.clause{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:12px;font-size:12px;color:#991B1B;margin-top:12px;white-space:pre-wrap}'
     +'.sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}'
     +'.sig-box{border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
     +'@media print{body{padding:15px}}</style></head><body>'
@@ -732,7 +786,8 @@ function printCollabDoc(collabId){
     +'</tbody></table></div>'
     +'<div class="sec"><div class="sec-title">Agreed Deliverable</div>'
     +'<div style="font-size:13px;font-weight:600;padding:10px;background:#f9fffe;border:1px solid #e6f0ee;border-radius:6px">'+(c.deliverable||'As mutually agreed')+'</div></div>'
-    +'<div class="clause">The recipient agrees to return all listed outfits to Ryree by Shreya Deshmukh by the date above, in the same condition as received. Any damage, loss or delay is the responsibility of the recipient.</div>'
+    +(c.price?'<div class="sec"><div class="sec-title">Outfit Value</div><div style="font-size:15px;font-weight:700;color:#2D6B5E">₹'+Number(c.price).toLocaleString("en-IN")+'</div></div>':'')
+    +'<div class="clause">'+tc.replace(/\n/g,'<br>')+'</div>'
     +'<div class="sig"><div class="sig-box">Signature (Ryree by Shreya Deshmukh)<br><br><br>Shreya Deshmukh<br>Date: _______</div>'
     +'<div class="sig-box">Signature (Collaborator)<br><br><br>'+c.stylistName+'<br>Date: _______</div></div>'
     +'</body></html>';
