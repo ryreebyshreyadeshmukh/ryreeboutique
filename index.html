@@ -1835,6 +1835,7 @@ function pgDashboard(){
   var stats=mk('div','stats-row');
   var todayStr=new Date().toISOString().split('T')[0];
   var leadsDue=DB.leads.filter(function(l){return l.followUpDate&&l.followUpDate<=todayStr&&l.status!=='Converted'&&l.status!=='Cold';}).length;
+  var collabOverdue=(DB.collabs||[]).filter(function(c){return c.status==='Active'&&c.returnDate&&c.returnDate<todayStr;}).length;
   app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Today\'s appointments',todayA,'#2D6B5E'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
   
   if(collabOverdue>0){
