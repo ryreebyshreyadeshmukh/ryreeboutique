@@ -7687,3 +7687,13 @@ function whatsappBirthday(clientId){
   });
 }
 
+
+// Initialize on page load
+if(isLoggedIn()){
+  showApp();
+}else{
+  document.getElementById('login-wrap').style.display='flex';
+}
+</script>
+</body>
+</html>
