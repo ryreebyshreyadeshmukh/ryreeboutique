@@ -7687,6 +7687,45 @@ function whatsappBirthday(clientId){
   });
 }
 
+// -- LOCAL STORAGE BACKUP (for logout safety) --------------------------------
+function autoSaveToLocalStorage(){
+  try{
+    var backup={timestamp:Date.now(),data:{}};
+    var cols=['clients','orders','invoices','appointments','tasks','leads','collabs','expenses','quotations'];
+    cols.forEach(function(col){if(DB[col]&&DB[col].length)backup.data[col]=DB[col];});
+    localStorage.setItem('ryree_backup',JSON.stringify(backup));
+  }catch(e){console.warn('Backup failed:',e);}
+}
+function getLastBackupTime(){
+  try{
+    var backup=JSON.parse(localStorage.getItem('ryree_backup')||'null');
+    if(backup&&backup.timestamp){
+      var d=new Date(backup.timestamp);
+      return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    }
+  }catch(e){}
+  return null;
+}
+function toggleSidebar(){
+  var sb=document.querySelector('.sidebar');
+  var ov=document.getElementById('sb-overlay');
+  if(sb.classList.contains('open')){
+    sb.classList.remove('open');
+    ov.classList.remove('show');
+  }else{
+    sb.classList.add('open');
+    ov.classList.add('show');
+  }
+}
+function manualSync(){
+  var icon=document.getElementById('sync-icon');
+  if(icon){
+    icon.style.animation='spin 1s linear infinite';
+    setTimeout(function(){icon.style.animation='';},1000);
+  }
+  setSync('loading','Syncing...');
+  setTimeout(function(){setSync('ok','Synced');},800);
+}
 
 // Initialize on page load
 if(isLoggedIn()){
