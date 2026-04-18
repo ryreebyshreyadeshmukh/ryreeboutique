@@ -1964,7 +1964,7 @@ function pgAppointments(){
   var past=DB.appointments.filter(function(a){return a.date<today;}).sort(function(a,b){return b.date.localeCompare(a.date);});
   function makeTbl(list,dim){
     var apptSrNo=0;
-    var t=mkTable(['#','Client','Phone','Date','Time','Purpose','']);
+    var t=mkTable(['#','Client','Phone','Date','Time','Mode','Status','Purpose','']);
     list.forEach(function(a){
       var cl=DB.clients.find(function(x){return x.id===a.clientId;});
       var cc=mkRow('align-items:center;gap:6px');
@@ -1974,7 +1974,36 @@ function pgAppointments(){
       var ccTd=mk('td');ccTd.appendChild(cc);
       var phoneTd=mk('td');phoneTd.style.cssText='color:#555;font-size:13px';phoneTd.textContent=(cl&&cl.phone)||'—';
       var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
-      var tmTd=mk('td');tmTd.style.color='#888';tmTd.textContent=a.time||'—';
+      
+      // Convert 24hr to 12hr
+      var tmTd=mk('td');tmTd.style.color='#888';
+      if(a.time){
+        var parts=a.time.split(':');
+        var h=parseInt(parts[0]);
+        var m=parts[1];
+        var ampm=h>=12?'PM':'AM';
+        h=h%12||12;
+        tmTd.textContent=h+':'+m+' '+ampm;
+      }else{
+        tmTd.textContent='—';
+      }
+      
+      // Mode badge
+      var modeTd=mk('td');
+      var modeBadge=mk('span');
+      modeBadge.style.cssText='font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:'+(a.mode==='Online'?'#EFF6FF':'#F0FDF4')+';color:'+(a.mode==='Online'?'#1D4ED8':'#166534');
+      modeBadge.textContent=a.mode||'Offline';
+      modeTd.appendChild(modeBadge);
+      
+      // Status badge
+      var stTd=mk('td');
+      var stBadge=mk('span');
+      var stColors={Scheduled:'#FFFBEB|#B45309',Confirmed:'#EFF6FF|#1D4ED8',Completed:'#F0FDF4|#166534',Cancelled:'#FEF2F2|#991B1B','No-show':'#F9FAFB|#6B7280'};
+      var stC=(stColors[a.status]||'#F9FAFB|#6B7280').split('|');
+      stBadge.style.cssText='font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;background:'+stC[0]+';color:'+stC[1];
+      stBadge.textContent=a.status||'Scheduled';
+      stTd.appendChild(stBadge);
+      
       var puTd=mk('td');puTd.textContent=a.purpose||'—';
       var acTd=mk('td');acTd.style.cssText='display:flex;gap:6px;flex-wrap:wrap';
       var editApptBtn=mkBtn('Edit',(function(aid){return function(){openApptModal(aid);};})(a.id),'btn btn-xs');
@@ -1985,15 +2014,11 @@ function pgAppointments(){
       delApptBtn.onclick=function(){if(confirm('Delete this appointment?'))dbDel('appointments',this.getAttribute('data-aid'));};
       var waApptBtn=mkBtn('WhatsApp',(function(aobj){return function(){waMsgAppointment(aobj);};})(a),'btn btn-xs');
       waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
-      var waApptBtn=mkBtn('WhatsApp',(function(ao){return function(){waMsgAppointment(ao);};})(a),'btn btn-xs');
-      waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
-            var waApptBtn=mkBtn('WhatsApp',(function(ao){return function(){waMsgAppointment(ao);};})(a),'btn btn-xs');
-      waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
       app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
-      app(tr,[srTdA,ccTd,phoneTd,dtTd,tmTd,puTd,acTd]);t._body.appendChild(tr);
+      app(tr,[srTdA,ccTd,phoneTd,dtTd,tmTd,modeTd,stTd,puTd,acTd]);t._body.appendChild(tr);
     });
     makeSortable(t);
     return t;
@@ -2018,7 +2043,19 @@ function openApptModal(apptId){
   var appt=apptId?DB.appointments.find(function(x){return x.id===apptId;}):null;
   var clSel=mkClientSelect('m-client',appt?appt.clientId:'');
   var dateInp=mkInput('m-date','date','',appt?appt.date:new Date().toISOString().split('T')[0]);
+  
+  // 12-hour time input
   var timeInp=mkInput('m-time','time','',appt?appt.time:'');
+  timeInp.setAttribute('step','900'); // 15 min intervals
+  
+  // Mode dropdown
+  var modeOpts=[{value:'Offline',label:'Offline (In-person)'},{value:'Online',label:'Online (Virtual)'}];
+  var modeSel=mkSelect('m-mode',modeOpts,appt?(appt.mode||'Offline'):'Offline');
+  
+  // Status dropdown
+  var statusOpts=[{value:'Scheduled',label:'Scheduled'},{value:'Confirmed',label:'Confirmed'},{value:'Completed',label:'Completed'},{value:'Cancelled',label:'Cancelled'},{value:'No-show',label:'No-show'}];
+  var statusSel=mkSelect('m-status',statusOpts,appt?(appt.status||'Scheduled'):'Scheduled');
+  
   var purpInp=mkInput('m-purpose','text','e.g. First fitting, Trial, Delivery',appt?appt.purpose:'');
   var notesInp=mkInput('m-appt-notes','text','Any notes...',appt?appt.notes||'':'');
   var wrap=mk('div');
@@ -2026,6 +2063,7 @@ function openApptModal(apptId){
     mk('div','modal-title',appt?'Edit appointment':'Schedule appointment'),
     mkFg('Client *',clSel),
     app(mk('div','form-row'),[mkFg('Date *',dateInp),mkFg('Time',timeInp)]),
+    app(mk('div','form-row'),[mkFg('Mode',modeSel),mkFg('Status',statusSel)]),
     mkFg('Purpose',purpInp),
     mkFg('Notes',notesInp),
     mkActions([
@@ -2039,6 +2077,8 @@ function openApptModal(apptId){
           clientId:cid,
           date:date,
           time:document.getElementById('m-time').value,
+          mode:document.getElementById('m-mode').value,
+          status:document.getElementById('m-status').value,
           purpose:document.getElementById('m-purpose').value,
           notes:document.getElementById('m-appt-notes').value
         });
