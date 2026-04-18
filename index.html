@@ -113,7 +113,7 @@ textarea.form-input{resize:vertical}
 <body>
 
 <div class="login-wrap" id="login-wrap">
-  <img src="https://ryreebyshreyadeshmukh.github.io/ryreeboutique/IMG_0580.PNG" style="width:260px;max-width:80vw;margin-bottom:20px;mix-blend-mode:screen;filter:brightness(1.1)">
+  <img src="https://raw.githubusercontent.com/ryreebyshreyadeshmukh/ryreeboutique/main/Ryree_logo.PNG" style="width:260px;max-width:80vw;margin-bottom:20px">
   <div class="login-box">
     <div class="login-title">Welcome back</div>
     <div class="login-sub">Enter your password to continue</div>
@@ -132,7 +132,7 @@ textarea.form-input{resize:vertical}
   
   <div class="sidebar">
     <div class="logo">
-      <img src="https://ryreebyshreyadeshmukh.github.io/ryreeboutique/IMG_0580.PNG" style="width:100%;max-width:200px;display:block;margin:0 auto 0px;mix-blend-mode:screen;filter:brightness(1.2)">
+      <img src="https://raw.githubusercontent.com/ryreebyshreyadeshmukh/ryreeboutique/main/Ryree_logo.PNG" style="width:100%;max-width:200px;display:block;margin:0 auto 0px">
       <div class="logo-sub" style="margin-top:2px;margin-bottom:2px">Boutique Management Software</div>
       <div id="sidebar-date" style="font-size:11px;color:rgba(201,168,76,.6);text-align:center;padding-bottom:4px"></div>
     </div>
@@ -807,10 +807,11 @@ function printCollabDoc(collabId){
     +'.clause{background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:12px;font-size:12px;color:#991B1B;margin-top:12px;white-space:pre-wrap}'
     +'.sig{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}'
     +'.sig-box{border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#888}'
-    +'.logo{width:120px;height:auto;margin-bottom:8px}'
-    +'@media print{body{padding:15px}}</style></head><body>'
-    +'<div class="hdr"><div><img src="https://ryreebyshreyadeshmukh.github.io/ryreeboutique/Ryree_logo.PNG" class="logo" onerror="this.style.display=\'none\'"><div class="brand">Ryree by Shreya Deshmukh</div><div class="title">Outfit Collaboration Handover</div></div>'
-    +'<div style="font-size:12px;color:#888;text-align:right">Doc: '+docNo+'<br>Date: '+c.handoverDate+'</div></div>'
+    +'.logo{width:120px;height:auto}'
+    +'.letterhead{background:linear-gradient(135deg,#2D6B5E 0%,#1a4037 100%);padding:30px;margin:-30px -30px 30px -30px;display:flex;justify-content:space-between;align-items:center;color:#fff}'
+    +'@media print{body{padding:15px}.letterhead{margin:-15px -15px 20px -15px;padding:20px}}</style></head><body>'
+    +'<div class="letterhead"><div style="flex:1"><img src="https://raw.githubusercontent.com/ryreebyshreyadeshmukh/ryreeboutique/main/Ryree_logo.PNG" class="logo" style="filter:brightness(0) invert(1)"><div style="font-size:24px;font-weight:800;margin-top:10px">Outfit Collaboration Handover</div></div>'
+    +'<div style="text-align:right"><div style="font-size:11px;opacity:0.9">Document No.</div><div style="font-size:14px;font-weight:700">'+docNo+'</div><div style="font-size:11px;opacity:0.9;margin-top:8px">Date</div><div style="font-size:14px;font-weight:700">'+c.handoverDate+'</div></div></div>'
     +'<div class="sec"><div class="sec-title">Collaborator Details</div><div class="g2">'
     +'<div class="fld"><div class="fld-l">Name</div><div class="fld-v">'+c.stylistName+'</div></div>'
     +'<div class="fld"><div class="fld-l">Instagram</div><div class="fld-v">'+(c.instagram?'@'+c.instagram.replace('@',''):'--')+'</div></div>'
