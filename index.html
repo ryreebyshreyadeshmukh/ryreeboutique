@@ -1825,17 +1825,7 @@ function pgDashboard(){
   var todayStr=new Date().toISOString().split('T')[0];
   var leadsDue=DB.leads.filter(function(l){return l.followUpDate&&l.followUpDate<=todayStr&&l.status!=='Converted'&&l.status!=='Cold';}).length;
   app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Today\'s appointments',todayA,'#2D6B5E'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
-  if(leadsDue>0){
-    var leadAlert=mk('div');leadAlert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
-    var laLeft=mk('div');
-    var laTitle=mk('div');laTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B';laTitle.textContent=leadsDue+' lead'+(leadsDue!==1?'s':'')+' due for follow-up';
-    var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
-    app(laLeft,[laTitle,laSub]);
-    var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='→';
-    app(leadAlert,[laLeft,laArrow]);
-    leadAlert.onclick=function(){nav('leads');};
-    wrap.appendChild(leadAlert);
-  }
+  
   var oc=mk('div','card-p0');
   if(!recentO.length)oc.appendChild(mk('div','empty','No orders yet.'));
   else recentO.forEach(function(o){
@@ -1921,6 +1911,28 @@ function pgDashboard(){
 
   var wrap=mk('div');
   wrap.appendChild(mkPageHeader('Dashboard',''));
+  if(leadsDue>0){
+    var leadAlert=mk('div');leadAlert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
+    var laLeft=mk('div');
+    var laTitle=mk('div');laTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B';laTitle.textContent=leadsDue+' lead'+(leadsDue!==1?'s':'')+' due for follow-up';
+    var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
+    app(laLeft,[laTitle,laSub]);
+    var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='→';
+    app(leadAlert,[laLeft,laArrow]);
+    leadAlert.onclick=function(){nav('leads');};
+    wrap.appendChild(leadAlert);
+  }
+  if(leadsDue>0){
+    var leadAlert=mk('div');leadAlert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
+    var laLeft=mk('div');
+    var laTitle=mk('div');laTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B';laTitle.textContent=leadsDue+' lead'+(leadsDue!==1?'s':'')+' due for follow-up';
+    var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
+    app(laLeft,[laTitle,laSub]);
+    var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='›';
+    app(leadAlert,[laLeft,laArrow]);
+    leadAlert.onclick=function(){nav('leads');};
+    wrap.appendChild(leadAlert);
+  }
   wrap.appendChild(stats);
   wrap.appendChild(two);
   wrap.appendChild(twSec);
