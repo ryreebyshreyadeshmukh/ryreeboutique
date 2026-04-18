@@ -2925,48 +2925,109 @@ function pgDues(){
   var overdue=dueOrders.filter(function(o){return o.delivery&&o.delivery<today&&o.status!=='Delivered';});
   function sc(l,v,c,bg){var card=mk('div','stat-card');card.style.background=bg||'#fff';var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',String(v));if(c)val.style.color=c;app(card,[lbl,val]);return card;}
   var stats=mk('div','stats-row');stats.style.gridTemplateColumns='repeat(3,1fr)';stats.style.marginBottom='20px';
-  app(stats,[sc('Orders/Invoices with dues',dueOrders.length+dueInvoices.length,'#B45309','#FFFBEB'),sc('Total due',rupee(totalDue),'#991B1B','#FEF2F2'),sc('Overdue orders',overdue.length,'#991B1B',overdue.length>0?'#FEF2F2':'#fff')]);
-  wrap.appendChild(mkPageHeader('Outstanding Dues','Clients with pending balance',mkBtn('Print list',function(){printDues(dueOrders);},'btn btn-sm')));
+  var unpaidCount=dueInvoices.filter(function(inv){
+    var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);return tp===0;
+  }).length;
+  var partialCount=dueInvoices.filter(function(inv){
+    var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);return tp>0;
+  }).length;
+  app(stats,[
+    sc('Total invoices due',dueInvoices.length,'#B45309','#FFFBEB'),
+    sc('Total outstanding',rupee(invoicesDue),'#991B1B','#FEF2F2'),
+    sc('Partially paid',partialCount,'#1D4ED8','#EFF6FF')
+  ]);
+  wrap.appendChild(mkPageHeader('Outstanding Dues','Invoices with pending balance'));
   wrap.appendChild(stats);
-  var tabsDiv=mk('div');tabsDiv.style.cssText='display:flex;gap:8px;margin-bottom:16px';
-  var allTab=mkBtn('All ('+dueOrders.length+')',function(){renderDuesTable('all');},'btn btn-primary btn-sm');
-  var overTab=mkBtn('Overdue ('+overdue.length+')',function(){renderDuesTable('overdue');},'btn btn-sm');overTab.style.color='#991B1B';overTab.style.borderColor='#FCA5A5';
-  app(tabsDiv,[allTab,overTab]);wrap.appendChild(tabsDiv);
   var tableWrap=mk('div','card-p0');tableWrap.id='dues-table';wrap.appendChild(tableWrap);
   renderDuesTable('all');return wrap;
 }
 function renderDuesTable(filter){
   var tw=document.getElementById('dues-table');if(!tw)return;tw.innerHTML='';
   var today=new Date().toISOString().split('T')[0];
-  var invoicedOrderIds2=DB.invoices.map(function(i){return i.linkedOrderId;}).filter(Boolean);
-  var orders=DB.orders.filter(function(o){
-    if(o.status==='Cancelled')return false;
-    if(invoicedOrderIds2.indexOf(o.id)>=0)return false;
-    if(Number(o.amount||0)<=Number(o.advance||0))return false;
-    if(filter==='overdue')return o.delivery&&o.delivery<today&&o.status!=='Delivered';
-    return true;
-  }).sort(function(a,b){return (a.delivery||'9999').localeCompare(b.delivery||'9999');});
-  // Invoice dues
+
+  // Invoice dues - primary source of all outstanding amounts
   var invDues=DB.invoices.filter(function(inv){
     var tp=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
-    return Number(inv.total||0)>tp&&inv.status!=='Paid';
-  });
+    var bal=Number(inv.total||0)-tp;
+    return bal>0&&inv.status!=='Paid';
+  }).sort(function(a,b){return (a.invoiceNo||'').localeCompare(b.invoiceNo||'');});
 
-  if(!orders.length&&!invDues.length){tw.appendChild(mk('div','empty',filter==='overdue'?'No overdue orders!':'No outstanding dues.'));return;}
-  var t=mkTable(['Client','Item','Total','Paid','Balance','Delivery','Status','']);
-  orders.forEach(function(o){
-    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
-    var bal=Number(o.amount||0)-getPaid(o);
-    var isOverdue=o.delivery&&o.delivery<new Date().toISOString().split('T')[0]&&o.status!=='Delivered';
-    var tr=mk('tr');if(isOverdue)tr.style.background='#FFF5F5';
-    var clCell=mkRow();var av=mkAvatar(cl?cl.name:'?');var ns=mk('span');ns.style.fontWeight='600';ns.textContent=cl?cl.name:'?';app(clCell,[av,ns]);var clTd=mk('td');clTd.appendChild(clCell);
+  if(!invDues.length){
+    tw.appendChild(mk('div','empty','No outstanding dues. All invoices are fully paid.'));
+    return;
+  }
+
+  var t=mkTable(['#','Client','Phone','Invoice','Total','Paid','Balance','Status','']);
+  var srNo=0;
+  invDues.forEach(function(inv){
+    var cl=DB.clients.find(function(x){return x.id===inv.clientId;});
+    var totalPaid=(inv.payments||[]).reduce(function(a,p){return a+Number(p.amount||0);},0);
+    var bal=Number(inv.total||0)-totalPaid;
+
+    var tr=mk('tr');
+
+    // Sr No
+    srNo++;
+    var srTd=mk('td');srTd.style.cssText='color:#aaa;font-size:12px';srTd.textContent=srNo;
+
+    // Client
+    var clCell=mkRow('align-items:center;gap:6px');
+    var av=mkAvatar(cl?cl.name:'?',28);
+    var cInfo=mk('div');
+    var nm=mk('div');nm.style.fontWeight='600';nm.textContent=cl?cl.name:inv.clientName||'?';
+    app(cInfo,[nm]);app(clCell,[av,cInfo]);
+    var clTd=mk('td');clTd.appendChild(clCell);
+
+    // Phone
+    var phTd=mk('td');phTd.style.color='#555';phTd.textContent=(cl&&cl.phone)||'—';
+
+    // Invoice No
+    var invTd=mk('td');
+    var invSpan=mk('span');invSpan.style.cssText='font-size:12px;background:#EFF6FF;color:#1D4ED8;padding:2px 8px;border-radius:10px;font-weight:600';
+    invSpan.textContent=inv.invoiceNo||'—';
+    invTd.appendChild(invSpan);
+
+    // Total
+    var totTd=mk('td');totTd.textContent=rupee(inv.total||0);
+
+    // Paid
+    var paidTd=mk('td');paidTd.style.color='#166534';paidTd.textContent=rupee(totalPaid);
+
+    // Balance
     var balTd=mk('td');balTd.style.cssText='font-weight:700;color:#991B1B';balTd.textContent=rupee(bal);
-    var delTd=mk('td');delTd.textContent=o.delivery||'—';if(isOverdue){var od=mk('span');od.style.cssText='font-size:10px;background:#FEF2F2;color:#991B1B;padding:1px 6px;border-radius:10px;margin-left:4px';od.textContent='OVERDUE';delTd.appendChild(od);}
-    var actTd=mk('td');actTd.appendChild(mkBtn('Collect',function(){openCollectPayment(o.id);},'btn btn-xs btn-primary'));
-    [clTd,mk('td',null,o.item),mk('td',null,rupee(o.amount||0)),mk('td',null,rupee(o.advance||0)),balTd,delTd,mk('td',null,o.status),actTd].forEach(function(td){tr.appendChild(td);});
+
+    // Status badge
+    var stTd=mk('td');
+    var stBadge=mk('span');
+    var isPart=totalPaid>0;
+    stBadge.style.cssText='font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:'+(isPart?'#FFFBEB':'#FEF2F2')+';color:'+(isPart?'#B45309':'#991B1B');
+    stBadge.textContent=isPart?'Partial':'Unpaid';
+    stTd.appendChild(stBadge);
+
+    // Collect button
+    var actTd=mk('td');
+    var colBtn=mkBtn('+ Collect',(function(iid){return function(){openInvoiceCollect(iid);};})(inv.id),'btn btn-xs btn-primary');
+    actTd.appendChild(colBtn);
+
+    app(tr,[srTd,clTd,phTd,invTd,totTd,paidTd,balTd,stTd,actTd]);
     t._body.appendChild(tr);
   });
+
+  // Total row at bottom
+  var totalBal=invDues.reduce(function(a,inv){
+    var tp=(inv.payments||[]).reduce(function(s,p){return s+Number(p.amount||0);},0);
+    return a+Number(inv.total||0)-tp;
+  },0);
+  var totalRow=mk('tr');totalRow.style.cssText='background:#FEF2F2;font-weight:700';
+  var emptyTds=['','','','','',''].map(function(){return mk('td');});
+  var totLblTd=mk('td');totLblTd.colSpan=6;totLblTd.style.cssText='font-weight:700;color:#991B1B;padding:10px 14px';totLblTd.textContent='Total outstanding';
+  var totValTd=mk('td');totValTd.style.cssText='font-weight:700;color:#991B1B;font-size:15px';totValTd.textContent=rupee(totalBal);
+  var totEmptyTd=mk('td');totEmptyTd.colSpan=2;
+  app(totalRow,[totLblTd,totValTd,totEmptyTd]);
+  t._body.appendChild(totalRow);
+
   tw.appendChild(t);
+  makeSortable(t);
 }
 function printDues(orders){
   var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
