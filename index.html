@@ -237,6 +237,10 @@ textarea.form-input{resize:vertical}
         </div>
         <div id="storage-detail" style="font-size:10px;color:rgba(201,168,76,.4);margin-top:4px">Calculating...</div>
       </div>
+      <div id="role-badge" style="display:none;margin-bottom:8px;padding:4px 10px;background:rgba(201,168,76,.15);border-radius:6px;font-size:11px;color:#C9A84C;font-weight:600;text-align:center;letter-spacing:.04em"></div>
+      <button id="asst-pw-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5" stroke-linecap="round"/><path d="M11 10l1 1 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>Assistant password
+      </button>
       <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
@@ -260,15 +264,19 @@ firebase.initializeApp({
 var db=firebase.firestore();
 
 var DEFAULT_PW='ryree2024';
+var DEFAULT_ASST_PW='sanika2024';
 var _cachedPw=null;
-function getPw(){
-  return _cachedPw||localStorage.getItem('ryree_pw')||DEFAULT_PW;
-}
+var _cachedAsstPw=null;
+function getPw(){return _cachedPw||localStorage.getItem('ryree_pw')||DEFAULT_PW;}
+function getAsstPw(){return _cachedAsstPw||localStorage.getItem('ryree_asst_pw')||DEFAULT_ASST_PW;}
+function getCurrentRole(){return sessionStorage.getItem('ryree_role')||'admin';}
+function isAdmin(){return getCurrentRole()==='admin';}
+function isAssistant(){return getCurrentRole()==='assistant';}
 function loadPasswordFromFirebase(cb){
   db.collection('settings').doc('config').get().then(function(doc){
-    if(doc.exists&&doc.data().password){
-      _cachedPw=doc.data().password;
-      localStorage.setItem('ryree_pw',doc.data().password);
+    if(doc.exists){
+      if(doc.data().password){_cachedPw=doc.data().password;localStorage.setItem('ryree_pw',doc.data().password);}
+      if(doc.data().assistantPassword){_cachedAsstPw=doc.data().assistantPassword;localStorage.setItem('ryree_asst_pw',doc.data().assistantPassword);}
     }
     if(cb)cb();
   }).catch(function(){if(cb)cb();});
@@ -292,6 +300,13 @@ function doLogin(){
     loginBtn.disabled=false;loginBtn.textContent='Sign in';
     if(pw===getPw()){
       sessionStorage.setItem('ryree_auth','1');
+      sessionStorage.setItem('ryree_role','admin');
+      document.getElementById('login-pw').classList.remove('error');
+      document.getElementById('login-err').textContent='';
+      showApp();
+    }else if(pw===getAsstPw()){
+      sessionStorage.setItem('ryree_auth','1');
+      sessionStorage.setItem('ryree_role','assistant');
       document.getElementById('login-pw').classList.remove('error');
       document.getElementById('login-err').textContent='';
       showApp();
@@ -308,6 +323,7 @@ function doLogout(){
   autoSaveToLocalStorage();
   var t=getLastBackupTime();
   sessionStorage.removeItem('ryree_auth');
+  sessionStorage.removeItem('ryree_role');
   document.getElementById('login-wrap').style.display='flex';
   document.getElementById('app-wrap').style.display='none';
   document.getElementById('login-pw').value='';
@@ -349,8 +365,9 @@ function saveNewPw(){
 function showApp(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
-  // Password already loaded via loadPasswordFromFirebase at login
   document.getElementById('export-btn').addEventListener('click',exportAllData);
+  var asstBtn=document.getElementById('asst-pw-btn');
+  if(asstBtn)asstBtn.onclick=showChangeAsstPw;
   // Set sidebar date
   var dateEl=document.getElementById('sidebar-date');
   if(dateEl){
@@ -359,8 +376,67 @@ function showApp(){
     var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     dateEl.textContent=days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
   }
+  applyRoleRestrictions();
   initDB();
   loadEstConfig();
+}
+
+function applyRoleRestrictions(){
+  var role=getCurrentRole();
+  var badge=document.getElementById('role-badge');
+  if(role==='assistant'){
+    // Show role badge
+    if(badge){badge.style.display='block';badge.textContent='Signed in as: Sanika';}
+    // Hide all nav items except leads and appointments
+    var allowed=['nav-leads','nav-appointments'];
+    document.querySelectorAll('.nav-item').forEach(function(el){
+      var id=el.id;
+      if(allowed.indexOf(id)===-1)el.style.display='none';
+    });
+    // Hide nav sections that become empty
+    document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='none';});
+    // Hide admin-only sidebar controls
+    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.style.display='none';
+    });
+    // Default to leads page
+    nav('leads');
+  }else{
+    if(badge)badge.style.display='none';
+    // Ensure all nav items visible for admin
+    document.querySelectorAll('.nav-item').forEach(function(el){el.style.display='';});
+    document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='';});
+    nav('dashboard');
+  }
+}
+
+function showChangeAsstPw(){
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Set assistant password'));
+  wrap.appendChild(mk('div','modal-sub','This is the password Sanika uses to sign in. She will only see Lead Bank and Appointments.'));
+  var nw=mkInput('apw-new','password','New assistant password');
+  var cf=mkInput('apw-cf','password','Confirm password');
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:18px;margin-top:4px';
+  app(wrap,[
+    mkFg('New password',nw),
+    mkFg('Confirm password',cf),
+    err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save',function(){
+        var nwv=document.getElementById('apw-new').value.trim();
+        var cfv=document.getElementById('apw-cf').value.trim();
+        if(!nwv||nwv.length<4){err.textContent='Must be at least 4 characters.';return;}
+        if(nwv!==cfv){err.textContent='Passwords do not match.';return;}
+        _cachedAsstPw=nwv;
+        localStorage.setItem('ryree_asst_pw',nwv);
+        db.collection('settings').doc('config').set({assistantPassword:nwv},{merge:true})
+          .then(function(){closeModal();alert('Assistant password saved! Sanika can now sign in with the new password.');})
+          .catch(function(){closeModal();alert('Saved locally. Will sync when online.');});
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
 }
 
 var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
@@ -597,6 +673,9 @@ function mkTr(cells){
 
 var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
+  // Role guard — assistant can only view leads and appointments
+  var allowedForAssistant=['leads','appointments'];
+  if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
   var el=document.getElementById('nav-'+p);if(el)el.classList.add('active');
@@ -2014,7 +2093,7 @@ function pgAppointments(){
       delApptBtn.onclick=function(){if(confirm('Delete this appointment?'))dbDel('appointments',this.getAttribute('data-aid'));};
       var waApptBtn=mkBtn('WhatsApp',(function(aobj){return function(){waMsgAppointment(aobj);};})(a),'btn btn-xs');
       waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
-      app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);
+      if(isAssistant()){app(acTd,[editApptBtn,waApptBtn]);}else{app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);}
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
@@ -7346,7 +7425,7 @@ function pgLeads(){
       var delBtn=mk('button','btn-danger','Del');delBtn.style.cssText='padding:2px 8px;font-size:11px';
       delBtn.setAttribute('data-lid',lead.id);
       delBtn.onclick=function(){if(confirm('Delete this lead?'))dbDel('leads',this.getAttribute('data-lid'));};
-      app(acts,[editBtn,convertBtn,delBtn]);
+      if(isAssistant()){app(acts,[editBtn]);}else{app(acts,[editBtn,convertBtn,delBtn]);}
       card.appendChild(acts);
       grid.appendChild(card);
     });
