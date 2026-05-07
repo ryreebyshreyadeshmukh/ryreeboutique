@@ -414,13 +414,13 @@ function showChangeAsstPw(){
   var wrap=mk('div');
   wrap.appendChild(mk('div','modal-title','Assistant password'));
   wrap.appendChild(mk('div','modal-sub','Change the password Sanika uses to sign in. Confirm your own password first.'));
-  var cur=mkInput('apw-cur','password','Your (Shreya's) password');
+  var cur=mkInput('apw-cur','password','Your password (verify)');
   var nw=mkInput('apw-new','password','New password for Sanika');
   var cf=mkInput('apw-cf','password','Confirm new password');
   var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:18px;margin-top:4px';
   // Show current assistant password hint
   var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa;margin-bottom:12px;padding:8px 10px;background:#fafafa;border-radius:6px;border:1px solid #f0f0f0';
-  hint.textContent='Sanika's current password is saved in Firebase. Enter a new one below to replace it.';
+  hint.textContent='Enter a new password for Sanika below.';
   app(wrap,[
     hint,
     mkFg('Your password (for verification)',cur),
