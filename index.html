@@ -218,7 +218,7 @@ textarea.form-input{resize:vertical}
           <span style="font-size:10px">Sync</span>
         </button>
       </div>
-      <button onclick="openWATemplateSettings()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+      <button id="wa-templates-btn" onclick="openWATemplateSettings()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;flex-shrink:0"><path d="M13.5 8A5.5 5.5 0 1 1 2.5 8a5.5 5.5 0 0 1 11 0z"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>WA Templates
       </button>
       <button id="chpw-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
@@ -396,7 +396,7 @@ function applyRoleRestrictions(){
     // Hide nav sections that become empty
     document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='none';});
     // Hide admin-only sidebar controls
-    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator'].forEach(function(id){
+    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     // Default to leads page
@@ -412,26 +412,35 @@ function applyRoleRestrictions(){
 
 function showChangeAsstPw(){
   var wrap=mk('div');
-  wrap.appendChild(mk('div','modal-title','Set assistant password'));
-  wrap.appendChild(mk('div','modal-sub','This is the password Sanika uses to sign in. She will only see Lead Bank and Appointments.'));
-  var nw=mkInput('apw-new','password','New assistant password');
-  var cf=mkInput('apw-cf','password','Confirm password');
+  wrap.appendChild(mk('div','modal-title','Assistant password'));
+  wrap.appendChild(mk('div','modal-sub','Change the password Sanika uses to sign in. Confirm your own password first.'));
+  var cur=mkInput('apw-cur','password','Your (Shreya's) password');
+  var nw=mkInput('apw-new','password','New password for Sanika');
+  var cf=mkInput('apw-cf','password','Confirm new password');
   var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:18px;margin-top:4px';
+  // Show current assistant password hint
+  var hint=mk('div');hint.style.cssText='font-size:11px;color:#aaa;margin-bottom:12px;padding:8px 10px;background:#fafafa;border-radius:6px;border:1px solid #f0f0f0';
+  hint.textContent='Sanika's current password is saved in Firebase. Enter a new one below to replace it.';
   app(wrap,[
-    mkFg('New password',nw),
-    mkFg('Confirm password',cf),
+    hint,
+    mkFg('Your password (for verification)',cur),
+    mkFg('New password for Sanika',nw),
+    mkFg('Confirm new password',cf),
     err,
     mkActions([
       mkBtn('Cancel',closeModal),
       mkBtn('Save',function(){
+        var curv=document.getElementById('apw-cur').value;
         var nwv=document.getElementById('apw-new').value.trim();
         var cfv=document.getElementById('apw-cf').value.trim();
+        if(curv!==getPw()){err.textContent='Your password is incorrect.';return;}
         if(!nwv||nwv.length<4){err.textContent='Must be at least 4 characters.';return;}
         if(nwv!==cfv){err.textContent='Passwords do not match.';return;}
+        if(nwv===getPw()){err.textContent='Assistant password cannot be same as your password.';return;}
         _cachedAsstPw=nwv;
         localStorage.setItem('ryree_asst_pw',nwv);
         db.collection('settings').doc('config').set({assistantPassword:nwv},{merge:true})
-          .then(function(){closeModal();alert('Assistant password saved! Sanika can now sign in with the new password.');})
+          .then(function(){closeModal();alert('Done! Sanika can now sign in with the new password.');})
           .catch(function(){closeModal();alert('Saved locally. Will sync when online.');});
       },'btn btn-primary')
     ])
