@@ -2139,9 +2139,31 @@ function openApptModal(apptId){
   var clSel=mkClientSelect('m-client',appt?appt.clientId:'');
   var dateInp=mkInput('m-date','date','',appt?appt.date:new Date().toISOString().split('T')[0]);
   
-  // 12-hour time input
-  var timeInp=mkInput('m-time','time','',appt?appt.time:'');
-  timeInp.setAttribute('step','900'); // 15 min intervals
+  // 12-hour time input — built from selects to avoid browser 24hr default
+  var timeWrap=mk('div');timeWrap.style.cssText='display:flex;gap:6px;align-items:center';
+  // Parse existing time (HH:MM 24hr) into 12hr parts
+  var _th='',_tm='00',_tap='AM';
+  if(appt&&appt.time){
+    var _tp=appt.time.split(':');
+    var _h=parseInt(_tp[0]||0,10);
+    _tm=_tp[1]||'00';
+    _tap=_h>=12?'PM':'AM';
+    _h=_h%12;if(_h===0)_h=12;
+    _th=String(_h);
+  }
+  var hourOpts=[{value:'',label:'Hr'}].concat([1,2,3,4,5,6,7,8,9,10,11,12].map(function(h){return {value:String(h),label:String(h)};}));
+  var minOpts=[{value:'00',label:'00'},{value:'15',label:'15'},{value:'30',label:'30'},{value:'45',label:'45'}];
+  var ampmOpts=[{value:'AM',label:'AM'},{value:'PM',label:'PM'}];
+  var hourSel=mkSelect('m-time-hr',hourOpts,_th);
+  var minSel=mkSelect('m-time-min',minOpts,_tm);
+  var ampmSel=mkSelect('m-time-ampm',ampmOpts,_tap);
+  hourSel.style.cssText='flex:1;min-width:60px';
+  minSel.style.cssText='flex:1;min-width:60px';
+  ampmSel.style.cssText='flex:1;min-width:64px';
+  app(timeWrap,[hourSel,mk('span',null,':'),minSel,ampmSel]);
+  // Dummy hidden input for compatibility — not used in save
+  var timeInp=mk('input');timeInp.type='hidden';timeInp.id='m-time';
+  timeWrap.appendChild(timeInp);
   
   // Mode dropdown
   var modeOpts=[{value:'Offline',label:'Offline (In-person)'},{value:'Online',label:'Online (Virtual)'}];
@@ -2157,7 +2179,7 @@ function openApptModal(apptId){
   app(wrap,[
     mk('div','modal-title',appt?'Edit appointment':'Schedule appointment'),
     mkFg('Client *',clSel),
-    app(mk('div','form-row'),[mkFg('Date *',dateInp),mkFg('Time',timeInp)]),
+    app(mk('div','form-row'),[mkFg('Date *',dateInp),mkFg('Time',timeWrap)]),
     app(mk('div','form-row'),[mkFg('Mode',modeSel),mkFg('Status',statusSel)]),
     mkFg('Purpose',purpInp),
     mkFg('Notes',notesInp),
@@ -2171,7 +2193,16 @@ function openApptModal(apptId){
           id:appt?appt.id:uid(),
           clientId:cid,
           date:date,
-          time:document.getElementById('m-time').value,
+          time:(function(){
+            var hr=document.getElementById('m-time-hr').value;
+            var mn=document.getElementById('m-time-min').value||'00';
+            var ap=document.getElementById('m-time-ampm').value;
+            if(!hr)return '';
+            var h24=parseInt(hr,10);
+            if(ap==='AM'&&h24===12)h24=0;
+            if(ap==='PM'&&h24!==12)h24+=12;
+            return String(h24).padStart(2,'0')+':'+mn;
+          })(),
           mode:document.getElementById('m-mode').value,
           status:document.getElementById('m-status').value,
           purpose:document.getElementById('m-purpose').value,
@@ -2398,7 +2429,12 @@ function pgDashboard(){
     app(left,[nm,sb]);
     var right=mk('div');right.style.textAlign='right';
     var dt=mk('div');dt.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';dt.textContent=a.date;
-    var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';tm.textContent=a.time||'';
+    var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';
+    tm.textContent=(function(t){
+      if(!t)return '';
+      var p=t.split(':');var h=parseInt(p[0]);var m=p[1];
+      var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;
+    })(a.time);
     app(right,[dt,tm]);app(row,[left,right]);ac.appendChild(row);
   });
   // Two column layout
@@ -8194,7 +8230,11 @@ function waMsgAppointment(appt){
   var cl=DB.clients.find(function(x){return x.id===appt.clientId;});
   var name=(cl&&cl.name)||'there';
   getWATemplates(function(t){
-    var msg=fillWATemplate(t.appointment,{name:name,date:appt.date||'',time:appt.time||'TBD',purpose:appt.purpose?'Purpose: '+appt.purpose+'\n':''});
+    var msg=fillWATemplate(t.appointment,{name:name,date:appt.date||'',time:(function(t){
+      if(!t)return 'TBD';
+      var p=t.split(':');var h=parseInt(p[0]);var m=p[1];
+      var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;
+    })(appt.time),purpose:appt.purpose?'Purpose: '+appt.purpose+'\n':''});
     openWhatsApp(getClientPhone(appt.clientId),msg);
   });
 }
