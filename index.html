@@ -9,6 +9,7 @@
 <title>Ryree by Shreya Deshmukh</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:#1a1a1a;background:#f0f4f3;min-height:100vh}
@@ -241,6 +242,9 @@ textarea.form-input{resize:vertical}
       <button id="asst-pw-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5" stroke-linecap="round"/><path d="M11 10l1 1 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>Assistant password
       </button>
+      <button id="gcal-btn" onclick="gcalConnect()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="12" rx="1.5"/><path d="M2 7h12M6 3V1M10 3V1"/></svg><span id="gcal-btn-label">Connect Google Calendar</span>
+      </button>
       <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
@@ -377,6 +381,9 @@ function showApp(){
     dateEl.textContent=days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()]+' '+now.getFullYear();
   }
   applyRoleRestrictions();
+  gcalLoadToken();
+  gcalCheckRedirect();
+  gcalUpdateBtn();
   initDB();
   loadEstConfig();
 }
@@ -396,7 +403,7 @@ function applyRoleRestrictions(){
     // Hide nav sections that become empty
     document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='none';});
     // Hide admin-only sidebar controls
-    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn'].forEach(function(id){
+    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn','gcal-btn'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     // Default to leads page
@@ -2099,7 +2106,7 @@ function pgAppointments(){
       leadBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
       var delApptBtn=mk('button','btn-danger','Del');delApptBtn.style.padding='3px 8px';
       delApptBtn.setAttribute('data-aid',a.id);
-      delApptBtn.onclick=function(){if(confirm('Delete this appointment?'))dbDel('appointments',this.getAttribute('data-aid'));};
+      delApptBtn.onclick=(function(a){return function(){if(confirm('Delete this appointment?')){gcalSync(a,true);dbDel('appointments',a.id);}};})(a);
       var waApptBtn=mkBtn('WhatsApp',(function(aobj){return function(){waMsgAppointment(aobj);};})(a),'btn btn-xs');
       waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
       if(isAssistant()){app(acTd,[editApptBtn,waApptBtn]);}else{app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);}
@@ -2160,7 +2167,7 @@ function openApptModal(apptId){
         var cid=document.getElementById('m-client').value;
         var date=document.getElementById('m-date').value;
         if(!cid||!date){alert('Client and date are required.');return;}
-        dbSave('appointments',{
+        var apptData={
           id:appt?appt.id:uid(),
           clientId:cid,
           date:date,
@@ -2169,13 +2176,182 @@ function openApptModal(apptId){
           status:document.getElementById('m-status').value,
           purpose:document.getElementById('m-purpose').value,
           notes:document.getElementById('m-appt-notes').value
-        });
+        };
+        dbSave('appointments',apptData);
+        gcalSync(apptData,false);
         closeModal();
       },'btn btn-primary')
     ])
   ]);
   showM(wrap,true);
 }
+
+
+// ── GOOGLE CALENDAR SYNC ──────────────────────────────────────────────────
+var GCAL_CLIENT_ID='';  // Set via gcalConnect setup
+var GCAL_SCOPES='https://www.googleapis.com/auth/calendar.events';
+var GCAL_TOKEN_KEY='ryree_gcal_token';
+var GCAL_CAL_ID='primary';
+var _gcalReady=false;
+var _gcalToken=null;
+
+function gcalLoadToken(){
+  try{var t=localStorage.getItem(GCAL_TOKEN_KEY);if(t)_gcalToken=JSON.parse(t);}catch(e){}
+}
+function gcalSaveToken(t){_gcalToken=t;localStorage.setItem(GCAL_TOKEN_KEY,JSON.stringify(t));}
+function gcalClearToken(){_gcalToken=null;localStorage.removeItem(GCAL_TOKEN_KEY);}
+function gcalIsConnected(){return !!(_gcalToken&&_gcalToken.access_token);}
+
+function gcalUpdateBtn(){
+  var lbl=document.getElementById('gcal-btn-label');
+  if(lbl)lbl.textContent=gcalIsConnected()?'Google Calendar connected':'Connect Google Calendar';
+}
+
+function gcalConnect(){
+  if(gcalIsConnected()){
+    if(confirm('Google Calendar is connected. Disconnect?')){gcalClearToken();gcalUpdateBtn();alert('Disconnected.');}
+    return;
+  }
+  // Show setup modal asking for Client ID
+  var stored=localStorage.getItem('ryree_gcal_client_id')||'';
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Connect Google Calendar'));
+  var sub=mk('div','modal-sub');
+  sub.innerHTML='To sync appointments, paste your Google OAuth Client ID below.<br><br>'+
+    '<b>Setup steps:</b><br>'+
+    '1. Go to <a href="https://console.cloud.google.com" target="_blank" style="color:#2D6B5E">console.cloud.google.com</a><br>'+
+    '2. Create a project → Enable Google Calendar API<br>'+
+    '3. OAuth consent screen → External → Add your email<br>'+
+    '4. Credentials → OAuth Client ID → Web app<br>'+
+    '5. Add <b>'+window.location.origin+'</b> to Authorised origins<br>'+
+    '6. Copy the Client ID and paste below';
+  wrap.appendChild(sub);
+  var cidInp=mkInput('gcal-cid','text','Paste Client ID here...',stored);
+  cidInp.style.marginTop='12px';
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+  app(wrap,[mkFg('Google OAuth Client ID',cidInp),err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Authorise',function(){
+        var cid=document.getElementById('gcal-cid').value.trim();
+        if(!cid){err.textContent='Please enter a Client ID.';return;}
+        localStorage.setItem('ryree_gcal_client_id',cid);
+        GCAL_CLIENT_ID=cid;
+        closeModal();
+        gcalAuthorise();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+function gcalAuthorise(){
+  var cid=localStorage.getItem('ryree_gcal_client_id')||'';
+  if(!cid){alert('No Client ID found. Please connect Google Calendar first.');return;}
+  // Build OAuth URL
+  var params={
+    client_id:cid,
+    redirect_uri:window.location.href.split('?')[0],
+    response_type:'token',
+    scope:GCAL_SCOPES,
+    include_granted_scopes:'true',
+    state:'gcal_auth'
+  };
+  var url='https://accounts.google.com/o/oauth2/v2/auth?'+Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
+  // Open in popup
+  var popup=window.open(url,'gcal_auth','width=500,height=600,left=200,top=100');
+  // Poll for redirect back with token
+  var poll=setInterval(function(){
+    try{
+      var href=popup.location.href;
+      if(href.indexOf('access_token')>-1){
+        clearInterval(poll);
+        popup.close();
+        var hash=href.split('#')[1]||href.split('?')[1]||'';
+        var parts={};hash.split('&').forEach(function(p){var kv=p.split('=');parts[kv[0]]=decodeURIComponent(kv[1]||'');});
+        if(parts.access_token){
+          parts.expiry=Date.now()+Number(parts.expires_in||3600)*1000;
+          gcalSaveToken(parts);
+          gcalUpdateBtn();
+          alert('Google Calendar connected! Appointments will now sync automatically.');
+        }
+      }
+      if(popup.closed){clearInterval(poll);}
+    }catch(e){}
+  },500);
+}
+
+// Handle OAuth redirect on page load (token in URL hash)
+function gcalCheckRedirect(){
+  var hash=window.location.hash;
+  if(hash&&hash.indexOf('access_token')>-1&&hash.indexOf('state=gcal_auth')>-1){
+    var parts={};hash.replace('#','').split('&').forEach(function(p){var kv=p.split('=');parts[kv[0]]=decodeURIComponent(kv[1]||'');});
+    if(parts.access_token){
+      parts.expiry=Date.now()+Number(parts.expires_in||3600)*1000;
+      gcalSaveToken(parts);
+      window.location.hash='';
+    }
+  }
+}
+
+function gcalTokenValid(){
+  return _gcalToken&&_gcalToken.access_token&&_gcalToken.expiry&&Date.now()<_gcalToken.expiry;
+}
+
+function gcalBuildEvent(appt){
+  var cl=DB.clients.find(function(x){return x.id===appt.clientId;})||{};
+  var title=(cl.name||'Client')+' — '+(appt.purpose||'Appointment')+' | Ryree';
+  var dateStr=appt.date; // YYYY-MM-DD
+  var start,end;
+  if(appt.time){
+    var dt=dateStr+'T'+appt.time+':00';
+    // end = start + 1 hour
+    var endDt=new Date(new Date(dt).getTime()+60*60*1000);
+    var pad=function(n){return String(n).padStart(2,'0');};
+    var endStr=endDt.getFullYear()+'-'+pad(endDt.getMonth()+1)+'-'+pad(endDt.getDate())+'T'+pad(endDt.getHours())+':'+pad(endDt.getMinutes())+':00';
+    start={dateTime:dt,timeZone:'Asia/Kolkata'};
+    end={dateTime:endStr,timeZone:'Asia/Kolkata'};
+  } else {
+    start={date:dateStr};end={date:dateStr};
+  }
+  var desc=['Client: '+(cl.name||''),cl.phone?'Phone: '+cl.phone:'','Mode: '+(appt.mode||'Offline'),'Status: '+(appt.status||'Scheduled'),appt.notes?'Notes: '+appt.notes:'','Synced from Ryree OS'].filter(Boolean).join('\n');
+  return {summary:title,description:desc,start:start,end:end,
+    extendedProperties:{private:{ryreeApptId:appt.id}}};
+}
+
+function gcalSync(appt,isDelete){
+  if(!gcalTokenValid())return; // silently skip if not connected
+  var token=_gcalToken.access_token;
+  var baseUrl='https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(GCAL_CAL_ID)+'/events';
+  var gcalId=localStorage.getItem('ryree_gcal_event_'+appt.id);
+
+  if(isDelete&&gcalId){
+    fetch(baseUrl+'/'+gcalId,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+    localStorage.removeItem('ryree_gcal_event_'+appt.id);
+    return;
+  }
+  var eventBody=gcalBuildEvent(appt);
+  if(gcalId){
+    // Update existing
+    fetch(baseUrl+'/'+gcalId,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(eventBody)
+    }).then(function(r){return r.json();}).then(function(data){
+      if(data.id)localStorage.setItem('ryree_gcal_event_'+appt.id,data.id);
+    }).catch(function(){});
+  } else {
+    // Create new
+    fetch(baseUrl,{
+      method:'POST',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify(eventBody)
+    }).then(function(r){return r.json();}).then(function(data){
+      if(data.id)localStorage.setItem('ryree_gcal_event_'+appt.id,data.id);
+    }).catch(function(){});
+  }
+}
+// ── END GOOGLE CALENDAR SYNC ──────────────────────────────────────────────
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────
 function pgDashboard(){
@@ -3604,7 +3780,10 @@ function pgQuotations(){
       }
       dbDel('quotations',qid);
     };
-    app(acts,[viewBtn,editBtn,printBtn,invBtn,delBtn]);
+    var estBtn=mkBtn('Est. Breakdown',(function(qid){return function(){viewEstBreakdown(qid);};})(q.id),'btn btn-xs');
+    estBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
+    if(!q.estSnapshot){estBtn.style.opacity='0.35';estBtn.title='No estimate breakdown saved for this quotation';estBtn.disabled=true;}
+    app(acts,[viewBtn,editBtn,printBtn,estBtn,invBtn,delBtn]);
     var actTd=mk('td');actTd.appendChild(acts);
 
     var clCell=mk('div');
@@ -5152,6 +5331,19 @@ function saveEstimatorAsQuotation(){
         var cl=clientId?DB.clients.find(function(x){return x.id===clientId;}):null;
         var today=new Date().toISOString().split('T')[0];
         var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
+        var estSnapshot={
+          garmentId:_estGarment,
+          garmentName:garmentObj.name,
+          components:garmentObj.components,
+          cols:cols.map(function(c){return {id:c.id,label:c.label};}),
+          data:JSON.parse(JSON.stringify(_estData)),
+          discount:_estDiscount,
+          markup:markup,
+          totalCost:grand,
+          mrp:mrp,
+          sellingPrice:selling,
+          savedAt:Date.now()
+        };
         dbSave('quotations',{
           id:uid(),
           clientId:clientId,
@@ -5164,13 +5356,88 @@ function saveEstimatorAsQuotation(){
           notes:'Generated from Price Estimator',
           terms:DEFAULT_TERMS.join('\n'),
           status:'Pending',
-          created:Date.now()
+          created:Date.now(),
+          estSnapshot:estSnapshot
         });
         closeModal();
-        alert('Quotation saved! Check the Quotations module.');
+        alert('Quotation saved with full estimate breakdown! Check the Quotations module.');
       },'btn btn-primary')
     ])
   ]);
+  showM(wrap,true);
+}
+
+function viewEstBreakdown(quotId){
+  var quot=DB.quotations.find(function(x){return x.id===quotId;});
+  if(!quot||!quot.estSnapshot){alert('No estimate breakdown saved for this quotation.');return;}
+  var s=quot.estSnapshot;
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Estimate Breakdown'));
+  var sub=mk('div','modal-sub');
+  sub.textContent=s.garmentName+' — '+(quot.clientName||'No client')+' · '+(quot.date||'');
+  wrap.appendChild(sub);
+
+  // Table
+  var tbl=mk('table');tbl.style.cssText='width:100%;border-collapse:collapse;margin:12px 0;font-size:12px';
+  // Header
+  var thead=mk('thead');
+  var htr=mk('tr');htr.style.cssText='background:#fafafa';
+  var th0=mk('th');th0.style.cssText='padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #e8e8e8';th0.textContent='Component';htr.appendChild(th0);
+  s.cols.forEach(function(col){
+    var th=mk('th');th.style.cssText='padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;border-bottom:2px solid #e8e8e8';
+    th.textContent=col.label;htr.appendChild(th);
+  });
+  var thTot=mk('th');thTot.style.cssText='padding:8px 10px;text-align:right;font-size:11px;font-weight:700;color:#2D6B5E;text-transform:uppercase;border-bottom:2px solid #e8e8e8';thTot.textContent='Row Total';htr.appendChild(thTot);
+  thead.appendChild(htr);tbl.appendChild(thead);
+
+  var tbody=mk('tbody');
+  s.components.forEach(function(comp){
+    var rowTotal=s.cols.reduce(function(a,col){return a+Number((s.data[comp]||{})[col.id]||0);},0);
+    if(rowTotal===0)return;
+    var tr=mk('tr');tr.style.borderBottom='1px solid #f5f5f5';
+    var td0=mk('td');td0.style.cssText='padding:7px 10px;font-weight:500;color:#333';td0.textContent=comp;tr.appendChild(td0);
+    s.cols.forEach(function(col){
+      var v=Number((s.data[comp]||{})[col.id]||0);
+      var td=mk('td');td.style.cssText='padding:7px 10px;text-align:right;color:#555';td.textContent=v>0?rupee(v):'—';tr.appendChild(td);
+    });
+    var tdTot=mk('td');tdTot.style.cssText='padding:7px 10px;text-align:right;font-weight:700;color:#2D6B5E';tdTot.textContent=rupee(rowTotal);tr.appendChild(tdTot);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+
+  // Column totals row
+  var tfoot=mk('tfoot');
+  var ftr=mk('tr');ftr.style.cssText='background:#f9f9f9;border-top:2px solid #e8e8e8';
+  var ftd0=mk('td');ftd0.style.cssText='padding:9px 10px;font-weight:700;font-size:12px;color:#555';ftd0.textContent='Total';ftr.appendChild(ftd0);
+  s.cols.forEach(function(col){
+    var colSum=s.components.reduce(function(a,comp){return a+Number((s.data[comp]||{})[col.id]||0);},0);
+    var ftd=mk('td');ftd.style.cssText='padding:9px 10px;text-align:right;font-weight:600;color:#555;font-size:12px';ftd.textContent=rupee(colSum);ftr.appendChild(ftd);
+  });
+  var ftdTot=mk('td');ftdTot.style.cssText='padding:9px 10px;text-align:right;font-weight:800;color:#2D6B5E;font-size:13px';ftdTot.textContent=rupee(s.totalCost);ftr.appendChild(ftdTot);
+  tfoot.appendChild(ftr);tbl.appendChild(tfoot);
+  wrap.appendChild(tbl);
+
+  // Summary cards
+  var sumRow=mk('div');sumRow.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px';
+  function sCard(label,val,color,bg){
+    var c=mk('div');c.style.cssText='padding:12px;background:'+(bg||'#fafafa')+';border-radius:8px;text-align:center';
+    var l=mk('div');l.style.cssText='font-size:10px;color:#888;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px';l.textContent=label;
+    var v=mk('div');v.style.cssText='font-size:16px;font-weight:800;color:'+(color||'#1a1a1a');v.textContent=rupee(val);
+    app(c,[l,v]);return c;
+  }
+  app(sumRow,[
+    sCard('Total Cost',s.totalCost,'#555','#fafafa'),
+    sCard('MRP (x'+s.markup+')',s.mrp,'#2D6B5E','#e6f0ee'),
+    sCard('Selling Price (-'+s.discount+'%)',s.sellingPrice,'#166534','#F0FDF4')
+  ]);
+  wrap.appendChild(sumRow);
+
+  // Discount note
+  var disc=mk('div');disc.style.cssText='font-size:11px;color:#aaa;margin-top:10px;text-align:right';
+  disc.textContent='Discount: '+s.discount+'% on MRP · Markup: '+s.markup+'x';
+  wrap.appendChild(disc);
+
+  app(wrap,[mkActions([mkBtn('Close',closeModal)])]);
   showM(wrap,true);
 }
 
