@@ -1431,8 +1431,15 @@ function renderTakeModal(){
     tb.textContent=c.name+(done&&c.id!==_mCloth?' ✓':'')+(c.measitemIds&&c.measitemIds.length?'':' *');
     tb.setAttribute('data-cid',c.id);
     tb.onclick=function(){
-      autoSave(); // save current tab before switching
-      _mCloth=this.getAttribute('data-cid');
+      var targetCid=this.getAttribute('data-cid');
+      // Assistant guard: block switching to clothing items that already have measurements
+      if(isAssistant()){
+        var cl2=DB.clients.find(function(x){return x.id===_mCli;});
+        var hasMeas=cl2&&cl2.measurements&&cl2.measurements[targetCid]&&Object.keys(cl2.measurements[targetCid]).length>0;
+        if(hasMeas){alert('Measurements already recorded for this item. Only Shreya can edit existing measurements.');return;}
+      }
+      autoSave();
+      _mCloth=targetCid;
       renderTakeModal();
     };
     tabs.appendChild(tb);
@@ -1440,6 +1447,14 @@ function renderTakeModal(){
   wrap.appendChild(tabs);
 
   var fields=mk('div');
+  // Assistant guard: read-only if this clothing item already has measurements
+  var _asstReadOnly=isAssistant()&&Object.keys(existing).length>0;
+  if(_asstReadOnly){
+    var roNote=mk('div','info-box');
+    roNote.style.cssText='background:#FEF3CD;border-color:#F59E0B;color:#92400E;margin-bottom:12px;font-size:12px';
+    roNote.textContent='View only — only Shreya can edit existing measurements.';
+    fields.appendChild(roNote);
+  }
   if(!linked.length){
     fields.appendChild(mk('div','warn-box','No fields linked to '+ac.name+'. Go to Clothing Items > Manage measurements.'));
   } else {
@@ -1448,14 +1463,19 @@ function renderTakeModal(){
       var inp=mkInput('mf-'+m.id,'text','—',existing[m.name]||'');
       inp.className='form-input mf';
       inp.setAttribute('data-name',m.name);
-      // Auto-save on input with debounce
-      var _timer=null;
-      inp.oninput=function(){
-        clearTimeout(_timer);
-        var ind=document.getElementById('meas-autosave-ind');
-        if(ind){ind.textContent='Saving...';ind.style.color='#B45309';}
-        _timer=setTimeout(function(){autoSave();},800);
-      };
+      if(_asstReadOnly){
+        inp.readOnly=true;
+        inp.style.cssText='background:#f9f9f9;color:#888;cursor:not-allowed';
+      } else {
+        // Auto-save on input with debounce
+        var _timer=null;
+        inp.oninput=function(){
+          clearTimeout(_timer);
+          var ind=document.getElementById('meas-autosave-ind');
+          if(ind){ind.textContent='Saving...';ind.style.color='#B45309';}
+          _timer=setTimeout(function(){autoSave();},800);
+        };
+      }
       grid.appendChild(mkFg(m.name+(m.unit?' ('+m.unit+')':''),inp));
     });
     fields.appendChild(grid);
@@ -1464,10 +1484,10 @@ function renderTakeModal(){
 
   wrap.appendChild(mkActions([
     mkBtn('Close',function(){
-      autoSave();
+      if(!_asstReadOnly)autoSave();
       closeModal();
     }),
-    mkBtn('Save & next',function(){
+    !_asstReadOnly&&mkBtn('Save & next',function(){
       autoSave();
       var cl2=DB.clients.find(function(x){return x.id===_mCli;});
       var vals={};
@@ -1479,7 +1499,7 @@ function renderTakeModal(){
       var next=ids[ids.indexOf(_mCloth)+1];
       if(next){_mCloth=next;renderTakeModal();}else closeModal();
     },'btn btn-primary')
-  ]));
+  ].filter(Boolean)));
 
   showM(wrap,true); // true = disable outside-click
 }
