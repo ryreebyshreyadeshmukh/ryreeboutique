@@ -690,7 +690,7 @@ function mkTr(cells){
 var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   // Role guard — assistant can only view leads and appointments
-  var allowedForAssistant=['leads','appointments'];
+  var allowedForAssistant=['leads','appointments','clients'];
   if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
