@@ -395,7 +395,7 @@ function applyRoleRestrictions(){
     // Show role badge
     if(badge){badge.style.display='block';badge.textContent='Signed in as: Sanika';}
     // Hide all nav items except leads and appointments
-    var allowed=['nav-leads','nav-appointments'];
+    var allowed=['nav-leads','nav-appointments','nav-clients'];
     document.querySelectorAll('.nav-item').forEach(function(el){
       var id=el.id;
       if(allowed.indexOf(id)===-1)el.style.display='none';
@@ -1191,7 +1191,7 @@ function pgClients(){
     var sub=mk('div','page-sub',(cl.phone||'—')+(cl.email?' · '+cl.email:''));
     app(td,[ttl,sub]);app(titleRow,[av,td]);
     var acts=mkRow('display:flex;gap:8px');
-    app(acts,[mkBtn('Edit',function(){openClientModal(cl.id);},'btn btn-sm'),mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);
+    if(isAssistant()){app(acts,[mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}else{app(acts,[mkBtn('Edit',function(){openClientModal(cl.id);},'btn btn-sm'),mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}
     var hdr=mk('div','page-header');app(hdr,[titleRow,acts]);
     wrap.appendChild(back);wrap.appendChild(hdr);
     if(cl.notes){var nb=mk('div','info-box');nb.style.marginBottom='16px';nb.textContent='📝 '+cl.notes;wrap.appendChild(nb);}
@@ -1219,7 +1219,7 @@ function pgClients(){
           delete updatedMeas[this.getAttribute('data-cid')];
           dbSave('clients',Object.assign({},cl,{measurements:updatedMeas}));
         };
-        app(ch,[cn,eb,db2]);card.appendChild(ch);
+        if(isAssistant()){app(ch,[cn]);}else{app(ch,[cn,eb,db2]);}card.appendChild(ch);
         var vd=mk('div');vd.style.cssText='display:grid;gap:7px';
         // Sort by clothing item's measitemIds order
         var orderedKeys=(cloth.measitemIds||[])
@@ -1238,7 +1238,7 @@ function pgClients(){
     }
 
     var oc=mk('div');
-    oc.appendChild(mk('div','section-title','Orders ('+orders.length+')'));
+    if(!isAssistant())oc.appendChild(mk('div','section-title','Orders ('+orders.length+')'));
     if(!orders.length){var no=mk('div','card');no.appendChild(mk('div','empty','No orders yet.'));oc.appendChild(no);}
     else{
       var ow=mk('div','card-p0');
@@ -1252,7 +1252,7 @@ function pgClients(){
       });
       oc.appendChild(ow);
     }
-    app(two,[mc,oc]);wrap.appendChild(two);return wrap;
+    if(isAssistant()){app(two,[mc]);}else{app(two,[mc,oc]);}wrap.appendChild(two);return wrap;
   }
   var searchVal=document.getElementById('cl-search')?document.getElementById('cl-search').value:'';
   var q=searchVal.toLowerCase();
@@ -1326,7 +1326,7 @@ function pgClients(){
   // Finally delete the client
   dbDel('clients',c.id);
 },'btn-danger');
-      app(acts,[mb,vb,db2]);
+      if(isAssistant()){app(acts,[mb,vb]);}else{app(acts,[mb,vb,db2]);}
       var nameTd=mk('td');nameTd.style.cursor='pointer';nameTd.onclick=function(){selClient=c.id;render();};nameTd.appendChild(nameCell);
       var phoneTd=mk('td');phoneTd.style.color='#666';phoneTd.textContent=c.phone||'—';
       var measTd=mk('td');measTd.appendChild(measEl);
@@ -1376,6 +1376,13 @@ var _mCli=null,_mCloth=null;
 function openTakeMeas(clientId,prefillCid){
   if(!DB.clothing.length){alert('Add clothing items first.');return;}
   if(!DB.clothing.some(function(c){return (c.measitemIds||[]).length>0;})){alert('Link measurement items to clothing items first.');return;}
+  // Assistant guard: block editing existing measurements
+  if(isAssistant()&&prefillCid){
+    var cl=DB.clients.find(function(x){return x.id===clientId;});
+    if(cl&&cl.measurements&&cl.measurements[prefillCid]&&Object.keys(cl.measurements[prefillCid]).length>0){
+      alert('Measurements already recorded. Only Shreya can edit existing measurements.');return;
+    }
+  }
   _mCli=clientId;
   _mCloth=prefillCid||(DB.clothing.filter(function(c){return (c.measitemIds||[]).length>0;})[0]||DB.clothing[0]).id;
   renderTakeModal();
@@ -2109,7 +2116,7 @@ function pgAppointments(){
       delApptBtn.onclick=(function(a){return function(){if(confirm('Delete this appointment?')){gcalSync(a,true);dbDel('appointments',a.id);}};})(a);
       var waApptBtn=mkBtn('WhatsApp',(function(aobj){return function(){waMsgAppointment(aobj);};})(a),'btn btn-xs');
       waApptBtn.style.cssText+='color:#25D366;border-color:#25D366';
-      if(isAssistant()){app(acTd,[editApptBtn,waApptBtn]);}else{app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);}
+      if(isAssistant()){app(acTd,[editApptBtn,waApptBtn,leadBtn]);}else{app(acTd,[editApptBtn,waApptBtn,leadBtn,delApptBtn]);}
       apptSrNo++;
       var srTdA=mk('td');srTdA.style.cssText='color:#aaa;font-size:12px';srTdA.textContent=String(apptSrNo);
       var tr=mk('tr');if(dim)tr.style.opacity='0.55';
@@ -2355,35 +2362,43 @@ function gcalBuildEvent(appt){
 }
 
 function gcalSync(appt,isDelete){
-  if(!gcalTokenValid())return; // silently skip if not connected
+  if(!gcalTokenValid()){
+    console.warn('GCal: token invalid or expired. Connected:',gcalIsConnected(),'Token:',_gcalToken);
+    return;
+  }
   var token=_gcalToken.access_token;
   var baseUrl='https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(GCAL_CAL_ID)+'/events';
   var gcalId=localStorage.getItem('ryree_gcal_event_'+appt.id);
+  console.log('GCal sync: appt=',appt.id,'delete=',isDelete,'existingGcalId=',gcalId);
 
   if(isDelete&&gcalId){
-    fetch(baseUrl+'/'+gcalId,{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+    fetch(baseUrl+'/'+gcalId,{method:'DELETE',headers:{Authorization:'Bearer '+token}})
+      .then(function(r){console.log('GCal delete status:',r.status);});
     localStorage.removeItem('ryree_gcal_event_'+appt.id);
     return;
   }
   var eventBody=gcalBuildEvent(appt);
+  console.log('GCal event body:',JSON.stringify(eventBody));
   if(gcalId){
-    // Update existing
     fetch(baseUrl+'/'+gcalId,{
       method:'PUT',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify(eventBody)
     }).then(function(r){return r.json();}).then(function(data){
+      console.log('GCal update response:',data);
       if(data.id)localStorage.setItem('ryree_gcal_event_'+appt.id,data.id);
-    }).catch(function(){});
+      if(data.error)console.error('GCal update error:',data.error);
+    }).catch(function(e){console.error('GCal update failed:',e);});
   } else {
-    // Create new
     fetch(baseUrl,{
       method:'POST',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify(eventBody)
     }).then(function(r){return r.json();}).then(function(data){
-      if(data.id)localStorage.setItem('ryree_gcal_event_'+appt.id,data.id);
-    }).catch(function(){});
+      console.log('GCal create response:',data);
+      if(data.id){localStorage.setItem('ryree_gcal_event_'+appt.id,data.id);console.log('GCal event created:',data.id);}
+      if(data.error)console.error('GCal create error:',data.error);
+    }).catch(function(e){console.error('GCal create failed:',e);});
   }
 }
 // ── END GOOGLE CALENDAR SYNC ──────────────────────────────────────────────
