@@ -2280,9 +2280,13 @@ function gcalAuthorise(){
   var cid=localStorage.getItem('ryree_gcal_client_id')||'';
   if(!cid){alert('No Client ID found. Please connect Google Calendar first.');return;}
   // Build OAuth URL
+  // Use origin only as redirect_uri for implicit flow
+  var origin=window.location.origin;
+  var path=window.location.pathname;
+  var redirectUri=origin+path;
   var params={
     client_id:cid,
-    redirect_uri:window.location.href.split('?')[0],
+    redirect_uri:redirectUri,
     response_type:'token',
     scope:GCAL_SCOPES,
     include_granted_scopes:'true',
