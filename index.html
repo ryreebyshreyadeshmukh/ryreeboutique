@@ -1540,22 +1540,109 @@ function pgOrders(){
   app(stats,[sc('Total orders',DB.orders.length),sc('Active',activeOrds.length,'#2D6B5E')]);
   wrap.appendChild(mkPageHeader('Orders','Track all client orders & payments',isAssistant()?null:mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
   wrap.appendChild(stats);
+  // ── CONTROLS ROW ──────────────────────────────────────────
   var _orderSearch='';
-  wrap.appendChild(mkSearchBar('orders-search','Search by client or item...',function(q){
+  var _orderFilter='active'; // active | all | Pending | In Progress | Ready | Delivered | Cancelled
+  var _orderSort='newest'; // newest | delivery
+
+  // Search bar
+  var searchBar=mkSearchBar('orders-search','Search by client or item...',function(q){
     _orderSearch=q;
-    document.querySelectorAll('.order-card-wrap').forEach(function(card){
-      var txt=(card.getAttribute('data-search')||'').toLowerCase();
-      card.style.display=(!q||txt.includes(q))?'':'none';
-    });
-  }));
-  if(!DB.orders.length){var empty=mk('div','card-p0');empty.appendChild(mk('div','empty','No orders yet.'));wrap.appendChild(empty);return wrap;}
+    renderOrders();
+  });
+  wrap.appendChild(searchBar);
+
+  // Filter tabs
+  var filterRow=mk('div');filterRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center';
+  var filterBtns={};
+  var filterDefs=[
+    {key:'active',label:'Active'},
+    {key:'Pending',label:'Pending'},
+    {key:'In Progress',label:'In Progress'},
+    {key:'Ready',label:'Ready ✓'},
+    {key:'Delivered',label:'Delivered'},
+    {key:'Cancelled',label:'Cancelled'},
+    {key:'all',label:'All orders'}
+  ];
+  filterDefs.forEach(function(fd){
+    var btn=mkBtn(fd.label,function(){
+      _orderFilter=this._fk;
+      Object.keys(filterBtns).forEach(function(k){
+        filterBtns[k].style.background=k===_orderFilter?'#2D6B5E':'#fff';
+        filterBtns[k].style.color=k===_orderFilter?'#C9A84C':'#555';
+      });
+      renderOrders();
+    },'btn btn-xs');
+    btn._fk=fd.key;
+    btn.style.background=fd.key==='active'?'#2D6B5E':'#fff';
+    btn.style.color=fd.key==='active'?'#C9A84C':'#555';
+    btn.style.borderColor='#e0e0e0';
+    filterBtns[fd.key]=btn;
+    filterRow.appendChild(btn);
+  });
+
+  // Sort toggle
+  var sortBtn=mkBtn('Sort: Newest first',function(){
+    _orderSort=_orderSort==='newest'?'delivery':'newest';
+    this.textContent=_orderSort==='delivery'?'Sort: Delivery date':'Sort: Newest first';
+    renderOrders();
+  },'btn btn-xs');
+  sortBtn.style.cssText+='margin-left:auto;color:#6D28D9;border-color:#DDD6FE';
+  filterRow.appendChild(sortBtn);
+  wrap.appendChild(filterRow);
+
+  // Orders container
+  var ordersWrap=mk('div');ordersWrap.id='orders-list-wrap';
+  wrap.appendChild(ordersWrap);
+
   var statuses=['Pending','In Progress','Ready','Delivered','Cancelled'];
-  var orderSrNo=0;
-  DB.orders.slice().reverse().forEach(function(o){
+
+  function renderOrders(){
+    var ow=document.getElementById('orders-list-wrap');if(!ow)return;
+    ow.innerHTML='';
+
+    // Filter
+    var filtered=DB.orders.filter(function(o){
+      var statusMatch=true;
+      if(_orderFilter==='active')statusMatch=['Pending','In Progress','Ready'].indexOf(o.status)>=0;
+      else if(_orderFilter!=='all')statusMatch=o.status===_orderFilter;
+      var searchMatch=true;
+      if(_orderSearch){
+        var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+        var txt=((cl?cl.name:'')+' '+o.item+' '+(o.orderNo||'')).toLowerCase();
+        searchMatch=txt.includes(_orderSearch.toLowerCase());
+      }
+      return statusMatch&&searchMatch;
+    });
+
+    // Sort
+    if(_orderSort==='delivery'){
+      filtered=filtered.slice().sort(function(a,b){
+        if(!a.delivery&&!b.delivery)return 0;
+        if(!a.delivery)return 1;
+        if(!b.delivery)return -1;
+        return a.delivery.localeCompare(b.delivery);
+      });
+    } else {
+      filtered=filtered.slice().reverse();
+    }
+
+    if(!filtered.length){
+      var empty=mk('div','card-p0');
+      empty.appendChild(mk('div','empty',_orderFilter==='active'?'No active orders.':'No orders match this filter.'));
+      ow.appendChild(empty);return;
+    }
+
+    var orderSrNo=0;
+    filtered.forEach(function(o){
+      orderSrNo++;
+      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+      var assignedStaff=o.assignedTo?DB.staff.find(function(x){return x.id===o.assignedTo;}):null;
     orderSrNo++;
     var cl=DB.clients.find(function(x){return x.id===o.clientId;});
     var assignedStaff=o.assignedTo?DB.staff.find(function(x){return x.id===o.assignedTo;}):null;
 
+      var cardWrap=mk('div');cardWrap.className='order-card-wrap';var _cl2=DB.clients.find(function(x){return x.id===o.clientId;});cardWrap.setAttribute('data-search',((_cl2?_cl2.name:'')+' '+(o.item||'')+' '+(o.orderNo||'')+' '+(o.status||'')).toLowerCase());
     // Order card
     var card=mk('div');card.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:10px;overflow:hidden';
 
@@ -1700,8 +1787,12 @@ function pgOrders(){
     }
 
     // Payment info shown in Invoice module now
-    wrap.appendChild(card);
-  });
+      cardWrap.appendChild(card);
+      ow.appendChild(cardWrap);
+    });
+  } // end renderOrders
+
+  setTimeout(function(){renderOrders();},0);
   return wrap;
 }
 
