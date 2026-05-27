@@ -493,6 +493,17 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function initials(n){return (n||'?').split(' ').map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();}
 function rupee(v){return '\u20b9'+Number(v||0).toLocaleString('en-IN');}
+function fmtDate(d){
+  if(!d)return '';
+  var dt=new Date(d+'T00:00:00');
+  if(isNaN(dt.getTime()))return d;
+  var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var thisYear=new Date().getFullYear();
+  var str=days[dt.getDay()]+', '+dt.getDate()+' '+months[dt.getMonth()];
+  if(dt.getFullYear()!==thisYear)str+=' '+dt.getFullYear();
+  return str;
+}
 
 // DOM helpers
 function mk(tag,cls,txt){
@@ -1247,7 +1258,7 @@ function pgClients(){
         var top=mk('div');top.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:3px';
         var it=mk('span');it.style.cssText='font-size:13px;font-weight:600';it.textContent=o.item;
         app(top,[it,mkBadge(o.status)]);
-        var sub=mk('div');sub.style.cssText='font-size:11px;color:#888';sub.textContent='Delivery: '+(o.delivery||'—')+' · '+rupee(o.amount);
+        var sub=mk('div');sub.style.cssText='font-size:11px;color:#888';sub.textContent='Delivery: '+(o.delivery?fmtDate(o.delivery):'—')+' · '+rupee(o.amount);
         app(row,[top,sub]);ow.appendChild(row);
       });
       oc.appendChild(ow);
@@ -1669,7 +1680,7 @@ function pgOrders(){
       app(progressEl,[bar,pLabel]);
       nameDiv.appendChild(progressEl);
     }
-    itemSpan.textContent=(o.orderNo?o.orderNo+' · ':'')+o.item+(o.delivery?' · By '+o.delivery:'')+(assignedStaff?' · '+assignedStaff.name:'');
+    itemSpan.textContent=(o.orderNo?o.orderNo+' · ':'')+o.item+(o.delivery?' · By '+fmtDate(o.delivery):'')+(assignedStaff?' · '+assignedStaff.name:'');
     var nameDiv=mk('div');app(nameDiv,[nameSpan,itemSpan]);
     var clientCell=mkRow('display:flex;align-items:center;gap:8px');app(clientCell,[av,nameDiv]);
     clientDiv.appendChild(clientCell);
@@ -2188,7 +2199,7 @@ function pgAppointments(){
       app(cc,[av,cn]);
       var ccTd=mk('td');ccTd.appendChild(cc);
       var phoneTd=mk('td');phoneTd.style.cssText='color:#555;font-size:13px';phoneTd.textContent=(cl&&cl.phone)||'—';
-      var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=a.date;
+      var dtTd=mk('td');dtTd.style.fontWeight='500';dtTd.textContent=fmtDate(a.date);
       
       // Convert 24hr to 12hr
       var tmTd=mk('td');tmTd.style.color='#888';
@@ -2607,7 +2618,7 @@ function pgDashboardAssistant(){
       app(left,[nm,sub]);
       var right=mk('div');right.style.textAlign='right';
       var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:700;color:'+(isUrgent?'#B45309':'#2D6B5E');
-      dt.textContent=daysLeft===0?'Due today':daysLeft===1?'Due tomorrow':'Due in '+daysLeft+' days';
+      dt.textContent=daysLeft===0?'Due today ('+fmtDate(o.delivery)+')':daysLeft===1?'Due tomorrow ('+fmtDate(o.delivery)+')':'Due '+fmtDate(o.delivery);
       var st=mkBadge(o.status);right.appendChild(dt);right.appendChild(st);
       app(row,[left,right]);delCard.appendChild(row);
     });
@@ -2660,7 +2671,7 @@ function pgDashboardAssistant(){
       app(left,[titleDiv,meta]);
       var right=mk('div');right.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:6px';
       var dueLbl=mk('div');dueLbl.style.cssText='font-size:11px;font-weight:600;color:'+(isOverdue?'#991B1B':isDueToday?'#B45309':'#888');
-      dueLbl.textContent=isOverdue?'Overdue':isDueToday?'Due today':t.dueDate?'Due '+t.dueDate:'No due date';
+      dueLbl.textContent=isOverdue?'Overdue ('+fmtDate(t.dueDate)+')':isDueToday?'Due today':t.dueDate?'Due '+fmtDate(t.dueDate):'No due date';
       var doneBtn=mkBtn('Mark Done',(function(tid,task){return function(){
         if(confirm('Mark this task as done?')){
           dbSave('tasks',Object.assign({},task,{status:'done',completedAt:today}));
@@ -2688,7 +2699,7 @@ function pgDashboardAssistant(){
       var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=a.purpose||'Appointment';
       app(left,[nm,sub]);
       var right=mk('div');right.style.textAlign='right';
-      var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:600;color:#2D6B5E';dt.textContent=a.date;
+      var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:600;color:#2D6B5E';dt.textContent=fmtDate(a.date);
       var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';
       tm.textContent=(function(t){if(!t)return '';var p=t.split(':');var h=parseInt(p[0]);var m=p[1];var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;})(a.time);
       app(right,[dt,tm]);app(row,[left,right]);upCard.appendChild(row);
@@ -2742,7 +2753,7 @@ function pgDashboard(){
     var sb=mk('div');sb.style.cssText='font-size:11px;color:#aaa';sb.textContent=a.purpose||'Appointment';
     app(left,[nm,sb]);
     var right=mk('div');right.style.textAlign='right';
-    var dt=mk('div');dt.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';dt.textContent=a.date;
+    var dt=mk('div');dt.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';dt.textContent=fmtDate(a.date);
     var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';
     tm.textContent=(function(t){
       if(!t)return '';
@@ -2883,7 +2894,7 @@ function pgStaff(){
     else active.slice(0,3).forEach(function(t){
       var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px';
       var l=mk('div');var it=mk('div');it.style.fontWeight='500';it.textContent=t.title;
-      var dl=mk('div');dl.style.color='#aaa';dl.textContent=t.dueDate?'Due '+t.dueDate:'';app(l,[it,dl]);
+      var dl=mk('div');dl.style.color='#aaa';dl.textContent=t.dueDate?'Due '+fmtDate(t.dueDate):'';app(l,[it,dl]);
       var pb=mk('span','badge');var pBgs={high:'#FEF2F2',medium:'#FFFBEB',low:'#F0FDF4'};var pCs={high:'#991B1B',medium:'#B45309',low:'#166534'};
       pb.style.cssText='font-size:10px;background:'+(pBgs[t.priority]||'#f5f5f5')+';color:'+(pCs[t.priority]||'#888');pb.textContent=(t.priority||'medium');
       app(row,[l,pb]);card.appendChild(row);
@@ -7574,7 +7585,7 @@ function viewInvoice(id){
     var lft=mk('div');
     var nm=mk('div');nm.style.fontWeight='600';nm.textContent=(i+1)+'. '+s.name;
     lft.appendChild(nm);
-    if(s.delivery){var del=mk('div');del.style.cssText='font-size:11px;color:#888;margin-top:2px';del.textContent='Delivery by: '+s.delivery;lft.appendChild(del);}
+    if(s.delivery){var del=mk('div');del.style.cssText='font-size:11px;color:#888;margin-top:2px';del.textContent='Delivery by: '+fmtDate(s.delivery);lft.appendChild(del);}
     if(s.itemNotes){var nt=mk('div');nt.style.cssText='font-size:11px;color:#666;margin-top:2px';nt.textContent=s.itemNotes;lft.appendChild(nt);}
     var amt=mk('div');amt.style.cssText='font-weight:700;color:#2D6B5E;white-space:nowrap;margin-left:12px';amt.textContent=s.price?rupee(s.price):'—';
     app(row,[lft,amt]);itemsBox.appendChild(row);
@@ -8063,7 +8074,7 @@ function pgLeads(){
         var daysOff=Math.round((new Date(lead.followUpDate)-new Date(today))/(1000*60*60*24));
         var fuSpan=mk('span');
         fuSpan.style.cssText='font-size:11px;padding:2px 7px;border-radius:10px;background:'+(isOverdue?'#FEF2F2':isDue?'#FEF3CD':'#F0FDF4')+';color:'+(isOverdue?'#991B1B':isDue?'#92400E':'#166534');
-        fuSpan.textContent=isDue&&lead.followUpDate===today?'Today':isOverdue?'Overdue '+Math.abs(daysOff)+'d':lead.followUpDate;
+        fuSpan.textContent=isDue&&lead.followUpDate===today?'Today':isOverdue?'Overdue '+Math.abs(daysOff)+'d':fmtDate(lead.followUpDate);
         fuTd.appendChild(fuSpan);
       } else { fuTd.textContent='—';fuTd.style.color='#bbb'; }
 
