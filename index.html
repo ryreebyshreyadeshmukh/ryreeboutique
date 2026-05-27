@@ -395,7 +395,7 @@ function applyRoleRestrictions(){
     // Show role badge
     if(badge){badge.style.display='block';badge.textContent='Signed in as: Sanika';}
     // Hide all nav items except leads and appointments
-    var allowed=['nav-leads','nav-appointments','nav-clients','nav-orders'];
+    var allowed=['nav-leads','nav-appointments','nav-clients','nav-orders','nav-dashboard'];
     document.querySelectorAll('.nav-item').forEach(function(el){
       var id=el.id;
       if(allowed.indexOf(id)===-1)el.style.display='none';
@@ -406,8 +406,8 @@ function applyRoleRestrictions(){
     ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn','gcal-btn'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
-    // Default to leads page
-    nav('leads');
+    // Default to dashboard page
+    nav('dashboard');
   }else{
     if(badge)badge.style.display='none';
     // Ensure all nav items visible for admin
@@ -690,7 +690,7 @@ function mkTr(cells){
 var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   // Role guard — assistant can only view leads and appointments
-  var allowedForAssistant=['leads','appointments','clients','orders'];
+  var allowedForAssistant=['leads','appointments','clients','orders','dashboard'];
   if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
@@ -942,7 +942,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:pgDashboard,pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -2426,6 +2426,188 @@ function gcalSync(appt,isDelete){
 // ── END GOOGLE CALENDAR SYNC ──────────────────────────────────────────────
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────
+function pgDashboardAssistant(){
+  var today=new Date().toISOString().split('T')[0];
+  var wrap=mk('div');
+
+  // Greeting header
+  var now=new Date();
+  var hr=now.getHours();
+  var greeting=hr<12?'Good morning':(hr<17?'Good afternoon':'Good evening');
+  wrap.appendChild(mkPageHeader(greeting+', Sanika','Here is what needs your attention today'));
+
+  // ── STAT CARDS ──────────────────────────────────────────────
+  var todayAppts=DB.appointments.filter(function(a){return a.date===today;});
+  var weekEnd=new Date();weekEnd.setDate(weekEnd.getDate()+7);
+  var weekEndStr=weekEnd.toISOString().split('T')[0];
+  var dueThisWeek=DB.orders.filter(function(o){return o.delivery&&o.delivery>=today&&o.delivery<=weekEndStr&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+  var overdueDeliveries=DB.orders.filter(function(o){return o.delivery&&o.delivery<today&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+
+  // Find Sanika staff record
+  var sanika=DB.staff.find(function(s){return s.name&&s.name.toLowerCase().indexOf('sanika')>=0;});
+  var myTasks=sanika?DB.tasks.filter(function(t){return t.assignedTo===sanika.id&&t.status!=='done';}):[];
+  var myOverdue=myTasks.filter(function(t){return t.dueDate&&t.dueDate<today;});
+  var myDueToday=myTasks.filter(function(t){return t.dueDate===today;});
+
+  function sc(l,v,c,bg){
+    var card=mk('div','stat-card');card.style.background=bg||'#fff';
+    var lbl=mk('div','stat-label',l);
+    var val=mk('div','stat-val',String(v));
+    if(c)val.style.color=c;
+    app(card,[lbl,val]);return card;
+  }
+  var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(4,1fr);margin-bottom:20px';
+  app(stats,[
+    sc('Today appointments',todayAppts.length,'#2D6B5E'),
+    sc('Due this week',dueThisWeek.length,dueThisWeek.length>0?'#B45309':'#888',dueThisWeek.length>0?'#FFFBEB':'#fff'),
+    sc('Overdue deliveries',overdueDeliveries.length,overdueDeliveries.length>0?'#991B1B':'#888',overdueDeliveries.length>0?'#FEF2F2':'#fff'),
+    sc('My pending tasks',myTasks.length,myTasks.length>0?'#6D28D9':'#888',myTasks.length>0?'#F5F3FF':'#fff')
+  ]);
+  wrap.appendChild(stats);
+
+  // ── OVERDUE DELIVERIES ALERT ────────────────────────────────
+  if(overdueDeliveries.length>0){
+    var alert=mk('div');alert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:14px;cursor:pointer';
+    var at=mk('div');at.style.cssText='font-size:13px;font-weight:700;color:#991B1B';at.textContent=overdueDeliveries.length+' order'+(overdueDeliveries.length!==1?'s':'')+' past delivery date — inform Shreya';
+    alert.appendChild(at);alert.onclick=function(){nav('orders');};
+    wrap.appendChild(alert);
+  }
+
+  // ── TODAY APPOINTMENTS ──────────────────────────────────────
+  var apptSec=mk('div');apptSec.style.marginBottom='20px';
+  apptSec.appendChild(mk('div','section-title','Today appointments ('+todayAppts.length+')'));
+  var apptCard=mk('div','card-p0');
+  if(!todayAppts.length){
+    apptCard.appendChild(mk('div','empty','No appointments today.'));
+  } else {
+    todayAppts.sort(function(a,b){return (a.time||'').localeCompare(b.time||'');}).forEach(function(a){
+      var cl=DB.clients.find(function(x){return x.id===a.clientId;});
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer';
+      row.onclick=function(){nav('appointments');};
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'Unknown';
+      var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=(a.purpose||'Appointment')+(a.mode?' · '+a.mode:'');
+      app(left,[nm,sub]);
+      var right=mk('div');right.style.textAlign='right';
+      var tm=mk('div');tm.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';
+      tm.textContent=(function(t){if(!t)return 'Time TBD';var p=t.split(':');var h=parseInt(p[0]);var m=p[1];var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;})(a.time);
+      var badge=mkBadge(a.status||'Scheduled');right.appendChild(tm);right.appendChild(badge);
+      app(row,[left,right]);apptCard.appendChild(row);
+    });
+  }
+  apptSec.appendChild(apptCard);
+
+  // ── DELIVERIES THIS WEEK ────────────────────────────────────
+  var delSec=mk('div');delSec.style.marginBottom='20px';
+  delSec.appendChild(mk('div','section-title','Deliveries due this week'));
+  var delCard=mk('div','card-p0');
+  if(!dueThisWeek.length){
+    delCard.appendChild(mk('div','empty','No deliveries due this week.'));
+  } else {
+    dueThisWeek.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+      var daysLeft=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));
+      var isUrgent=daysLeft<=2;
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer'+(isUrgent?';background:#FFFBEB':'');
+      row.onclick=function(){nav('orders');};
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'?';
+      var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=o.item+(o.orderNo?' · '+o.orderNo:'');
+      app(left,[nm,sub]);
+      var right=mk('div');right.style.textAlign='right';
+      var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:700;color:'+(isUrgent?'#B45309':'#2D6B5E');
+      dt.textContent=daysLeft===0?'Due today':daysLeft===1?'Due tomorrow':'Due in '+daysLeft+' days';
+      var st=mkBadge(o.status);right.appendChild(dt);right.appendChild(st);
+      app(row,[left,right]);delCard.appendChild(row);
+    });
+  }
+  delSec.appendChild(delCard);
+
+  // Two col layout - appointments + deliveries
+  var col1=mk('div');col1.appendChild(apptSec);
+  var col2=mk('div');col2.appendChild(delSec);
+  var two=mk('div','two-col');app(two,[col1,col2]);
+  wrap.appendChild(two);
+
+  // ── MY TASKS ────────────────────────────────────────────────
+  var taskSec=mk('div');taskSec.style.marginBottom='20px';
+  var taskHdr=mk('div');taskHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+  var taskTitle=mk('div','section-title','My tasks');taskTitle.style.margin='0';
+  taskHdr.appendChild(taskTitle);
+  taskSec.appendChild(taskHdr);
+
+  if(!sanika){
+    var noStaff=mk('div','card-p0');
+    noStaff.appendChild(mk('div','empty','Ask Shreya to add you as a staff member so tasks can be assigned to you.'));
+    taskSec.appendChild(noStaff);
+  } else if(!myTasks.length){
+    var noTasks=mk('div','card-p0');
+    noTasks.appendChild(mk('div','empty','No tasks assigned to you. You are all caught up!'));
+    taskSec.appendChild(noTasks);
+  } else {
+    // Overdue first, then today, then upcoming
+    var sorted=myTasks.slice().sort(function(a,b){
+      var aScore=(a.dueDate<today)?0:(a.dueDate===today)?1:2;
+      var bScore=(b.dueDate<today)?0:(b.dueDate===today)?1:2;
+      if(aScore!==bScore)return aScore-bScore;
+      return (a.dueDate||'9999').localeCompare(b.dueDate||'9999');
+    });
+    var taskCard=mk('div','card-p0');
+    sorted.forEach(function(t){
+      var isOverdue=t.dueDate&&t.dueDate<today;
+      var isDueToday=t.dueDate===today;
+      var linkedOrder=t.orderId?DB.orders.find(function(x){return x.id===t.orderId;}):null;
+      var linkedClient=t.clientId?DB.clients.find(function(x){return x.id===t.clientId;}):null;
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f5f5f5'+(isOverdue?';background:#FFF8F8':isDueToday?';background:#FFFBEB':'');
+      var left=mk('div');left.style.flex='1';
+      var titleDiv=mk('div');titleDiv.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:3px';titleDiv.textContent=t.title;
+      var meta=mk('div');meta.style.cssText='font-size:11px;color:#aaa;display:flex;gap:8px;flex-wrap:wrap';
+      if(t.priority){var pb=mk('span');pb.style.cssText='color:'+(t.priority==='high'?'#991B1B':t.priority==='medium'?'#B45309':'#166534');pb.textContent=t.priority.charAt(0).toUpperCase()+t.priority.slice(1)+' priority';meta.appendChild(pb);}
+      if(linkedOrder){var lo=mk('span');lo.textContent='Order: '+linkedOrder.item;meta.appendChild(lo);}
+      if(linkedClient){var lc=mk('span');lc.textContent='Client: '+linkedClient.name;meta.appendChild(lc);}
+      if(t.notes){var nt=mk('span');nt.style.fontStyle='italic';nt.textContent=t.notes.length>50?t.notes.slice(0,50)+'...':t.notes;meta.appendChild(nt);}
+      app(left,[titleDiv,meta]);
+      var right=mk('div');right.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:6px';
+      var dueLbl=mk('div');dueLbl.style.cssText='font-size:11px;font-weight:600;color:'+(isOverdue?'#991B1B':isDueToday?'#B45309':'#888');
+      dueLbl.textContent=isOverdue?'Overdue':isDueToday?'Due today':t.dueDate?'Due '+t.dueDate:'No due date';
+      var doneBtn=mkBtn('Mark Done',(function(tid,task){return function(){
+        if(confirm('Mark this task as done?')){
+          dbSave('tasks',Object.assign({},task,{status:'done',completedAt:today}));
+        }
+      };})(t.id,t),'btn btn-xs');
+      doneBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+      app(right,[dueLbl,doneBtn]);
+      app(row,[left,right]);taskCard.appendChild(row);
+    });
+    taskSec.appendChild(taskCard);
+  }
+  wrap.appendChild(taskSec);
+
+  // ── UPCOMING APPOINTMENTS (next 7 days) ──────────────────────
+  var upAppts=DB.appointments.filter(function(a){return a.date>today&&a.date<=weekEndStr;}).sort(function(a,b){return a.date.localeCompare(b.date);});
+  if(upAppts.length>0){
+    var upSec=mk('div');upSec.style.marginBottom='20px';
+    upSec.appendChild(mk('div','section-title','Upcoming appointments this week'));
+    var upCard=mk('div','card-p0');
+    upAppts.forEach(function(a){
+      var cl=DB.clients.find(function(x){return x.id===a.clientId;});
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5';
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'Unknown';
+      var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=a.purpose||'Appointment';
+      app(left,[nm,sub]);
+      var right=mk('div');right.style.textAlign='right';
+      var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:600;color:#2D6B5E';dt.textContent=a.date;
+      var tm=mk('div');tm.style.cssText='font-size:11px;color:#aaa';
+      tm.textContent=(function(t){if(!t)return '';var p=t.split(':');var h=parseInt(p[0]);var m=p[1];var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;})(a.time);
+      app(right,[dt,tm]);app(row,[left,right]);upCard.appendChild(row);
+    });
+    upSec.appendChild(upCard);wrap.appendChild(upSec);
+  }
+
+  return wrap;
+}
+
 function pgDashboard(){
   var today=new Date().toISOString().split('T')[0];
   var active=DB.orders.filter(function(o){return ['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
