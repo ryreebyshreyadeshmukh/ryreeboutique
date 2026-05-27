@@ -395,7 +395,7 @@ function applyRoleRestrictions(){
     // Show role badge
     if(badge){badge.style.display='block';badge.textContent='Signed in as: Sanika';}
     // Hide all nav items except leads and appointments
-    var allowed=['nav-leads','nav-appointments','nav-clients'];
+    var allowed=['nav-leads','nav-appointments','nav-clients','nav-orders'];
     document.querySelectorAll('.nav-item').forEach(function(el){
       var id=el.id;
       if(allowed.indexOf(id)===-1)el.style.display='none';
