@@ -690,7 +690,7 @@ function mkTr(cells){
 var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   // Role guard — assistant can only view leads and appointments
-  var allowedForAssistant=['leads','appointments','clients'];
+  var allowedForAssistant=['leads','appointments','clients','orders'];
   if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
@@ -1538,7 +1538,7 @@ function pgOrders(){
   var stats=mk('div','stats-row');stats.style.cssText='grid-template-columns:repeat(2,1fr);margin-bottom:20px';
   function sc(l,v,c){var card=mk('div','stat-card');var lbl=mk('div','stat-label',l);var val=mk('div','stat-val',v);if(c)val.style.color=c;app(card,[lbl,val]);return card;}
   app(stats,[sc('Total orders',DB.orders.length),sc('Active',activeOrds.length,'#2D6B5E')]);
-  wrap.appendChild(mkPageHeader('Orders','Track all client orders & payments',mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
+  wrap.appendChild(mkPageHeader('Orders','Track all client orders & payments',isAssistant()?null:mkBtn('+ New Order',function(){openOrderModal();},'btn btn-primary')));
   wrap.appendChild(stats);
   var _orderSearch='';
   wrap.appendChild(mkSearchBar('orders-search','Search by client or item...',function(q){
@@ -1560,7 +1560,7 @@ function pgOrders(){
     var card=mk('div');card.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:10px;overflow:hidden';
 
     // Main row
-    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:28px 2fr 1fr 1fr auto;gap:8px;align-items:center;padding:14px 16px';
+    var mainRow=mk('div');mainRow.style.cssText='display:grid;grid-template-columns:28px 2fr '+(isAssistant()?'':'1fr ')+'1fr auto;gap:8px;align-items:center;padding:14px 16px';
 
     // Client + item
     var clientDiv=mk('div');
@@ -1587,11 +1587,13 @@ function pgOrders(){
     var clientCell=mkRow('display:flex;align-items:center;gap:8px');app(clientCell,[av,nameDiv]);
     clientDiv.appendChild(clientCell);
 
-    // Amount
+    // Amount — hidden for assistant
     var amtDiv=mk('div');
-    var amtLabel=mk('div');amtLabel.style.cssText='font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em';amtLabel.textContent='Total';
-    var amtVal=mk('div');amtVal.style.cssText='font-weight:600;font-size:13px';amtVal.textContent=rupee(o.amount||0);
-    app(amtDiv,[amtLabel,amtVal]);
+    if(!isAssistant()){
+      var amtLabel=mk('div');amtLabel.style.cssText='font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.05em';amtLabel.textContent='Total';
+      var amtVal=mk('div');amtVal.style.cssText='font-weight:600;font-size:13px';amtVal.textContent=rupee(o.amount||0);
+      app(amtDiv,[amtLabel,amtVal]);
+    }
 
     // Status select
     var sel=mk('select');sel.style.cssText='border:1px solid #e8e8e8;background:#fff;cursor:pointer;font-size:11px;font-weight:600;outline:none;color:#555;border-radius:6px;padding:3px 6px';
@@ -1647,7 +1649,7 @@ function pgOrders(){
       else{var cl=DB.clients.find(function(x){return x.id===oobj.clientId;});openWhatsApp(getClientPhone(oobj.clientId),'Hi '+(cl?cl.name:'there')+',');}
     };})(o),'btn btn-xs');
     waOrdBtn.style.cssText+='color:#25D366;border-color:#25D366';
-    app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,waOrdBtn,editBtn,delBtn]);
+    if(isAssistant()){app(acts,[waOrdBtn]);}else{app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,waOrdBtn,editBtn,delBtn]);}
 
     var srDiv=mk('div');srDiv.style.cssText='font-size:11px;font-weight:700;color:#ccc;text-align:center';srDiv.textContent=String(orderSrNo);
     app(mainRow,[srDiv,clientDiv,amtDiv,sel,acts]);
