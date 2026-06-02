@@ -1,0 +1,25 @@
+{
+  "name": "Ryree OS",
+  "short_name": "Ryree",
+  "description": "Ryree by Shreya Deshmukh \u2014 Boutique Management",
+  "start_url": "/ryreeboutique/index.html",
+  "scope": "/ryreeboutique/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e514c",
+  "theme_color": "#1e514c",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
