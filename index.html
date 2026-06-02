@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ryree by Shreya Deshmukh</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
 <meta name="theme-color" content="#2D6B5E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2885,17 +2886,6 @@ function pgDashboard(){
     var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
     app(laLeft,[laTitle,laSub]);
     var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='→';
-    app(leadAlert,[laLeft,laArrow]);
-    leadAlert.onclick=function(){nav('leads');};
-    wrap.appendChild(leadAlert);
-  }
-  if(leadsDue>0){
-    var leadAlert=mk('div');leadAlert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
-    var laLeft=mk('div');
-    var laTitle=mk('div');laTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B';laTitle.textContent=leadsDue+' lead'+(leadsDue!==1?'s':'')+' due for follow-up';
-    var laSub=mk('div');laSub.style.cssText='font-size:11px;color:#B45309;margin-top:2px';laSub.textContent='Click to open Lead Bank';
-    app(laLeft,[laTitle,laSub]);
-    var laArrow=mk('div');laArrow.style.cssText='font-size:18px;color:#991B1B;font-weight:700';laArrow.textContent='›';
     app(leadAlert,[laLeft,laArrow]);
     leadAlert.onclick=function(){nav('leads');};
     wrap.appendChild(leadAlert);
