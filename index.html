@@ -5,8 +5,14 @@
 <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="pragma" content="no-cache">
 <meta http-equiv="expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ryree by Shreya Deshmukh</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2D6B5E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ryree OS">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -104,8 +110,33 @@ textarea.form-input{resize:vertical}
 .info-box{background:#e6f0ee;border:1px solid #b8d5ce;border-radius:8px;padding:12px 14px;font-size:13px;color:#2D6B5E;margin-bottom:16px}
 .warn-box{background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 14px;font-size:13px;color:#92400E}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:700px){.two-col{grid-template-columns:1fr}.form-row{grid-template-columns:1fr}.meas-grid{grid-template-columns:1fr}.sidebar{transform:translateX(-100%);transition:transform .25s}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.stats-row{grid-template-columns:repeat(2,1fr)}#mob-menu{display:flex!important}.main{padding:16px;padding-top:52px}}
+@media(max-width:700px){
+  .two-col{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  .meas-grid{grid-template-columns:1fr}
+  .sidebar{transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  #mob-menu{display:flex!important}
+  .main{padding:12px;padding-top:60px;padding-bottom:72px}
+  .nav-item{padding:13px 16px;font-size:14px;min-height:48px}
+  .sidebar{padding-bottom:80px}
+  .btn{min-height:40px;padding:8px 14px}
+  .btn-xs{min-height:36px;padding:6px 12px;font-size:12px}
+  .form-input{min-height:44px;font-size:16px}
+  select.form-input{min-height:44px;font-size:16px}
+  .page-header{flex-wrap:wrap;gap:8px}
+  table{font-size:12px}
+  th,td{padding:8px 6px}
+  #bottom-nav{display:flex!important}
+}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9}
+#bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:60px;background:#2D6B5E;z-index:200;border-top:1px solid rgba(255,255,255,.15);padding:0;padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;color:rgba(255,255,255,.6);font-size:10px;font-weight:500;padding:8px 4px;border:none;background:none;-webkit-tap-highlight-color:transparent}
+.bn-item.active{color:#C9A84C}
+.bn-item svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5}
+
 .sidebar-overlay.show{display:block}
 
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -127,7 +158,7 @@ textarea.form-input{resize:vertical}
 </div>
 
 <div class="app" style="display:none" id="app-wrap">
-  <button id="mob-menu" onclick="toggleSidebar()" style="display:none;position:fixed;top:12px;left:12px;z-index:100;background:#2D6B5E;border:none;border-radius:8px;padding:8px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)">
+  <button id="mob-menu" onclick="toggleSidebar()" style="display:none;position:fixed;top:10px;left:12px;z-index:100;background:#2D6B5E;border:none;border-radius:10px;padding:11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25);-webkit-tap-highlight-color:transparent">
     <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#C9A84C" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
   </button>
   
@@ -384,6 +415,10 @@ function showApp(){
   gcalLoadToken();
   gcalCheckRedirect();
   gcalUpdateBtn();
+  // Register service worker for PWA
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  }
   initDB();
   loadEstConfig();
 }
@@ -706,6 +741,13 @@ function nav(p){
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
   var el=document.getElementById('nav-'+p);if(el)el.classList.add('active');
+  updateBottomNav(p);
+  // Close sidebar on mobile after navigation
+  var sb=document.querySelector('.sidebar');
+  var ov=document.getElementById('sb-overlay');
+  if(sb&&sb.classList.contains('open')&&window.innerWidth<=700){
+    sb.classList.remove('open');if(ov)ov.classList.remove('show');
+  }
   render();
 }
 
@@ -8639,6 +8681,17 @@ function getLastBackupTime(){
   }catch(e){}
   return null;
 }
+function updateBottomNav(page){
+  var pages=['dashboard','appointments','leads','orders'];
+  pages.forEach(function(p){
+    var btn=document.getElementById('bn-'+p);
+    if(btn)btn.className='bn-item'+(p===page?' active':'');
+  });
+  // More button active if on a non-bottom-nav page
+  var moreBtn=document.getElementById('bn-more');
+  if(moreBtn)moreBtn.className='bn-item'+(pages.indexOf(page)===-1?' active':'');
+}
+
 function toggleSidebar(){
   var sb=document.querySelector('.sidebar');
   var ov=document.getElementById('sb-overlay');
@@ -8667,5 +8720,29 @@ if(isLoggedIn()){
   document.getElementById('login-wrap').style.display='flex';
 }
 </script>
+
+<!-- Bottom navigation for mobile -->
+<nav id="bottom-nav" style="display:none">
+  <button class="bn-item active" id="bn-dashboard" onclick="nav('dashboard');updateBottomNav('dashboard')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </button>
+  <button class="bn-item" id="bn-appointments" onclick="nav('appointments');updateBottomNav('appointments')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    Appointments
+  </button>
+  <button class="bn-item" id="bn-leads" onclick="nav('leads');updateBottomNav('leads')">
+    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Leads
+  </button>
+  <button class="bn-item" id="bn-orders" onclick="nav('orders');updateBottomNav('orders')">
+    <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    Orders
+  </button>
+  <button class="bn-item" id="bn-more" onclick="toggleSidebar()">
+    <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    More
+  </button>
+</nav>
 </body>
 </html>
