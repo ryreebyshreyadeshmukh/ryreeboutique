@@ -2535,16 +2535,19 @@ function sendQuestionnaire(entityType, entityId, entityName){
     responses: null,
     brief: null
   }).then(function(){
-    // Copy link to clipboard
-    if(navigator.clipboard){
-      navigator.clipboard.writeText(link).then(function(){
-        alert('Link copied! Share with ' + (entityName||'the client') + ' on WhatsApp: ' + link);
-      }).catch(function(){
-        prompt('Copy this link and share on WhatsApp:', link);
-      });
-    } else {
-      prompt('Copy this link and share on WhatsApp:', link);
+    // Get client phone number
+    var phone='';
+    if(entityType==='lead'){
+      var lead=DB.leads.find(function(x){return x.id===entityId;});
+      if(lead)phone=(lead.phone||'').replace(/\D/g,'');
+    } else if(entityType==='client'){
+      var cl=DB.clients.find(function(x){return x.id===entityId;});
+      if(cl)phone=(cl.phone||'').replace(/\D/g,'');
     }
+    var firstName=(entityName||'').split(' ')[0]||'there';
+    var waMessage='Hi '+firstName+'! \u{1F338} Before your consultation with Shreya, she would love to understand your vision better. Please take 5 minutes to fill this quick questionnaire:\n\n'+link+'\n\nLooking forward to creating something beautiful for you!\n\u2014 Ryree by Shreya Deshmukh';
+    var waUrl=phone?'https://wa.me/91'+phone+'?text='+encodeURIComponent(waMessage):'https://wa.me/?text='+encodeURIComponent(waMessage);
+    window.open(waUrl,'_blank');
     render();
   }).catch(function(){
     alert('Error generating link. Please try again.');
@@ -2720,17 +2723,18 @@ function showPublicQuestionnaire(qId){
         // Generate AI brief via Anthropic API
         var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh. A client has filled a pre-consultation questionnaire. Based on their responses, generate a concise structured design brief for Shreya.\n\nClient responses:\n'+structuredResponses.map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):r.answer||'Not answered');}).join('\n')+'\n\nGenerate the brief with these sections: Occasion & Timeline, Design Direction, Key Sensitivities, Style Anchors, Things to Avoid, Budget, and a Shreya Design Prompt (1-2 sentences of actionable creative direction). Keep it concise, warm, and actionable.';
 
-        fetch('https://api.anthropic.com/v1/messages',{
+        var OPENAI_KEY='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';
+        fetch('https://api.openai.com/v1/chat/completions',{
           method:'POST',
-          headers:{'Content-Type':'application/json'},
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
           body:JSON.stringify({
-            model:'claude-sonnet-4-20250514',
+            model:'gpt-4o',
             max_tokens:1000,
             messages:[{role:'user',content:prompt}]
           })
         }).then(function(r){return r.json();}).then(function(data){
           var brief='';
-          if(data.content&&data.content[0])brief=data.content[0].text||'';
+          if(data.choices&&data.choices[0])brief=data.choices[0].message.content||'';
 
           // Save to Firestore
           db.collection('questionnaireResponses').doc(qId).update({
