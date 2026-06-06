@@ -235,6 +235,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-tasktemplates" data-page="tasktemplates">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/><circle cx="13" cy="12" r="2.5"/><path d="M12 12h2M13 11v2" stroke-linecap="round"/></svg>Task Templates
     </div>
+    <div class="nav-item" id="nav-questionnaire" data-page="questionnaire">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2"/><path d="M11.3 10.3l1 1" stroke-linecap="round"/></svg>Questionnaire
+    </div>
     <div class="nav-item" id="nav-estsettings" data-page="estsettings">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
     </div>
@@ -491,7 +494,7 @@ function showChangeAsstPw(){
   showM(wrap,true);
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -501,7 +504,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -996,7 +999,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -1245,7 +1248,8 @@ function pgClients(){
     var sub=mk('div','page-sub',(cl.phone||'—')+(cl.email?' · '+cl.email:''));
     app(td,[ttl,sub]);app(titleRow,[av,td]);
     var acts=mkRow('display:flex;gap:8px');
-    if(isAssistant()){app(acts,[mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}else{app(acts,[mkBtn('Edit',function(){openClientModal(cl.id);},'btn btn-sm'),mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}
+    var clQBtn=mkQuestionnaireBadge('client',cl.id,cl.name);
+    if(isAssistant()){app(acts,[clQBtn,mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}else{app(acts,[mkBtn('Edit',function(){openClientModal(cl.id);},'btn btn-sm'),clQBtn,mkBtn('Print card',function(){printCard(cl.id);},'btn btn-primary btn-sm')]);}
     var hdr=mk('div','page-header');app(hdr,[titleRow,acts]);
     wrap.appendChild(back);wrap.appendChild(hdr);
     if(cl.notes){var nb=mk('div','info-box');nb.style.marginBottom='16px';nb.textContent='📝 '+cl.notes;wrap.appendChild(nb);}
@@ -2392,6 +2396,487 @@ function openApptModal(apptId){
 }
 
 
+
+// ══════════════════════════════════════════════════════════════
+// QUESTIONNAIRE MODULE
+// ══════════════════════════════════════════════════════════════
+
+var DEFAULT_QUESTIONS = [
+  {id:'q1', type:'single', label:'What is the occasion?', options:['Bridal Wedding','Reception','Engagement','Mehendi/Haldi','Party/Celebration','Other'], required:true},
+  {id:'q2', type:'single', label:'When is the event?', options:['Within 1 month','1-3 months away','3-6 months away','More than 6 months away'], required:true},
+  {id:'q3', type:'multi', label:'What colours are you drawn to?', options:['Red/Crimson','Pink/Rose','Maroon/Wine','Gold/Yellow','Orange/Peach','Green','Blue/Teal','Purple/Lavender','White/Ivory','Black'], required:false},
+  {id:'q4', type:'single', label:'How would you describe your style?', options:['Traditional and classic','Modern with a traditional touch','Bold and experimental','Minimal and elegant','I am not sure — guide me!'], required:true},
+  {id:'q5', type:'single', label:'What embroidery weight do you prefer?', options:['Heavy and rich','Medium — balanced','Light and delicate','Minimal or none'], required:true},
+  {id:'q6', type:'multi', label:'Any embroidery styles you love?', options:['Zardozi','Dabka','Resham thread work','Mirror work','Aari embroidery','Sequins/Cutdana','Printed fabric'], required:false},
+  {id:'q7', type:'single', label:'What is your approximate budget?', options:['Under ₹25,000','₹25,000 - ₹50,000','₹50,000 - ₹1,00,000','₹1,00,000 - ₹1,50,000','Above ₹1,50,000'], required:true},
+  {id:'q8', type:'text', label:'Are there any specific things you want to highlight or keep covered? (e.g. arms, neckline)', required:false},
+  {id:'q9', type:'text', label:'Any styles, outfits or colours you absolutely do not want?', required:false},
+  {id:'q10', type:'textarea', label:'Anything else Shreya should know before your consultation?', required:false}
+];
+
+// ── QUESTIONNAIRE BUILDER (Admin) ─────────────────────────────
+function pgQuestionnaire(){
+  var wrap = mk('div');
+  var hdrBtn = mkBtn('+ Add Question', function(){openQuestionModal();}, 'btn btn-primary');
+  wrap.appendChild(mkPageHeader('Questionnaire Builder', 'Design the questions sent to clients before consultation', hdrBtn));
+
+  // Load defaults if no questions saved yet
+  var questions = DB.questionnaireQuestions.slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+  if(!questions.length){
+    var initBtn = mkBtn('Load default questions', function(){
+      DEFAULT_QUESTIONS.forEach(function(q,i){
+        dbSave('questionnaireQuestions', Object.assign({}, q, {id: uid(), order: i+1, created: Date.now()}));
+      });
+    }, 'btn btn-primary');
+    var emptyCard = mk('div','card-p0');
+    var emptyDiv = mk('div');emptyDiv.style.cssText='text-align:center;padding:40px';
+    var emptyText = mk('div');emptyText.style.cssText='font-size:13px;color:#aaa;margin-bottom:16px';emptyText.textContent='No questions yet. Load defaults or add your own.';
+    app(emptyDiv,[emptyText,initBtn]);
+    emptyCard.appendChild(emptyDiv);
+    wrap.appendChild(emptyCard);
+    return wrap;
+  }
+
+  // Preview link info
+  var infoBox = mk('div');infoBox.style.cssText='background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#166534';
+  infoBox.textContent='Clients receive a branded link: '+window.location.origin+window.location.pathname+'?q=[unique-id] — no login needed.';
+  wrap.appendChild(infoBox);
+
+  var card = mk('div','card-p0');
+  questions.forEach(function(q, idx){
+    var row = mk('div');row.style.cssText='display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid #f5f5f5';
+
+    var orderBadge = mk('div');orderBadge.style.cssText='width:24px;height:24px;border-radius:50%;background:#2D6B5E;color:#C9A84C;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px';orderBadge.textContent=String(idx+1);
+
+    var middle = mk('div');middle.style.flex='1';
+    var qlabel = mk('div');qlabel.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:3px';qlabel.textContent=q.label;
+    var qmeta = mk('div');qmeta.style.cssText='font-size:11px;color:#aaa';
+    var typeLabel = {single:'Single choice',multi:'Multiple choice',text:'Short text',textarea:'Long text'}[q.type]||q.type;
+    qmeta.textContent=typeLabel+(q.required?' · Required':' · Optional')+(q.options?' · '+q.options.length+' options':'');
+    app(middle,[qlabel,qmeta]);
+
+    var acts = mk('div');acts.style.cssText='display:flex;gap:6px;flex-shrink:0';
+    var editBtn = mkBtn('Edit',(function(qid){return function(){openQuestionModal(qid);};})(q.id),'btn btn-xs');
+    var delBtn = mk('button','btn-danger','Del');delBtn.style.cssText='padding:2px 8px;font-size:11px';
+    delBtn.onclick=(function(qid){return function(){if(confirm('Delete this question?'))dbDel('questionnaireQuestions',qid);};})(q.id);
+    app(acts,[editBtn,delBtn]);
+    app(row,[orderBadge,middle,acts]);
+    card.appendChild(row);
+  });
+  wrap.appendChild(card);
+  return wrap;
+}
+
+function openQuestionModal(id){
+  var q = id ? DB.questionnaireQuestions.find(function(x){return x.id===id;}) : null;
+  var wrap = mk('div');
+  wrap.appendChild(mk('div','modal-title', q ? 'Edit question' : 'Add question'));
+
+  var typeOpts = [{value:'single',label:'Single choice'},{value:'multi',label:'Multiple choice'},{value:'text',label:'Short text'},{value:'textarea',label:'Long text'}];
+  var typeSel = mkSelect('qq-type', typeOpts, q?q.type:'single');
+  var labelInp = mkInput('qq-label','text','e.g. What is the occasion?', q?q.label:'');
+  var reqSel = mkSelect('qq-req',[{value:'1',label:'Required'},{value:'0',label:'Optional'}], q?(q.required?'1':'0'):'1');
+  var orderInp = mkInput('qq-order','number','Order (1, 2, 3...)', q?String(q.order||1):'');
+
+  var optionsWrap = mk('div');optionsWrap.id='qq-options-wrap';
+  var optionsLabel = mk('div','form-label','Options (one per line)');
+  var optionsArea = mk('textarea');optionsArea.id='qq-options';optionsArea.className='form-input';optionsArea.rows=5;optionsArea.style.resize='vertical';
+  optionsArea.value = q&&q.options?q.options.join('\\n'):'';
+  app(optionsWrap,[optionsLabel,optionsArea]);
+
+  function toggleOptions(){
+    var t = document.getElementById('qq-type').value;
+    optionsWrap.style.display=(t==='single'||t==='multi')?'block':'none';
+  }
+  typeSel.onchange = toggleOptions;
+
+  var err = mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+
+  app(wrap,[
+    mkFg('Question type', typeSel),
+    mkFg('Question text *', labelInp),
+    optionsWrap,
+    mkFg('Display order', orderInp),
+    mkFg('Required?', reqSel),
+    err,
+    mkActions([
+      mkBtn('Cancel', closeModal),
+      mkBtn('Save', function(){
+        var type = document.getElementById('qq-type').value;
+        var label = document.getElementById('qq-label').value.trim();
+        var req = document.getElementById('qq-req').value === '1';
+        var order = parseInt(document.getElementById('qq-order').value)||1;
+        var optionsRaw = document.getElementById('qq-options').value;
+        var options = (type==='single'||type==='multi') ? optionsRaw.split('\n').map(function(o){return o.trim();}).filter(Boolean) : null;
+        if(!label){err.textContent='Question text is required.';return;}
+        if((type==='single'||type==='multi')&&(!options||options.length<2)){err.textContent='Please add at least 2 options.';return;}
+        dbSave('questionnaireQuestions',{id:q?q.id:uid(),type:type,label:label,options:options,required:req,order:order,created:Date.now()});
+        closeModal();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+  setTimeout(toggleOptions, 0);
+}
+
+// ── SEND QUESTIONNAIRE ────────────────────────────────────────
+function sendQuestionnaire(entityType, entityId, entityName){
+  // entityType: 'lead' or 'client'
+  var qId = uid();
+  var link = window.location.origin + window.location.pathname + '?q=' + qId;
+
+  db.collection('questionnaireResponses').doc(qId).set({
+    id: qId,
+    entityType: entityType,
+    entityId: entityId,
+    entityName: entityName || '',
+    status: 'pending',
+    sentAt: Date.now(),
+    responses: null,
+    brief: null
+  }).then(function(){
+    // Copy link to clipboard
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(link).then(function(){
+        alert('Link copied! Share with ' + (entityName||'the client') + ' on WhatsApp: ' + link);
+      }).catch(function(){
+        prompt('Copy this link and share on WhatsApp:', link);
+      });
+    } else {
+      prompt('Copy this link and share on WhatsApp:', link);
+    }
+    render();
+  }).catch(function(){
+    alert('Error generating link. Please try again.');
+  });
+}
+
+function getQuestionnaireStatus(entityType, entityId){
+  // Returns latest questionnaire response for this entity
+  var responses = DB.questionnaireResponses.filter(function(r){
+    return r.entityType===entityType && r.entityId===entityId;
+  }).sort(function(a,b){return (b.sentAt||0)-(a.sentAt||0);});
+  return responses[0] || null;
+}
+
+// ── PUBLIC QUESTIONNAIRE PAGE ─────────────────────────────────
+function showPublicQuestionnaire(qId){
+  // Hide login, hide app
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('app-wrap').style.display='none';
+
+  var container = mk('div');
+  container.id = 'q-public-wrap';
+  container.style.cssText='min-height:100vh;background:#f0f4f3;padding:20px 0 60px';
+
+  // Header
+  var header = mk('div');
+  header.style.cssText='background:#1e514c;padding:20px;text-align:center;margin-bottom:24px';
+  var logo = mk('div');logo.style.cssText='font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:4px';logo.textContent='Ryree';
+  var sublogo = mk('div');sublogo.style.cssText='font-size:12px;color:rgba(201,168,76,.7)';sublogo.textContent='by Shreya Deshmukh';
+  app(header,[logo,sublogo]);
+
+  var inner = mk('div');inner.style.cssText='max-width:480px;margin:0 auto;padding:0 16px';
+
+  // Load questionnaire doc from Firestore
+  db.collection('questionnaireResponses').doc(qId).get().then(function(doc){
+    if(!doc.exists){
+      var err = mk('div');err.style.cssText='text-align:center;padding:40px;color:#888';err.textContent='This questionnaire link is invalid or has expired.';
+      inner.appendChild(err);return;
+    }
+
+    var qDoc = doc.data();
+
+    if(qDoc.status==='completed'){
+      var done = mk('div');done.style.cssText='background:#fff;border-radius:12px;padding:32px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)';
+      var doneIcon = mk('div');doneIcon.style.cssText='font-size:40px;margin-bottom:12px';doneIcon.textContent='✓';
+      var doneTitle = mk('div');doneTitle.style.cssText='font-size:18px;font-weight:700;color:#2D6B5E;margin-bottom:8px';doneTitle.textContent='Thank you!';
+      var doneSub = mk('div');doneSub.style.cssText='font-size:13px;color:#888';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation.';
+      app(done,[doneIcon,doneTitle,doneSub]);
+      inner.appendChild(done);return;
+    }
+
+    // Load questions from Firestore
+    db.collection('questionnaireQuestions').orderBy('order').get().then(function(snap){
+      var questions = [];
+      snap.forEach(function(d){questions.push(d.data());});
+
+      if(!questions.length){
+        var noq = mk('div');noq.style.cssText='text-align:center;padding:40px;color:#888';noq.textContent='Questionnaire not set up yet. Please contact Shreya directly.';
+        inner.appendChild(noq);return;
+      }
+
+      // Intro card
+      var intro = mk('div');intro.style.cssText='background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)';
+      var introTitle = mk('div');introTitle.style.cssText='font-size:16px;font-weight:700;color:#1e514c;margin-bottom:6px';introTitle.textContent='A few questions from Shreya';
+      var introSub = mk('div');introSub.style.cssText='font-size:13px;color:#666;line-height:1.5';introSub.textContent='Before your consultation, help Shreya understand your vision. This takes about 5 minutes and makes your session much more productive.';
+      if(qDoc.entityName){
+        var greeting = mk('div');greeting.style.cssText='font-size:13px;color:#2D6B5E;font-weight:600;margin-top:8px';greeting.textContent='Hi ' + qDoc.entityName.split(' ')[0] + '! Looking forward to meeting you.';
+        app(intro,[introTitle,introSub,greeting]);
+      } else {
+        app(intro,[introTitle,introSub]);
+      }
+      inner.appendChild(intro);
+
+      // Progress bar
+      var progressWrap = mk('div');progressWrap.style.cssText='background:#e0e0e0;border-radius:10px;height:4px;margin-bottom:20px;overflow:hidden';
+      var progressBar = mk('div');progressBar.style.cssText='height:4px;background:#2D6B5E;border-radius:10px;transition:width .3s;width:0%';
+      progressWrap.appendChild(progressBar);
+      inner.appendChild(progressWrap);
+
+      // Build form
+      var form = mk('div');
+      var responses = {};
+
+      function updateProgress(){
+        var answered = Object.keys(responses).filter(function(k){return responses[k]&&(Array.isArray(responses[k])?responses[k].length>0:responses[k].trim()!=='');}).length;
+        progressBar.style.width = Math.round(answered/questions.length*100)+'%';
+      }
+
+      questions.forEach(function(q){
+        var qCard = mk('div');qCard.style.cssText='background:#fff;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06)';
+
+        var qlabel = mk('div');qlabel.style.cssText='font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:12px;line-height:1.4';
+        qlabel.textContent=(q.required?'* ':'')+q.label;
+        qCard.appendChild(qlabel);
+
+        if(q.type==='single'){
+          responses[q.id]='';
+          var optWrap = mk('div');optWrap.style.cssText='display:flex;flex-direction:column;gap:8px';
+          (q.options||[]).forEach(function(opt){
+            var optBtn = mk('button');optBtn.style.cssText='padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;text-align:left;font-size:13px;cursor:pointer;color:#333;transition:all .15s;-webkit-tap-highlight-color:transparent';
+            optBtn.textContent=opt;
+            optBtn.onclick=function(){
+              optWrap.querySelectorAll('button').forEach(function(b){b.style.background='#fff';b.style.borderColor='#e0e0e0';b.style.color='#333';b.style.fontWeight='400';});
+              this.style.background='#1e514c';this.style.borderColor='#1e514c';this.style.color='#C9A84C';this.style.fontWeight='600';
+              responses[q.id]=opt;updateProgress();
+            };
+            optWrap.appendChild(optBtn);
+          });
+          qCard.appendChild(optWrap);
+
+        } else if(q.type==='multi'){
+          responses[q.id]=[];
+          var optWrap2 = mk('div');optWrap2.style.cssText='display:flex;flex-direction:column;gap:8px';
+          var hint = mk('div');hint.style.cssText='font-size:11px;color:#aaa;margin-bottom:4px';hint.textContent='Select all that apply';
+          qCard.appendChild(hint);
+          (q.options||[]).forEach(function(opt){
+            var optBtn2 = mk('button');optBtn2.style.cssText='padding:11px 14px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;text-align:left;font-size:13px;cursor:pointer;color:#333;transition:all .15s;-webkit-tap-highlight-color:transparent';
+            optBtn2.textContent=opt;
+            optBtn2.onclick=function(){
+              var idx2=responses[q.id].indexOf(opt);
+              if(idx2>-1){responses[q.id].splice(idx2,1);this.style.background='#fff';this.style.borderColor='#e0e0e0';this.style.color='#333';this.style.fontWeight='400';}
+              else{responses[q.id].push(opt);this.style.background='#1e514c';this.style.borderColor='#1e514c';this.style.color='#C9A84C';this.style.fontWeight='600';}
+              updateProgress();
+            };
+            optWrap2.appendChild(optBtn2);
+          });
+          qCard.appendChild(optWrap2);
+
+        } else if(q.type==='text'){
+          responses[q.id]='';
+          var inp = mkInput('qinp-'+q.id,'text','Your answer...');
+          inp.style.cssText='width:100%;padding:11px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:inherit;outline:none';
+          inp.oninput=function(){responses[q.id]=this.value;updateProgress();};
+          qCard.appendChild(inp);
+
+        } else if(q.type==='textarea'){
+          responses[q.id]='';
+          var ta = mk('textarea');ta.placeholder='Your answer...';ta.rows=4;
+          ta.style.cssText='width:100%;padding:11px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;resize:vertical';
+          ta.oninput=function(){responses[q.id]=this.value;updateProgress();};
+          qCard.appendChild(ta);
+        }
+
+        form.appendChild(qCard);
+      });
+
+      inner.appendChild(form);
+
+      // Submit button
+      var submitErr = mk('div');submitErr.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-bottom:8px;text-align:center';
+      var submitBtn = mk('button');submitBtn.style.cssText='width:100%;padding:15px;background:#1e514c;color:#C9A84C;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;-webkit-tap-highlight-color:transparent';
+      submitBtn.textContent='Submit to Shreya';
+
+      submitBtn.onclick=function(){
+        // Validate required
+        var missing=[];
+        questions.forEach(function(q){
+          if(q.required){
+            var r=responses[q.id];
+            if(!r||(Array.isArray(r)&&r.length===0)||(typeof r==='string'&&r.trim()===''))missing.push(q.label);
+          }
+        });
+        if(missing.length){submitErr.textContent='Please answer: '+missing[0]+(missing.length>1?' and '+(missing.length-1)+' more':'');return;}
+
+        submitBtn.disabled=true;submitBtn.textContent='Submitting...';
+
+        // Build structured responses
+        var structuredResponses=[];
+        questions.forEach(function(q){
+          structuredResponses.push({question:q.label,type:q.type,answer:responses[q.id]});
+        });
+
+        // Generate AI brief via Anthropic API
+        var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh. A client has filled a pre-consultation questionnaire. Based on their responses, generate a concise structured design brief for Shreya.\n\nClient responses:\n'+structuredResponses.map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):r.answer||'Not answered');}).join('\n')+'\n\nGenerate the brief with these sections: Occasion & Timeline, Design Direction, Key Sensitivities, Style Anchors, Things to Avoid, Budget, and a Shreya Design Prompt (1-2 sentences of actionable creative direction). Keep it concise, warm, and actionable.';
+
+        fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',
+            max_tokens:1000,
+            messages:[{role:'user',content:prompt}]
+          })
+        }).then(function(r){return r.json();}).then(function(data){
+          var brief='';
+          if(data.content&&data.content[0])brief=data.content[0].text||'';
+
+          // Save to Firestore
+          db.collection('questionnaireResponses').doc(qId).update({
+            status:'completed',
+            responses:structuredResponses,
+            brief:brief,
+            completedAt:Date.now(),
+            entityName:qDoc.entityName||''
+          }).then(function(){
+            // Show thank you
+            container.innerHTML='';
+            var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
+            var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 30px;text-align:center;max-width:400px;width:100%';
+            var doneIcon=mk('div');doneIcon.style.cssText='font-size:48px;margin-bottom:16px;color:#2D6B5E';doneIcon.textContent='✓';
+            var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
+            var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.6';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
+            var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600';doneFooter.textContent='Ryree by Shreya Deshmukh';
+            app(doneCard,[doneIcon,doneTitle,doneSub,doneFooter]);
+            doneWrap.appendChild(doneCard);
+            container.appendChild(doneWrap);
+          });
+        }).catch(function(){
+          // Save without brief if API fails
+          db.collection('questionnaireResponses').doc(qId).update({
+            status:'completed',responses:structuredResponses,brief:'Brief generation failed. Please review raw responses.',completedAt:Date.now()
+          });
+          submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
+          submitErr.textContent='Submitted! Brief generation had an error but responses are saved.';
+        });
+      };
+
+      app(inner,[submitErr,submitBtn]);
+    });
+  }).catch(function(){
+    var err=mk('div');err.style.cssText='text-align:center;padding:40px;color:#888';err.textContent='Unable to load questionnaire. Please check your connection.';
+    inner.appendChild(err);
+  });
+
+  app(container,[header,inner]);
+  document.body.appendChild(container);
+}
+
+// ── DESIGN BRIEF VIEWER ───────────────────────────────────────
+function openDesignBrief(entityType, entityId, entityName){
+  var responses = DB.questionnaireResponses.filter(function(r){
+    return r.entityType===entityType && r.entityId===entityId;
+  }).sort(function(a,b){return (b.sentAt||0)-(a.sentAt||0);});
+
+  var wrap = mk('div');
+  wrap.appendChild(mk('div','modal-title','Design Brief — '+(entityName||'Client')));
+
+  if(!responses.length){
+    wrap.appendChild(mk('div','modal-sub','No questionnaire sent yet.'));
+    app(wrap,[mkActions([mkBtn('Close',closeModal)])]);
+    showM(wrap,true);return;
+  }
+
+  var latest = responses[0];
+
+  if(latest.status==='pending'){
+    var pendingDiv=mk('div');pendingDiv.style.cssText='background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#92400E';
+    pendingDiv.textContent='Questionnaire sent — waiting for client to respond.';
+    wrap.appendChild(pendingDiv);
+    app(wrap,[mkActions([mkBtn('Resend link',function(){closeModal();sendQuestionnaire(entityType,entityId,entityName);}),mkBtn('Close',closeModal)])]);
+    showM(wrap,true);return;
+  }
+
+  // Tab switcher
+  var tabs = mk('div');tabs.style.cssText='display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #f0f0f0';
+  var activeTab='brief';
+  var tabBrief=mk('button');tabBrief.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px';tabBrief.textContent='AI Brief';
+  var tabRaw=mk('button');tabRaw.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';tabRaw.textContent='Raw Responses';
+  app(tabs,[tabBrief,tabRaw]);
+
+  var briefPanel=mk('div');
+  var rawPanel=mk('div');rawPanel.style.display='none';
+
+  // Brief panel
+  if(latest.brief){
+    var briefText=mk('div');briefText.style.cssText='font-size:13px;line-height:1.7;color:#333;white-space:pre-wrap;background:#fafafa;border-radius:8px;padding:14px';
+    briefText.textContent=latest.brief;
+    briefPanel.appendChild(briefText);
+  } else {
+    briefPanel.appendChild(mk('div','empty','Brief not available.'));
+  }
+
+  // Raw responses panel
+  if(latest.responses&&latest.responses.length){
+    latest.responses.forEach(function(r){
+      var rRow=mk('div');rRow.style.cssText='margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f5f5f5';
+      var rQ=mk('div');rQ.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:4px';rQ.textContent=r.question;
+      var rA=mk('div');rA.style.cssText='font-size:13px;color:#1a1a1a';rA.textContent=Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'—');
+      app(rRow,[rQ,rA]);rawPanel.appendChild(rRow);
+    });
+  } else {
+    rawPanel.appendChild(mk('div','empty','No responses.'));
+  }
+
+  tabBrief.onclick=function(){activeTab='brief';briefPanel.style.display='';rawPanel.style.display='none';tabBrief.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px';tabRaw.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';};
+  tabRaw.onclick=function(){activeTab='raw';rawPanel.style.display='';briefPanel.style.display='none';tabRaw.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px';tabBrief.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';};
+
+  app(wrap,[tabs,briefPanel,rawPanel]);
+
+  var completedAt=latest.completedAt?new Date(latest.completedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
+  if(completedAt){var ts=mk('div');ts.style.cssText='font-size:11px;color:#aaa;margin-top:12px';ts.textContent='Submitted on '+completedAt;wrap.appendChild(ts);}
+
+  app(wrap,[mkActions([
+    mkBtn('Resend',function(){closeModal();sendQuestionnaire(entityType,entityId,entityName);},'btn btn-xs'),
+    mkBtn('Close',closeModal,'btn btn-primary')
+  ])]);
+  showM(wrap,true);
+}
+
+// ── QUESTIONNAIRE STATUS BADGE ────────────────────────────────
+function mkQuestionnaireBadge(entityType, entityId, entityName){
+  var status = getQuestionnaireStatus(entityType, entityId);
+  var btn = mk('button','btn btn-xs');
+  btn.style.cssText += ';display:inline-flex;align-items:center;gap:4px';
+
+  if(!status){
+    btn.innerHTML='<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v6m0 0l-3-3m3 3l3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke-linecap="round" stroke-linejoin="round"/></svg> Send questionnaire';
+    btn.style.cssText += ';color:#6D28D9;border-color:#DDD6FE';
+    btn.onclick=function(){sendQuestionnaire(entityType,entityId,entityName);};
+  } else if(status.status==='pending'){
+    btn.innerHTML='<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg> Awaiting response';
+    btn.style.cssText += ';color:#B45309;border-color:#FCD34D';
+    btn.onclick=function(){openDesignBrief(entityType,entityId,entityName);};
+  } else {
+    btn.innerHTML='<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg> View brief';
+    btn.style.cssText += ';color:#166534;border-color:#86EFAC';
+    btn.onclick=function(){openDesignBrief(entityType,entityId,entityName);};
+  }
+  return btn;
+}
+
+// ── DASHBOARD NOTIFICATION ────────────────────────────────────
+function getNewBriefs(){
+  return DB.questionnaireResponses.filter(function(r){
+    return r.status==='completed' && !r.briefSeen;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// END QUESTIONNAIRE MODULE
+// ══════════════════════════════════════════════════════════════
+
 // ── GOOGLE CALENDAR SYNC ──────────────────────────────────────────────────
 var GCAL_CLIENT_ID='';  // Set via gcalConnect setup
 var GCAL_SCOPES='https://www.googleapis.com/auth/calendar.events';
@@ -2889,6 +3374,24 @@ function pgDashboard(){
     app(leadAlert,[laLeft,laArrow]);
     leadAlert.onclick=function(){nav('leads');};
     wrap.appendChild(leadAlert);
+  }
+  // New briefs notification
+  var newBriefs=getNewBriefs();
+  if(newBriefs.length>0){
+    var briefAlert=mk('div');briefAlert.style.cssText='background:#F5F3FF;border:1px solid #C4B5FD;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer';
+    var baLeft=mk('div');
+    var baTitle=mk('div');baTitle.style.cssText='font-size:13px;font-weight:700;color:#6D28D9';baTitle.textContent=newBriefs.length+' new design brief'+(newBriefs.length!==1?'s':'')+' ready';
+    var baSub=mk('div');baSub.style.cssText='font-size:11px;color:#7C3AED;margin-top:2px';baSub.textContent='Click to review — '+newBriefs.map(function(b){return b.entityName||'Client';}).join(', ');
+    app(baLeft,[baTitle,baSub]);
+    var baArrow=mk('div');baArrow.style.cssText='font-size:18px;color:#6D28D9;font-weight:700';baArrow.textContent='→';
+    app(briefAlert,[baLeft,baArrow]);
+    briefAlert.onclick=function(){
+      var b=newBriefs[0];
+      openDesignBrief(b.entityType,b.entityId,b.entityName);
+      // Mark as seen
+      db.collection('questionnaireResponses').doc(b.id).update({briefSeen:true});
+    };
+    wrap.appendChild(briefAlert);
   }
   wrap.appendChild(stats);
   wrap.appendChild(two);
@@ -8118,16 +8621,16 @@ function pgLeads(){
       var actTd=mk('td');actTd.style.cssText='white-space:nowrap';
       var actDiv=mk('div');actDiv.style.cssText='display:flex;gap:5px;align-items:center';
       var editBtn=mkBtn('Edit',(function(lid){return function(){openLeadModal(lid);};})(lead.id),'btn btn-xs');
+      var qBtnLead=mkQuestionnaireBadge('lead',lead.id,lead.name);
       if(isAssistant()){
-        app(actDiv,[editBtn]);
-      } else {
+        app(actDiv,[editBtn,qBtnLead]);
         var convertBtn=mkBtn('Convert',(function(lid){return function(){convertLeadToClient(lid);};})(lead.id),'btn btn-xs');
         convertBtn.style.cssText+='color:#166534;border-color:#86EFAC';
         if(lead.status==='Converted'){convertBtn.style.opacity='0.4';convertBtn.disabled=true;}
         var delBtn=mk('button','btn-danger','Del');delBtn.style.cssText='padding:2px 8px;font-size:11px';
         delBtn.setAttribute('data-lid',lead.id);
         delBtn.onclick=function(){if(confirm('Delete this lead?'))dbDel('leads',this.getAttribute('data-lid'));};
-        app(actDiv,[editBtn,convertBtn,delBtn]);
+        app(actDiv,[editBtn,qBtnLead,convertBtn,delBtn]);
       }
       actTd.appendChild(actDiv);
 
@@ -8704,7 +9207,11 @@ function manualSync(){
 }
 
 // Initialize on page load
-if(isLoggedIn()){
+// Check if this is a public questionnaire link
+var _qParam=(new URLSearchParams(window.location.search)).get('q');
+if(_qParam){
+  showPublicQuestionnaire(_qParam);
+}else if(isLoggedIn()){
   showApp();
 }else{
   document.getElementById('login-wrap').style.display='flex';
