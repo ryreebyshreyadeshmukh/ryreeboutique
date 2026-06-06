@@ -8667,6 +8667,7 @@ function pgLeads(){
       var qBtnLead=mkQuestionnaireBadge('lead',lead.id,lead.name);
       if(isAssistant()){
         app(actDiv,[editBtn,qBtnLead]);
+      } else {
         var convertBtn=mkBtn('Convert',(function(lid){return function(){convertLeadToClient(lid);};})(lead.id),'btn btn-xs');
         convertBtn.style.cssText+='color:#166534;border-color:#86EFAC';
         if(lead.status==='Converted'){convertBtn.style.opacity='0.4';convertBtn.disabled=true;}
