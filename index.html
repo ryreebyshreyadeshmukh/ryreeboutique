@@ -280,6 +280,9 @@ textarea.form-input{resize:vertical}
       <button id="gcal-btn" onclick="gcalConnect()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="12" rx="1.5"/><path d="M2 7h12M6 3V1M10 3V1"/></svg><span id="gcal-btn-label">Connect Google Calendar</span>
       </button>
+      <button id="openai-key-btn" onclick="showOpenAIKeyModal()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(201,168,76,.7);padding:5px 0;display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 6.5a2 2 0 1 1 2.5 1.9c-.5.2-.5.6-.5 1v.6" stroke-linecap="round"/><circle cx="8" cy="12" r=".5" fill="currentColor"/></svg><span id="openai-key-label">Set OpenAI Key</span>
+      </button>
       <button id="logout-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-size:12px;color:rgba(255,120,120,.85);padding:5px 0;display:flex;align-items:center;gap:6px">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 11l3-3-3-3M13 8H6"/></svg>Sign out
       </button>
@@ -306,6 +309,7 @@ var DEFAULT_PW='ryree2024';
 var DEFAULT_ASST_PW='sanika2024';
 var _cachedPw=null;
 var _cachedAsstPw=null;
+var _cachedOpenAIKey=null;
 function getPw(){return _cachedPw||localStorage.getItem('ryree_pw')||DEFAULT_PW;}
 function getAsstPw(){return _cachedAsstPw||localStorage.getItem('ryree_asst_pw')||DEFAULT_ASST_PW;}
 function getCurrentRole(){return sessionStorage.getItem('ryree_role')||'admin';}
@@ -316,6 +320,7 @@ function loadPasswordFromFirebase(cb){
     if(doc.exists){
       if(doc.data().password){_cachedPw=doc.data().password;localStorage.setItem('ryree_pw',doc.data().password);}
       if(doc.data().assistantPassword){_cachedAsstPw=doc.data().assistantPassword;localStorage.setItem('ryree_asst_pw',doc.data().assistantPassword);}
+      if(doc.data().openAIKey){_cachedOpenAIKey=doc.data().openAIKey;}
     }
     if(cb)cb();
   }).catch(function(){if(cb)cb();});
@@ -419,6 +424,7 @@ function showApp(){
   gcalLoadToken();
   gcalCheckRedirect();
   gcalUpdateBtn();
+  if(_cachedOpenAIKey){var lbl=document.getElementById('openai-key-label');if(lbl)lbl.textContent='OpenAI Key active';}
   // Register service worker for PWA
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(function(){});
@@ -442,7 +448,7 @@ function applyRoleRestrictions(){
     // Hide nav sections that become empty
     document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='none';});
     // Hide admin-only sidebar controls
-    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn','gcal-btn'].forEach(function(id){
+    ['chpw-btn','export-btn','asst-pw-btn','storage-indicator','wa-templates-btn','gcal-btn','openai-key-btn'].forEach(function(id){
       var el=document.getElementById(id);if(el)el.style.display='none';
     });
     // Default to dashboard page
@@ -454,6 +460,37 @@ function applyRoleRestrictions(){
     document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='';});
     nav('dashboard');
   }
+}
+
+function showOpenAIKeyModal(){
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','OpenAI API Key'));
+  var sub=mk('div','modal-sub');sub.textContent='Key is stored securely in Firebase. Never visible in source code.';
+  wrap.appendChild(sub);
+  var status=mk('div');status.style.cssText='font-size:12px;padding:8px 10px;border-radius:6px;margin-bottom:12px;background:'+((_cachedOpenAIKey)?'#F0FDF4':'#FEF2F2')+';color:'+((_cachedOpenAIKey)?'#166534':'#991B1B');
+  status.textContent=_cachedOpenAIKey?'Key is set and active.':'No key set yet. AI brief generation will not work until a key is added.';
+  var keyInp=mkInput('oai-key','password','sk-proj-...');
+  keyInp.style.fontFamily='monospace';
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+  app(wrap,[status,mkFg('Paste new OpenAI API key',keyInp),err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save',function(){
+        var k=document.getElementById('oai-key').value.trim();
+        if(!k||!k.startsWith('sk-')){err.textContent='Invalid key. Must start with sk-';return;}
+        _cachedOpenAIKey=k;
+        db.collection('settings').doc('config').set({openAIKey:k},{merge:true})
+          .then(function(){
+            closeModal();
+            var lbl=document.getElementById('openai-key-label');
+            if(lbl)lbl.textContent='OpenAI Key active';
+            alert('OpenAI key saved securely in Firebase.');
+          })
+          .catch(function(){err.textContent='Failed to save. Check Firebase connection.';});
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
 }
 
 function showChangeAsstPw(){
@@ -2723,50 +2760,52 @@ function showPublicQuestionnaire(qId){
         // Generate AI brief via Anthropic API
         var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh. A client has filled a pre-consultation questionnaire. Based on their responses, generate a concise structured design brief for Shreya.\n\nClient responses:\n'+structuredResponses.map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):r.answer||'Not answered');}).join('\n')+'\n\nGenerate the brief with these sections: Occasion & Timeline, Design Direction, Key Sensitivities, Style Anchors, Things to Avoid, Budget, and a Shreya Design Prompt (1-2 sentences of actionable creative direction). Keep it concise, warm, and actionable.';
 
-        var OPENAI_KEY='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';
-        fetch('https://api.openai.com/v1/chat/completions',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
-          body:JSON.stringify({
-            model:'gpt-4o',
-            max_tokens:1000,
-            messages:[{role:'user',content:prompt}]
-          })
-        }).then(function(r){return r.json();}).then(function(data){
-          var brief='';
-          if(data.choices&&data.choices[0])brief=data.choices[0].message.content||'';
-
-          // Save to Firestore
-          db.collection('questionnaireResponses').doc(qId).update({
-            status:'completed',
-            responses:structuredResponses,
-            brief:brief,
-            completedAt:Date.now(),
-            entityName:qDoc.entityName||''
-          }).then(function(){
-            // Show thank you
-            container.innerHTML='';
-            var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
-            var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 30px;text-align:center;max-width:400px;width:100%';
-            var doneIcon=mk('div');doneIcon.style.cssText='font-size:48px;margin-bottom:16px;color:#2D6B5E';doneIcon.textContent='✓';
-            var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
-            var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.6';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
-            var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600';doneFooter.textContent='Ryree by Shreya Deshmukh';
-            app(doneCard,[doneIcon,doneTitle,doneSub,doneFooter]);
-            doneWrap.appendChild(doneCard);
-            container.appendChild(doneWrap);
+        // Fetch key from Firebase then generate brief
+        function callOpenAI(key){
+          if(!key){
+            db.collection('questionnaireResponses').doc(qId).update({status:'completed',responses:structuredResponses,brief:'OpenAI key not configured. Tap Set OpenAI Key in the Ryree sidebar.',completedAt:Date.now(),entityName:qDoc.entityName||''});
+            submitErr.textContent='No OpenAI key set. Responses saved.';
+            submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
+            return;
+          }
+          fetch('https://api.openai.com/v1/chat/completions',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+            body:JSON.stringify({model:'gpt-4o',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+          }).then(function(r){return r.json();}).then(function(data){
+            var brief='';
+            if(data.choices&&data.choices[0])brief=data.choices[0].message.content||'';
+            db.collection('questionnaireResponses').doc(qId).update({
+              status:'completed',responses:structuredResponses,brief:brief,
+              completedAt:Date.now(),entityName:qDoc.entityName||''
+            }).then(function(){
+              container.innerHTML='';
+              var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
+              var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 30px;text-align:center;max-width:400px;width:100%';
+              var doneIcon=mk('div');doneIcon.style.cssText='font-size:48px;margin-bottom:16px;color:#2D6B5E';doneIcon.textContent='✓';
+              var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
+              var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.6';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
+              var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600';doneFooter.textContent='Ryree by Shreya Deshmukh';
+              app(doneCard,[doneIcon,doneTitle,doneSub,doneFooter]);
+              doneWrap.appendChild(doneCard);container.appendChild(doneWrap);
+            });
+          }).catch(function(){
+            db.collection('questionnaireResponses').doc(qId).update({status:'completed',responses:structuredResponses,brief:'Brief generation failed. Please review raw responses.',completedAt:Date.now()});
+            submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
+            submitErr.textContent='Submitted! Brief had an error but responses are saved.';
           });
-        }).catch(function(){
-          // Save without brief if API fails
-          db.collection('questionnaireResponses').doc(qId).update({
-            status:'completed',responses:structuredResponses,brief:'Brief generation failed. Please review raw responses.',completedAt:Date.now()
-          });
-          submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
-          submitErr.textContent='Submitted! Brief generation had an error but responses are saved.';
-        });
+        }
+        // Use cached key or fetch fresh from Firebase
+        if(_cachedOpenAIKey){callOpenAI(_cachedOpenAIKey);}
+        else{
+          db.collection('settings').doc('config').get().then(function(doc){
+            var k=doc.exists&&doc.data().openAIKey?doc.data().openAIKey:'';
+            if(k)_cachedOpenAIKey=k;
+            callOpenAI(k);
+          }).catch(function(){callOpenAI('');});
+        }
       };
-
-      app(inner,[submitErr,submitBtn]);
+        app(inner,[submitErr,submitBtn]);
     });
   }).catch(function(){
     var err=mk('div');err.style.cssText='text-align:center;padding:40px;color:#888';err.textContent='Unable to load questionnaire. Please check your connection.';
