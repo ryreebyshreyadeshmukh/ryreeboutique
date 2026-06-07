@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <meta name="theme-color" content="#2D6B5E">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ryree OS">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -569,6 +570,21 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
 function initials(n){return (n||'?').split(' ').map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();}
 function rupee(v){return '\u20b9'+Number(v||0).toLocaleString('en-IN');}
+function renderMarkdown(text){
+  if(!text)return '';
+  // Convert **bold** to <strong>
+  var html=text.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  // Convert line breaks to <br> but keep paragraph spacing
+  html=html.split('\n').map(function(line){
+    line=line.trim();
+    if(!line)return '<br>';
+    // If line starts with ** it's a section header — make it a block
+    if(line.startsWith('<strong>'))return '<div style="margin-top:14px">'+line+'</div>';
+    return '<div style="margin:2px 0;padding-left:8px">'+line+'</div>';
+  }).join('');
+  return html;
+}
+
 function fmtDate(d){
   if(!d)return '';
   var dt=new Date(d+'T00:00:00');
@@ -2822,7 +2838,7 @@ function openDesignBrief(entityType, entityId, entityName){
   // Tab switcher
   var tabs = mk('div');tabs.style.cssText='display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid #f0f0f0';
   var activeTab='brief';
-  var tabBrief=mk('button');tabBrief.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px';tabBrief.textContent='AI Brief';
+  var tabBrief=mk('button');tabBrief.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px';tabBrief.textContent='Design Brief';
   var tabRaw=mk('button');tabRaw.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';tabRaw.textContent='Raw Responses';
   app(tabs,[tabBrief,tabRaw]);
 
@@ -2834,9 +2850,9 @@ function openDesignBrief(entityType, entityId, entityName){
   function renderBriefContent(brief){
     briefPanel2.innerHTML='';
     if(brief){
-      var briefText=mk('div');briefText.style.cssText='font-size:13px;line-height:1.7;color:#333;white-space:pre-wrap;background:#fafafa;border-radius:8px;padding:14px';
-      briefText.textContent=brief;
-      briefPanel2.appendChild(briefText);
+      var briefWrap=mk('div');briefWrap.style.cssText='font-size:13px;line-height:1.7;color:#333;background:#fafafa;border-radius:8px;padding:16px';
+      briefWrap.innerHTML=renderMarkdown(brief);
+      briefPanel2.appendChild(briefWrap);
     } else {
       var noBrief=mk('div');noBrief.style.cssText='text-align:center;padding:30px;color:#aaa;font-size:13px';
       noBrief.textContent='No brief generated yet. Click "Generate Brief" below.';
@@ -2869,7 +2885,8 @@ function openDesignBrief(entityType, entityId, entityName){
   var genBtn=mkBtn('Generate Brief',function(){
     genBtn.disabled=true;genBtn.textContent='Generating...';genErr.textContent='';
     var respText=(latest.responses||[]).map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'Not answered'));}).join('\n');
-    var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh.\n\nA client has filled a pre-consultation questionnaire. Generate a concise structured design brief for Shreya to read before the consultation.\n\nClient: '+(entityName||'Client')+'\n\nResponses:\n'+respText+'\n\nGenerate with these sections:\n**Occasion & Timeline:** ...\n**Design Direction:** ...\n**Key Sensitivities:** ...\n**Style Anchors:** ...\n**Things to Avoid:** ...\n**Budget:** ...\n**Shreya Design Prompt:** (1-2 sentences of actionable creative direction)\n\nKeep it concise, warm, and actionable.';
+    var clientFirstName=(entityName||'Client').split(' ')[0];
+    var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh.\n\nA client named '+(entityName||'the client')+' has filled a pre-consultation questionnaire. Generate a concise structured design brief for Shreya. Important: refer to the client by their first name '+clientFirstName+' throughout the brief, never use the word client.\n\nResponses:\n'+respText+'\n\nGenerate with these sections:\n**Occasion & Timeline:** ...\n**Design Direction:** ...\n**Key Sensitivities:** ...\n**Style Anchors:** ...\n**Things to Avoid:** ...\n**Budget:** ...\n**Shreya Design Prompt:** (1-2 sentences of actionable creative direction using '+clientFirstName+' name)\n\nKeep it concise, warm, and actionable.';
     function doGenerate(key){
       if(!key){genBtn.disabled=false;genBtn.textContent='Generate Brief';genErr.textContent='OpenAI key not set. Go to sidebar and tap Set OpenAI Key.';return;}
       fetch('https://api.openai.com/v1/chat/completions',{
@@ -2904,8 +2921,38 @@ function openDesignBrief(entityType, entityId, entityName){
   },'btn btn-primary');
   genBtn.textContent=latest.brief?'Regenerate Brief':'Generate Brief';
 
+  var printBtn=mkBtn('Print Brief',function(){
+    if(!latest.brief){alert('Generate the brief first.');return;}
+    var printWin=window.open('','_blank','width=700,height=900');
+    var logoUrl=window.location.origin+window.location.pathname.replace('index.html','')+'icon-192.png';
+    printWin.document.write('<html><head><title>Design Brief - '+(entityName||'Client')+'</title>');
+    printWin.document.write('<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:#1a1a1a;padding:40px;max-width:600px;margin:0 auto;line-height:1.7}');
+    printWin.document.write('.header{display:flex;align-items:center;gap:16px;margin-bottom:6px;padding-bottom:16px;border-bottom:2px solid #1e514c}');
+    printWin.document.write('.logo{width:56px;height:56px;border-radius:50%;object-fit:contain;background:#1e514c}');
+    printWin.document.write('.brand{display:flex;flex-direction:column}');
+    printWin.document.write('.brand-name{font-size:20px;font-weight:700;color:#1e514c;letter-spacing:.04em}');
+    printWin.document.write('.brand-sub{font-size:11px;color:#888}');
+    printWin.document.write('h1{color:#1e514c;font-size:16px;margin:16px 0 4px}');
+    printWin.document.write('.sub{font-size:12px;color:#888;margin-bottom:20px}');
+    printWin.document.write('strong{color:#1e514c}');
+    printWin.document.write('.section{margin-bottom:6px}');
+    printWin.document.write('.footer{margin-top:32px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px;text-align:center}');
+    printWin.document.write('@media print{body{padding:20px}}');
+    printWin.document.write('</style></head><body>');
+    printWin.document.write('<div class="header"><img class="logo" src="'+logoUrl+'"><div class="brand"><div class="brand-name">Ryree</div><div class="brand-sub">by Shreya Deshmukh</div></div></div>');
+    printWin.document.write('<h1>Design Brief</h1>');
+    printWin.document.write('<div class="sub">'+(entityName||'Client')+' &nbsp;&bull;&nbsp; '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})+'</div>');
+    printWin.document.write('<div>'+renderMarkdown(latest.brief).replace(/<div style="margin-top:14px">/g,'<div class="section" style="margin-top:14px">').replace(/<div style="margin:2px 0;padding-left:8px">/g,'<div class="section">')+'</div>');
+    printWin.document.write('<div class="footer">Ryree by Shreya Deshmukh &nbsp;&mdash;&nbsp; Confidential design brief</div>');
+    printWin.document.write('</body></html>');
+    printWin.document.close();
+    setTimeout(function(){printWin.print();},400);
+  },'btn btn-xs');
+  printBtn.style.cssText+='color:#2D6B5E;border-color:#86EFAC';
+
   app(wrap,[genErr,mkActions([
     mkBtn('Resend',function(){closeModal();sendQuestionnaire(entityType,entityId,entityName);},'btn btn-xs'),
+    printBtn,
     genBtn,
     mkBtn('Close',closeModal)
   ])]);
