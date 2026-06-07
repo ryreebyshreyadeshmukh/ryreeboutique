@@ -2504,7 +2504,7 @@ function pgQuestionnaire(){
     var middle = mk('div');middle.style.flex='1';
     var qlabel = mk('div');qlabel.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:3px';qlabel.textContent=q.label;
     var qmeta = mk('div');qmeta.style.cssText='font-size:11px;color:#aaa';
-    var typeLabel = {single:'Single choice',multi:'Multiple choice',text:'Short text',textarea:'Long text'}[q.type]||q.type;
+    var typeLabel = {single:'Single choice',multi:'Multiple choice',text:'Short text',textarea:'Long text',images:'Image upload (up to 3)'}[q.type]||q.type;
     qmeta.textContent=typeLabel+(q.required?' · Required':' · Optional')+(q.options?' · '+q.options.length+' options':'');
     app(middle,[qlabel,qmeta]);
 
@@ -2525,7 +2525,7 @@ function openQuestionModal(id){
   var wrap = mk('div');
   wrap.appendChild(mk('div','modal-title', q ? 'Edit question' : 'Add question'));
 
-  var typeOpts = [{value:'single',label:'Single choice'},{value:'multi',label:'Multiple choice'},{value:'text',label:'Short text'},{value:'textarea',label:'Long text'}];
+  var typeOpts = [{value:'single',label:'Single choice'},{value:'multi',label:'Multiple choice'},{value:'text',label:'Short text'},{value:'textarea',label:'Long text'},{value:'images',label:'Image upload (up to 3)'}];
   var typeSel = mkSelect('qq-type', typeOpts, q?q.type:'single');
   var labelInp = mkInput('qq-label','text','e.g. What is the occasion?', q?q.label:'');
   var reqSel = mkSelect('qq-req',[{value:'1',label:'Required'},{value:'0',label:'Optional'}], q?(q.required?'1':'0'):'1');
@@ -2541,6 +2541,7 @@ function openQuestionModal(id){
     var t = document.getElementById('qq-type').value;
     optionsWrap.style.display=(t==='single'||t==='multi')?'block':'none';
   }
+
   typeSel.onchange = toggleOptions;
 
   var err = mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
@@ -2628,7 +2629,7 @@ function showPublicQuestionnaire(qId){
   // Header
   var header = mk('div');
   header.style.cssText='background:#1e514c;padding:24px 20px;text-align:center;margin-bottom:24px';
-  var logoImg=mk('img');logoImg.src='icon-192.png';logoImg.style.cssText='width:72px;height:72px;border-radius:50%;object-fit:contain;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto';
+  var logoImg=mk('img');logoImg.src='Ryree_logo.PNG';logoImg.style.cssText='width:200px;height:auto;max-height:80px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto';
   logoImg.onerror=function(){this.style.display='none';};
   var logo = mk('div');logo.style.cssText='font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:2px';logo.textContent='Ryree';
   var sublogo = mk('div');sublogo.style.cssText='font-size:12px;color:rgba(201,168,76,.7)';sublogo.textContent='by Shreya Deshmukh';
@@ -2744,6 +2745,50 @@ function showPublicQuestionnaire(qId){
           ta.style.cssText='width:100%;padding:11px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:inherit;outline:none;resize:vertical';
           ta.oninput=function(){responses[q.id]=this.value;updateProgress();};
           qCard.appendChild(ta);
+
+        } else if(q.type==='images'){
+          responses[q.id]=[];
+          var imgHint=mk('div');imgHint.style.cssText='font-size:11px;color:#aaa;margin-bottom:8px';imgHint.textContent='Upload up to 3 reference images (JPG or PNG)';
+          var imgPreviewRow=mk('div');imgPreviewRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px';
+          var imgInput=mk('input');imgInput.type='file';imgInput.accept='image/*';imgInput.multiple=true;
+          imgInput.style.cssText='width:100%;font-size:13px;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fafafa';
+          imgInput.onchange=(function(qid,previewRow,respArr){
+            return function(){
+              var files=Array.from(this.files).slice(0,3);
+              previewRow.innerHTML='';
+              responses[qid]=[];
+              var loaded=0;
+              if(!files.length)return;
+              files.forEach(function(file){
+                var reader=new FileReader();
+                reader.onload=function(e){
+                  // Resize to max 800px and compress
+                  var img=new Image();
+                  img.onload=function(){
+                    var canvas=document.createElement('canvas');
+                    var MAX=800;
+                    var ratio=Math.min(MAX/img.width,MAX/img.height,1);
+                    canvas.width=Math.round(img.width*ratio);
+                    canvas.height=Math.round(img.height*ratio);
+                    var ctx=canvas.getContext('2d');
+                    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+                    var dataUrl=canvas.toDataURL('image/jpeg',0.7);
+                    responses[qid].push(dataUrl);
+                    // Preview thumbnail
+                    var thumb=mk('img');thumb.src=dataUrl;
+                    thumb.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:8px;border:1.5px solid #e0e0e0;cursor:pointer';
+                    thumb.onclick=function(){window.open(this.src,'_blank');};
+                    previewRow.appendChild(thumb);
+                    loaded++;
+                    updateProgress();
+                  };
+                  img.src=e.target.result;
+                };
+                reader.readAsDataURL(file);
+              });
+            };
+          })(q.id,imgPreviewRow,responses[q.id]);
+          app(qCard,[imgHint,imgPreviewRow,imgInput]);
         }
 
         form.appendChild(qCard);
@@ -2784,8 +2829,8 @@ function showPublicQuestionnaire(qId){
           var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
           var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 24px;text-align:center;max-width:400px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.12)';
           // Deer logo
-          var doneLogoWrap=mk('div');doneLogoWrap.style.cssText='width:80px;height:80px;border-radius:50%;background:#1e514c;display:flex;align-items:center;justify-content:center;margin:0 auto 16px';
-          var doneLogoImg=mk('img');doneLogoImg.src='icon-192.png';doneLogoImg.style.cssText='width:56px;height:56px;object-fit:contain';doneLogoImg.onerror=function(){this.style.display='none';};
+          var doneLogoWrap=mk('div');doneLogoWrap.style.cssText='margin:0 auto 16px;text-align:center';
+          var doneLogoImg=mk('img');doneLogoImg.src='Ryree_logo.PNG';doneLogoImg.style.cssText='width:160px;height:auto;max-height:60px;object-fit:contain';doneLogoImg.onerror=function(){this.style.display='none';};
           doneLogoWrap.appendChild(doneLogoImg);
           var doneIcon=mk('div');doneIcon.style.cssText='font-size:32px;margin-bottom:8px;color:#2D6B5E';doneIcon.textContent='✓';
           var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
@@ -2866,7 +2911,18 @@ function openDesignBrief(entityType, entityId, entityName){
     latest.responses.forEach(function(r){
       var rRow=mk('div');rRow.style.cssText='margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f5f5f5';
       var rQ=mk('div');rQ.style.cssText='font-size:12px;font-weight:600;color:#888;margin-bottom:4px';rQ.textContent=r.question;
-      var rA=mk('div');rA.style.cssText='font-size:13px;color:#1a1a1a';rA.textContent=Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'—');
+      var rA=mk('div');rA.style.cssText='font-size:13px;color:#1a1a1a';
+      if(Array.isArray(r.answer)&&r.answer.length&&r.answer[0]&&r.answer[0].startsWith('data:image')){
+        // Image answers — show thumbnails
+        r.answer.forEach(function(dataUrl){
+          var thumb=mk('img');thumb.src=dataUrl;
+          thumb.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e0e0e0;margin-right:8px;cursor:pointer';
+          thumb.onclick=function(){window.open(this.src,'_blank');};
+          rA.appendChild(thumb);
+        });
+      } else {
+        rA.textContent=Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'—');
+      }
       app(rRow,[rQ,rA]);rawPanel.appendChild(rRow);
     });
   } else {
@@ -2886,7 +2942,7 @@ function openDesignBrief(entityType, entityId, entityName){
     genBtn.disabled=true;genBtn.textContent='Generating...';genErr.textContent='';
     var respText=(latest.responses||[]).map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'Not answered'));}).join('\n');
     var clientFirstName=(entityName||'Client').split(' ')[0];
-    var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh.\n\nA client named '+(entityName||'the client')+' has filled a pre-consultation questionnaire. Generate a concise structured design brief for Shreya. Important: refer to the client by their first name '+clientFirstName+' throughout the brief, never use the word client.\n\nResponses:\n'+respText+'\n\nGenerate with these sections:\n**Occasion & Timeline:** ...\n**Design Direction:** ...\n**Key Sensitivities:** ...\n**Style Anchors:** ...\n**Things to Avoid:** ...\n**Budget:** ...\n**Shreya Design Prompt:** (1-2 sentences of actionable creative direction using '+clientFirstName+' name)\n\nKeep it concise, warm, and actionable.';
+    var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh. IMPORTANT RULE: Never use the word client or customer anywhere in your response. Always refer to the person by their first name '+clientFirstName+' throughout every sentence of the brief.\n\nResponses from '+clientFirstName+':\n'+respText+'\n\nGenerate a concise structured design brief for Shreya with these exact sections. Start every section with the bold header then write sentences using '+clientFirstName+' name:\n**Occasion & Timeline:** (use '+clientFirstName+' name)\n**Design Direction:** (use '+clientFirstName+' name)\n**Key Sensitivities:** (use '+clientFirstName+' name)\n**Style Anchors:** (use '+clientFirstName+' name)\n**Things to Avoid:** (use '+clientFirstName+' name)\n**Budget:** ...\n**Shreya Design Prompt:** (1-2 sentences of creative direction mentioning '+clientFirstName+' specifically)\n\nRemember: zero use of the word client anywhere.';
     function doGenerate(key){
       if(!key){genBtn.disabled=false;genBtn.textContent='Generate Brief';genErr.textContent='OpenAI key not set. Go to sidebar and tap Set OpenAI Key.';return;}
       fetch('https://api.openai.com/v1/chat/completions',{
@@ -2924,11 +2980,11 @@ function openDesignBrief(entityType, entityId, entityName){
   var printBtn=mkBtn('Print Brief',function(){
     if(!latest.brief){alert('Generate the brief first.');return;}
     var printWin=window.open('','_blank','width=700,height=900');
-    var logoUrl=window.location.origin+window.location.pathname.replace('index.html','')+'icon-192.png';
+    var logoUrl=window.location.origin+window.location.pathname.replace('index.html','')+'Ryree_logo.PNG';
     printWin.document.write('<html><head><title>Design Brief - '+(entityName||'Client')+'</title>');
     printWin.document.write('<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:#1a1a1a;padding:40px;max-width:600px;margin:0 auto;line-height:1.7}');
     printWin.document.write('.header{display:flex;align-items:center;gap:16px;margin-bottom:6px;padding-bottom:16px;border-bottom:2px solid #1e514c}');
-    printWin.document.write('.logo{width:56px;height:56px;border-radius:50%;object-fit:contain;background:#1e514c}');
+    printWin.document.write('.logo{width:160px;height:auto;max-height:60px;object-fit:contain}');
     printWin.document.write('.brand{display:flex;flex-direction:column}');
     printWin.document.write('.brand-name{font-size:20px;font-weight:700;color:#1e514c;letter-spacing:.04em}');
     printWin.document.write('.brand-sub{font-size:11px;color:#888}');
