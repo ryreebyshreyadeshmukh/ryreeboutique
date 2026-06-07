@@ -2611,10 +2611,12 @@ function showPublicQuestionnaire(qId){
 
   // Header
   var header = mk('div');
-  header.style.cssText='background:#1e514c;padding:20px;text-align:center;margin-bottom:24px';
-  var logo = mk('div');logo.style.cssText='font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:4px';logo.textContent='Ryree';
+  header.style.cssText='background:#1e514c;padding:24px 20px;text-align:center;margin-bottom:24px';
+  var logoImg=mk('img');logoImg.src='icon-192.png';logoImg.style.cssText='width:72px;height:72px;border-radius:50%;object-fit:contain;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto';
+  logoImg.onerror=function(){this.style.display='none';};
+  var logo = mk('div');logo.style.cssText='font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:2px';logo.textContent='Ryree';
   var sublogo = mk('div');sublogo.style.cssText='font-size:12px;color:rgba(201,168,76,.7)';sublogo.textContent='by Shreya Deshmukh';
-  app(header,[logo,sublogo]);
+  app(header,[logoImg,logo,sublogo]);
 
   var inner = mk('div');inner.style.cssText='max-width:480px;margin:0 auto;padding:0 16px';
 
@@ -2748,62 +2750,38 @@ function showPublicQuestionnaire(qId){
           }
         });
         if(missing.length){submitErr.textContent='Please answer: '+missing[0]+(missing.length>1?' and '+(missing.length-1)+' more':'');return;}
-
         submitBtn.disabled=true;submitBtn.textContent='Submitting...';
-
-        // Build structured responses
         var structuredResponses=[];
         questions.forEach(function(q){
           structuredResponses.push({question:q.label,type:q.type,answer:responses[q.id]});
         });
-
-        // Generate AI brief via Anthropic API
-        var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh. A client has filled a pre-consultation questionnaire. Based on their responses, generate a concise structured design brief for Shreya.\n\nClient responses:\n'+structuredResponses.map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):r.answer||'Not answered');}).join('\n')+'\n\nGenerate the brief with these sections: Occasion & Timeline, Design Direction, Key Sensitivities, Style Anchors, Things to Avoid, Budget, and a Shreya Design Prompt (1-2 sentences of actionable creative direction). Keep it concise, warm, and actionable.';
-
-        // Fetch key from Firebase then generate brief
-        function callOpenAI(key){
-          if(!key){
-            db.collection('questionnaireResponses').doc(qId).update({status:'completed',responses:structuredResponses,brief:'OpenAI key not configured. Tap Set OpenAI Key in the Ryree sidebar.',completedAt:Date.now(),entityName:qDoc.entityName||''});
-            submitErr.textContent='No OpenAI key set. Responses saved.';
-            submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
-            return;
-          }
-          fetch('https://api.openai.com/v1/chat/completions',{
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-            body:JSON.stringify({model:'gpt-4o',max_tokens:1000,messages:[{role:'user',content:prompt}]})
-          }).then(function(r){return r.json();}).then(function(data){
-            var brief='';
-            if(data.choices&&data.choices[0])brief=data.choices[0].message.content||'';
-            db.collection('questionnaireResponses').doc(qId).update({
-              status:'completed',responses:structuredResponses,brief:brief,
-              completedAt:Date.now(),entityName:qDoc.entityName||''
-            }).then(function(){
-              container.innerHTML='';
-              var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
-              var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 30px;text-align:center;max-width:400px;width:100%';
-              var doneIcon=mk('div');doneIcon.style.cssText='font-size:48px;margin-bottom:16px;color:#2D6B5E';doneIcon.textContent='✓';
-              var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
-              var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.6';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
-              var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600';doneFooter.textContent='Ryree by Shreya Deshmukh';
-              app(doneCard,[doneIcon,doneTitle,doneSub,doneFooter]);
-              doneWrap.appendChild(doneCard);container.appendChild(doneWrap);
-            });
-          }).catch(function(){
-            db.collection('questionnaireResponses').doc(qId).update({status:'completed',responses:structuredResponses,brief:'Brief generation failed. Please review raw responses.',completedAt:Date.now()});
-            submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
-            submitErr.textContent='Submitted! Brief had an error but responses are saved.';
-          });
-        }
-        // Use cached key or fetch fresh from Firebase
-        if(_cachedOpenAIKey){callOpenAI(_cachedOpenAIKey);}
-        else{
-          db.collection('settings').doc('config').get().then(function(doc){
-            var k=doc.exists&&doc.data().openAIKey?doc.data().openAIKey:'';
-            if(k)_cachedOpenAIKey=k;
-            callOpenAI(k);
-          }).catch(function(){callOpenAI('');});
-        }
+        // Save responses only — AI brief generated by Shreya inside Ryree
+        db.collection('questionnaireResponses').doc(qId).update({
+          status:'completed',
+          responses:structuredResponses,
+          brief:null,
+          completedAt:Date.now(),
+          entityName:qDoc.entityName||''
+        }).then(function(){
+          // Show thank you screen
+          container.innerHTML='';
+          var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
+          var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 24px;text-align:center;max-width:400px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.12)';
+          // Deer logo
+          var doneLogoWrap=mk('div');doneLogoWrap.style.cssText='width:80px;height:80px;border-radius:50%;background:#1e514c;display:flex;align-items:center;justify-content:center;margin:0 auto 16px';
+          var doneLogoImg=mk('img');doneLogoImg.src='icon-192.png';doneLogoImg.style.cssText='width:56px;height:56px;object-fit:contain';doneLogoImg.onerror=function(){this.style.display='none';};
+          doneLogoWrap.appendChild(doneLogoImg);
+          var doneIcon=mk('div');doneIcon.style.cssText='font-size:32px;margin-bottom:8px;color:#2D6B5E';doneIcon.textContent='✓';
+          var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
+          var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.7';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
+          var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600;letter-spacing:.04em';doneFooter.textContent='Ryree by Shreya Deshmukh';
+          app(doneCard,[doneLogoWrap,doneIcon,doneTitle,doneSub,doneFooter]);
+          doneWrap.appendChild(doneCard);
+          container.appendChild(doneWrap);
+        }).catch(function(){
+          submitBtn.disabled=false;submitBtn.textContent='Submit to Shreya';
+          submitErr.textContent='Something went wrong. Please try again.';
+        });
       };
         app(inner,[submitErr,submitBtn]);
     });
@@ -2852,13 +2830,20 @@ function openDesignBrief(entityType, entityId, entityName){
   var rawPanel=mk('div');rawPanel.style.display='none';
 
   // Brief panel
-  if(latest.brief){
-    var briefText=mk('div');briefText.style.cssText='font-size:13px;line-height:1.7;color:#333;white-space:pre-wrap;background:#fafafa;border-radius:8px;padding:14px';
-    briefText.textContent=latest.brief;
-    briefPanel.appendChild(briefText);
-  } else {
-    briefPanel.appendChild(mk('div','empty','Brief not available.'));
+  var briefPanel2=briefPanel; // reference for generate button
+  function renderBriefContent(brief){
+    briefPanel2.innerHTML='';
+    if(brief){
+      var briefText=mk('div');briefText.style.cssText='font-size:13px;line-height:1.7;color:#333;white-space:pre-wrap;background:#fafafa;border-radius:8px;padding:14px';
+      briefText.textContent=brief;
+      briefPanel2.appendChild(briefText);
+    } else {
+      var noBrief=mk('div');noBrief.style.cssText='text-align:center;padding:30px;color:#aaa;font-size:13px';
+      noBrief.textContent='No brief generated yet. Click "Generate Brief" below.';
+      briefPanel2.appendChild(noBrief);
+    }
   }
+  renderBriefContent(latest.brief);
 
   // Raw responses panel
   if(latest.responses&&latest.responses.length){
@@ -2880,9 +2865,49 @@ function openDesignBrief(entityType, entityId, entityName){
   var completedAt=latest.completedAt?new Date(latest.completedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
   if(completedAt){var ts=mk('div');ts.style.cssText='font-size:11px;color:#aaa;margin-top:12px';ts.textContent='Submitted on '+completedAt;wrap.appendChild(ts);}
 
-  app(wrap,[mkActions([
+  var genErr=mk('div');genErr.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:8px';
+  var genBtn=mkBtn('Generate Brief',function(){
+    genBtn.disabled=true;genBtn.textContent='Generating...';genErr.textContent='';
+    var respText=(latest.responses||[]).map(function(r){return r.question+': '+(Array.isArray(r.answer)?r.answer.join(', '):(r.answer||'Not answered'));}).join('\n');
+    var prompt='You are a fashion design assistant for Ryree, a premium Indian boutique by Shreya Deshmukh.\n\nA client has filled a pre-consultation questionnaire. Generate a concise structured design brief for Shreya to read before the consultation.\n\nClient: '+(entityName||'Client')+'\n\nResponses:\n'+respText+'\n\nGenerate with these sections:\n**Occasion & Timeline:** ...\n**Design Direction:** ...\n**Key Sensitivities:** ...\n**Style Anchors:** ...\n**Things to Avoid:** ...\n**Budget:** ...\n**Shreya Design Prompt:** (1-2 sentences of actionable creative direction)\n\nKeep it concise, warm, and actionable.';
+    function doGenerate(key){
+      if(!key){genBtn.disabled=false;genBtn.textContent='Generate Brief';genErr.textContent='OpenAI key not set. Go to sidebar and tap Set OpenAI Key.';return;}
+      fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model:'gpt-4o',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+      }).then(function(r){return r.json();}).then(function(data){
+        var brief=data.choices&&data.choices[0]?data.choices[0].message.content||'':'';
+        if(!brief){genBtn.disabled=false;genBtn.textContent='Generate Brief';genErr.textContent='Generation failed. Please try again.';return;}
+        db.collection('questionnaireResponses').doc(latest.id).update({brief:brief,briefSeen:false})
+          .then(function(){
+            latest.brief=brief;
+            renderBriefContent(brief);
+            // Switch to brief tab
+            tabBrief.onclick();
+            genBtn.textContent='Regenerate Brief';
+            genBtn.disabled=false;
+          });
+      }).catch(function(){
+        genBtn.disabled=false;genBtn.textContent='Generate Brief';
+        genErr.textContent='Network error. Please try again.';
+      });
+    }
+    if(_cachedOpenAIKey){doGenerate(_cachedOpenAIKey);}
+    else{
+      db.collection('settings').doc('config').get().then(function(doc){
+        var k=doc.exists&&doc.data().openAIKey?doc.data().openAIKey:'';
+        if(k)_cachedOpenAIKey=k;
+        doGenerate(k);
+      }).catch(function(){doGenerate('');});
+    }
+  },'btn btn-primary');
+  genBtn.textContent=latest.brief?'Regenerate Brief':'Generate Brief';
+
+  app(wrap,[genErr,mkActions([
     mkBtn('Resend',function(){closeModal();sendQuestionnaire(entityType,entityId,entityName);},'btn btn-xs'),
-    mkBtn('Close',closeModal,'btn btn-primary')
+    genBtn,
+    mkBtn('Close',closeModal)
   ])]);
   showM(wrap,true);
 }
