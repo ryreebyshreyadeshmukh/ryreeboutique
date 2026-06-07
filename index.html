@@ -2628,12 +2628,11 @@ function showPublicQuestionnaire(qId){
 
   // Header
   var header = mk('div');
-  header.style.cssText='background:#1e514c;padding:24px 20px;text-align:center;margin-bottom:24px';
-  var logoImg=mk('img');logoImg.src='Ryree_logo.PNG';logoImg.style.cssText='width:200px;height:auto;max-height:80px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto';
+  header.style.cssText='background:#1e514c;padding:28px 20px;text-align:center;margin-bottom:24px';
+  var logoImg=mk('img');logoImg.src='Ryree_logo.PNG';
+  logoImg.style.cssText='width:220px;height:auto;max-height:90px;object-fit:contain;display:block;margin:0 auto';
   logoImg.onerror=function(){this.style.display='none';};
-  var logo = mk('div');logo.style.cssText='font-size:22px;font-weight:700;color:#C9A84C;letter-spacing:.05em;margin-bottom:2px';logo.textContent='Ryree';
-  var sublogo = mk('div');sublogo.style.cssText='font-size:12px;color:rgba(201,168,76,.7)';sublogo.textContent='by Shreya Deshmukh';
-  app(header,[logoImg,logo,sublogo]);
+  header.appendChild(logoImg);
 
   var inner = mk('div');inner.style.cssText='max-width:480px;margin:0 auto;padding:0 16px';
 
@@ -2829,14 +2828,15 @@ function showPublicQuestionnaire(qId){
           var doneWrap=mk('div');doneWrap.style.cssText='min-height:100vh;background:#1e514c;display:flex;align-items:center;justify-content:center;padding:20px';
           var doneCard=mk('div');doneCard.style.cssText='background:#fff;border-radius:16px;padding:40px 24px;text-align:center;max-width:400px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.12)';
           // Deer logo
-          var doneLogoWrap=mk('div');doneLogoWrap.style.cssText='margin:0 auto 16px;text-align:center';
-          var doneLogoImg=mk('img');doneLogoImg.src='Ryree_logo.PNG';doneLogoImg.style.cssText='width:160px;height:auto;max-height:60px;object-fit:contain';doneLogoImg.onerror=function(){this.style.display='none';};
-          doneLogoWrap.appendChild(doneLogoImg);
+          // Logo section - green background strip at top of card
+          var doneLogoStrip=mk('div');doneLogoStrip.style.cssText='background:#1e514c;margin:-40px -24px 24px;padding:24px 20px;text-align:center;border-radius:16px 16px 0 0';
+          var doneLogoImg=mk('img');doneLogoImg.src='Ryree_logo.PNG';doneLogoImg.style.cssText='width:180px;height:auto;max-height:70px;object-fit:contain;display:block;margin:0 auto';
+          doneLogoImg.onerror=function(){this.style.display='none';};
+          doneLogoStrip.appendChild(doneLogoImg);
           var doneIcon=mk('div');doneIcon.style.cssText='font-size:32px;margin-bottom:8px;color:#2D6B5E';doneIcon.textContent='✓';
           var doneTitle=mk('div');doneTitle.style.cssText='font-size:20px;font-weight:700;color:#1e514c;margin-bottom:10px';doneTitle.textContent='Thank you!';
           var doneSub=mk('div');doneSub.style.cssText='font-size:14px;color:#666;line-height:1.7';doneSub.textContent='Shreya has received your responses and will be in touch before your consultation. Looking forward to creating something beautiful for you!';
-          var doneFooter=mk('div');doneFooter.style.cssText='font-size:12px;color:#C9A84C;margin-top:20px;font-weight:600;letter-spacing:.04em';doneFooter.textContent='Ryree by Shreya Deshmukh';
-          app(doneCard,[doneLogoWrap,doneIcon,doneTitle,doneSub,doneFooter]);
+          app(doneCard,[doneLogoStrip,doneIcon,doneTitle,doneSub]);
           doneWrap.appendChild(doneCard);
           container.appendChild(doneWrap);
         }).catch(function(){
@@ -2983,11 +2983,8 @@ function openDesignBrief(entityType, entityId, entityName){
     var logoUrl=window.location.origin+window.location.pathname.replace('index.html','')+'Ryree_logo.PNG';
     printWin.document.write('<html><head><title>Design Brief - '+(entityName||'Client')+'</title>');
     printWin.document.write('<style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:14px;color:#1a1a1a;padding:40px;max-width:600px;margin:0 auto;line-height:1.7}');
-    printWin.document.write('.header{display:flex;align-items:center;gap:16px;margin-bottom:6px;padding-bottom:16px;border-bottom:2px solid #1e514c}');
-    printWin.document.write('.logo{width:160px;height:auto;max-height:60px;object-fit:contain}');
-    printWin.document.write('.brand{display:flex;flex-direction:column}');
-    printWin.document.write('.brand-name{font-size:20px;font-weight:700;color:#1e514c;letter-spacing:.04em}');
-    printWin.document.write('.brand-sub{font-size:11px;color:#888}');
+    printWin.document.write('.header{background:#1e514c;padding:20px;text-align:center;margin:-40px -40px 24px;border-radius:0}');
+    printWin.document.write('.logo{width:200px;height:auto;max-height:80px;object-fit:contain;display:block;margin:0 auto}');
     printWin.document.write('h1{color:#1e514c;font-size:16px;margin:16px 0 4px}');
     printWin.document.write('.sub{font-size:12px;color:#888;margin-bottom:20px}');
     printWin.document.write('strong{color:#1e514c}');
@@ -2995,7 +2992,7 @@ function openDesignBrief(entityType, entityId, entityName){
     printWin.document.write('.footer{margin-top:32px;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px;text-align:center}');
     printWin.document.write('@media print{body{padding:20px}}');
     printWin.document.write('</style></head><body>');
-    printWin.document.write('<div class="header"><img class="logo" src="'+logoUrl+'"><div class="brand"><div class="brand-name">Ryree</div><div class="brand-sub">by Shreya Deshmukh</div></div></div>');
+    printWin.document.write('<div class="header"><img class="logo" src="'+logoUrl+'"></div>');
     printWin.document.write('<h1>Design Brief</h1>');
     printWin.document.write('<div class="sub">'+(entityName||'Client')+' &nbsp;&bull;&nbsp; '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})+'</div>');
     printWin.document.write('<div>'+renderMarkdown(latest.brief).replace(/<div style="margin-top:14px">/g,'<div class="section" style="margin-top:14px">').replace(/<div style="margin:2px 0;padding-left:8px">/g,'<div class="section">')+'</div>');
