@@ -952,7 +952,22 @@ function openCollabModal(collabId){
         var file=this.files[0];
         if(file){
           var reader=new FileReader();
-          reader.onload=function(e){outfits[i].photo=e.target.result;renderOutfits();};
+          reader.onload=function(e){
+            var img=new Image();
+            img.onload=function(){
+              var canvas=document.createElement('canvas');
+              var MAX=700;
+              var ratio=Math.min(MAX/img.width,MAX/img.height,1);
+              canvas.width=Math.round(img.width*ratio);
+              canvas.height=Math.round(img.height*ratio);
+              var ctx=canvas.getContext('2d');
+              ctx.drawImage(img,0,0,canvas.width,canvas.height);
+              var dataUrl=canvas.toDataURL('image/jpeg',0.6);
+              outfits[i].photo=dataUrl;
+              renderOutfits();
+            };
+            img.src=e.target.result;
+          };
           reader.readAsDataURL(file);
         }
       };
@@ -988,7 +1003,10 @@ function openCollabModal(collabId){
     // Calculate total price from outfits
     var totalPrice=outfits.reduce(function(sum,o){return sum+Number(o.price||0);},0);
     
-    dbSave('collabs',{id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',price:totalPrice,handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),notes:notesTA.value||'',termsConditions:document.getElementById('col-tc').value||defaultTC,created:c?c.created:Date.now()});
+    var collabData={id:c?c.id:uid(),stylistName:nm.trim(),instagram:(document.getElementById('col-ig')||{}).value||'',phone:(document.getElementById('col-phone')||{}).value||'',price:totalPrice,handoverDate:(document.getElementById('col-hand')||{}).value||'',returnDate:(document.getElementById('col-ret')||{}).value||'',deliverable:(document.getElementById('col-del')||{}).value||'',status:(document.getElementById('col-status')||{}).value||'Active',outfits:outfits.filter(function(o){return o.name.trim();}),notes:notesTA.value||'',termsConditions:document.getElementById('col-tc').value||defaultTC,created:c?c.created:Date.now()};
+    var estSize=JSON.stringify(collabData).length;
+    if(estSize>900000){alert('Photos are too large to save ('+Math.round(estSize/1024)+'KB). Please remove a photo or use smaller images, then try again.');return;}
+    dbSave('collabs',collabData);
     closeModal();
   },'btn btn-primary')])]);
   showM(wrap,true);
