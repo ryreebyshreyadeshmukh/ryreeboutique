@@ -6244,7 +6244,7 @@ function renderEstimatorBody(){
   discInp.type='number'; discInp.id='est-discount'; discInp.value=_estDiscount;
   discInp.style.cssText='width:80px;text-align:center';discInp.min='0';discInp.max='100';
   discInp.oninput=function(){_estDiscount=Number(this.value||0);updateEstTotals();};
-  var discHint=mk('span');discHint.style.cssText='font-size:12px;color:#aaa';discHint.textContent='MRP = Total cost \u00d7 2';
+  var discHint=mk('span');discHint.style.cssText='font-size:12px;color:#aaa';discHint.textContent='MRP = Total cost \u00d7 '+getEstMarkup();
   app(discRow,[discLabel,discInp,discHint]);
   body.appendChild(discRow);
 
