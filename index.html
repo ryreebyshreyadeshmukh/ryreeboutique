@@ -5923,6 +5923,7 @@ function pgEstSettings(){
     db.collection('estconfig').doc('config').set({markup:val}).then(function(){
       DB.estconfig=[{markup:val}];
       alert('Markup saved! Now ×'+val);
+      nav('estsettings'); // re-render settings page so input + formula text reflect new value
     });
   },'btn btn-primary btn-sm');
 
