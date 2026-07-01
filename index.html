@@ -1872,7 +1872,7 @@ function pgOrders(){
       genQuotBtn.onclick=(function(qid){return function(){nav('quotations');setTimeout(function(){var el=document.querySelector('[data-quot-id="'+qid+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);};})(o.linkedQuotationId);
       genQuotBtn.style.cssText='padding:2px 8px;font-size:11px;color:#2D6B5E;border-color:#86EFAC';
     }
-    if(isAssistant()){app(acts,[waOrdBtn]);}else{app(acts,[genQuotBtn,workBtn,quickInvBtn,waOrdBtn,editBtn,delBtn]);}
+    if(isAssistant()){app(acts,[waOrdBtn]);}else{app(acts,[genQuotBtn,workBtn,waOrdBtn,editBtn,delBtn]);}
 
     var srDiv=mk('div');srDiv.style.cssText='font-size:11px;font-weight:700;color:#ccc;text-align:center';srDiv.textContent=String(orderSrNo);
     app(mainRow,[srDiv,clientDiv,amtDiv,sel,acts]);
@@ -4992,7 +4992,15 @@ function pgQuotations(){
       orderBtn.style.cssText+='color:#2D6B5E;border-color:#86EFAC';
     }
 
-    app(acts,[viewBtn,editBtn,printBtn,estBtn].concat(orderBtn?[orderBtn]:[]).concat([delBtn]));
+    var createInvBtn=mkBtn('Create Invoice',(function(qid){return function(){createInvoiceFromQuotation(qid);};})(q.id),'btn btn-xs');
+    if(q.status==='Accepted'){
+      createInvBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+    } else {
+      createInvBtn.style.cssText+='color:#aaa;border-color:#e0e0e0;cursor:not-allowed;opacity:0.5';
+      createInvBtn.title='Mark quotation as Accepted first';
+      createInvBtn.disabled=true;
+    }
+    app(acts,[viewBtn,editBtn,printBtn,estBtn,createInvBtn].concat(orderBtn?[orderBtn]:[]).concat([delBtn]));
     var actTd=mk('td');actTd.appendChild(acts);
 
     var clCell=mk('div');
@@ -5256,13 +5264,28 @@ function viewQuotation(id){
     var o2=DB.orders.find(function(x){return x.id===q.linkedOrderId;});
     var orderItems=o2?o2.items||[{name:o2.item,qty:1,amount:o2.amount}]:svcs.map(function(s){return {name:s.name,qty:1,amount:s.price};});
     orderItems.forEach(function(it,i){
-      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;'+(i<orderItems.length-1?'border-bottom:1px solid #f0f0f0;':'')+'background:'+(i%2===0?'#fff':'#fafafa');
-      var left2=mk('div');
+      var itemWrap=mk('div');itemWrap.style.cssText='padding:10px 14px;'+(i<orderItems.length-1?'border-bottom:1px solid #f0f0f0;':'')+'background:'+(i%2===0?'#fff':'#fafafa');
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:flex-start';
+      var left2=mk('div');left2.style.flex='1';
       var iname=mk('div');iname.style.cssText='font-size:13px;font-weight:600;color:#333';iname.textContent=(i+1)+'. '+it.name+(it.qty>1?' (x'+it.qty+')':'');
       left2.appendChild(iname);
       if(it.itemNotes){var inotes=mk('div');inotes.style.cssText='font-size:11px;color:#888;margin-top:2px';inotes.textContent=it.itemNotes;left2.appendChild(inotes);}
+      // Reference images from order
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===i;});
+      var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||''].filter(Boolean)):[];
+      if(imgs.length){
+        var imgRow=mk('div');imgRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
+        imgs.filter(Boolean).forEach(function(src){
+          var thumb=mk('img');thumb.src=src;
+          thumb.style.cssText='width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0;cursor:pointer';
+          thumb.onclick=function(){window.open(this.src,'_blank');};
+          imgRow.appendChild(thumb);
+        });
+        left2.appendChild(imgRow);
+      }
       var iprice=mk('div');iprice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;white-space:nowrap;margin-left:12px';iprice.textContent=it.amount?rupee(it.amount):'—';
-      app(row,[left2,iprice]);itemsContainer.appendChild(row);
+      app(row,[left2,iprice]);itemWrap.appendChild(row);
+      itemsContainer.appendChild(itemWrap);
     });
   } else {
     // Show services
@@ -6503,7 +6526,7 @@ function renderEstimatorBody(){
       renderEstimatorBody();
     },'btn btn-sm'),
     mkBtn('+ Add to draft',function(){addCurrentItemToDraft();},'btn btn-primary btn-sm'),
-    mkBtn('Save as single item quotation',function(){saveEstimatorAsQuotation();},'btn btn-sm'),
+
     mkBtn('Print estimate',function(){printEstimate();},'btn btn-sm')
   ]);
   body.appendChild(actions);
@@ -8168,6 +8191,118 @@ function pgInvoices(){
   return wrap;
 }
 
+function createInvoiceFromQuotation(qid){
+  var q=DB.quotations.find(function(x){return x.id===qid;});if(!q)return;
+  if(q.status!=='Accepted'){alert('Please mark this quotation as Accepted first.');return;}
+
+  var existing=DB.invoices.find(function(inv){return inv.quotationId===qid;});
+  if(existing){
+    if(!confirm('An invoice already exists for this quotation ('+existing.invoiceNo+'). Create another?'))return;
+  }
+
+  var cl=q.clientId?DB.clients.find(function(x){return x.id===q.clientId;}):null;
+  var services=q.services||[];
+  var subtotal=services.reduce(function(a,s){return a+Number(s.price||0);},0)+Number(q.travelCharge||0);
+
+  // Pull reference images from linked Order
+  var linkedOrder=q.linkedOrderId?DB.orders.find(function(x){return x.id===q.linkedOrderId;}):null;
+  var orderImages=linkedOrder?DB.orderImages.filter(function(img){return img.orderId===linkedOrder.id;}):[];
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Create Invoice'));
+  wrap.appendChild(mk('div','modal-sub',(cl?cl.name:'Client')+' · '+services.length+' item'+(services.length>1?'s':'')+' · '+rupee(subtotal)));
+
+  // Discount
+  var discRow=mk('div');discRow.style.cssText='display:flex;gap:8px;align-items:center';
+  var pctBtn=mk('button');pctBtn.type='button';pctBtn.textContent='%';
+  pctBtn.style.cssText='padding:5px 12px;border-radius:6px 0 0 6px;border:1px solid #ccc;cursor:pointer;font-weight:600;background:#2D6B5E;color:#fff';
+  var flatBtn=mk('button');flatBtn.type='button';flatBtn.textContent='₹';
+  flatBtn.style.cssText='padding:5px 12px;border-radius:0 6px 6px 0;border:1px solid #ccc;border-left:none;cursor:pointer;font-weight:600;background:#fff;color:#555';
+  var discType='pct';
+  pctBtn.onclick=function(){discType='pct';pctBtn.style.background='#2D6B5E';pctBtn.style.color='#fff';flatBtn.style.background='#fff';flatBtn.style.color='#555';updateInvTotal();};
+  flatBtn.onclick=function(){discType='flat';flatBtn.style.background='#2D6B5E';flatBtn.style.color='#fff';pctBtn.style.background='#fff';pctBtn.style.color='#555';updateInvTotal();};
+  var discInp=mkInput('ci-disc','number','0');discInp.style.flex='1';discInp.min='0';discInp.value='0';
+  discInp.oninput=function(){updateInvTotal();};
+  app(discRow,[pctBtn,flatBtn,discInp]);
+
+  var totalDisp=mk('div');totalDisp.id='ci-total-disp';
+  totalDisp.style.cssText='background:#e6f0ee;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:700;color:#2D6B5E;margin-top:4px';
+  totalDisp.textContent='Total: '+rupee(subtotal);
+
+  function updateInvTotal(){
+    var dv=Number((document.getElementById('ci-disc')||{}).value||0);
+    var da=dv>0?(discType==='flat'?dv:Math.round(subtotal*dv/100)):0;
+    var tot=subtotal-da;
+    var td=document.getElementById('ci-total-disp');
+    if(td){
+      if(da>0){td.innerHTML='<div style="font-size:12px;color:#888;margin-bottom:2px">Subtotal: '+rupee(subtotal)+' − Discount: '+rupee(da)+'</div><div>Total: '+rupee(tot)+'</div>';}
+      else{td.textContent='Total: '+rupee(tot);}
+    }
+  }
+
+  var notesInp=mkInput('ci-notes','text','Optional notes on invoice');
+  notesInp.value=q.notes||'';
+
+  app(wrap,[
+    mkFg('Discount (optional)',discRow),
+    (function(){var fg=mk('div','form-group');fg.appendChild(totalDisp);return fg;})(),
+    mkFg('Notes',notesInp),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Create Invoice',function(){
+        var discVal=Number((document.getElementById('ci-disc')||{}).value||0);
+        var discAmt=discVal>0?(discType==='flat'?discVal:Math.round(subtotal*discVal/100)):0;
+        var total=subtotal-discAmt;
+        var now=new Date();
+        var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        var invoiceNo='INV-'+months[now.getMonth()]+String(now.getFullYear()).slice(-2)+'-'+String(DB.invoices.length+1).padStart(3,'0');
+        var notes=(document.getElementById('ci-notes')||{}).value||'';
+
+        // Build services with reference images from linked Order
+        var servicesWithImages=services.map(function(svc,idx){
+          var imgDoc=orderImages.find(function(img){return img.itemIndex===idx;});
+          var images=imgDoc?(imgDoc.images||[imgDoc.base64||''].filter(Boolean)):[];
+          return Object.assign({},svc,{refImages:images});
+        });
+
+        var inv={
+          id:uid(),
+          invoiceNo:invoiceNo,
+          quotationId:qid,
+          linkedOrderId:q.linkedOrderId||'',
+          linkedOrderNo:linkedOrder?linkedOrder.orderNo||'':'',
+          clientId:q.clientId||'',
+          clientName:cl?cl.name:q.clientName||'',
+          clientPhone:cl?(cl.phone||''):'',
+          date:now.toISOString().split('T')[0],
+          services:servicesWithImages,
+          travelCharge:q.travelCharge||'',
+          discountType:discType,
+          discountVal:discVal,
+          subtotal:subtotal,
+          discountAmt:discAmt,
+          total:total,
+          advancePaid:0,
+          payments:[],
+          notes:notes,
+          terms:q.terms||DEFAULT_TERMS.join('\n'),
+          status:'Draft',
+          created:Date.now()
+        };
+
+        dbSave('invoices',inv);
+        // Mark quotation as having invoice
+        dbSave('quotations',Object.assign({},q,{linkedInvoiceId:inv.id}));
+        closeModal();
+        nav('invoices');
+        alert('Invoice '+invoiceNo+' created!');
+      },'btn btn-primary')
+    ])
+  ]);
+  setTimeout(function(){updateInvTotal();},50);
+  showM(wrap,true);
+}
+
 function generateInvoiceFromQuotation(qid){
   var q=DB.quotations.find(function(x){return x.id===qid;});if(!q)return;
   var cl=q.clientId?DB.clients.find(function(x){return x.id===q.clientId;}):null;
@@ -8236,14 +8371,16 @@ function printInvoice(id){
 
   var itemsHtml=services.map(function(s,i){
     var imgHtml='';
+    var imgs=[];
     if(inv.linkedOrderId){
       var imgDoc=DB.orderImages.find(function(img){return img.orderId===inv.linkedOrderId&&img.itemIndex===i;});
-      var imgs=imgDoc?(imgDoc.images||[]):[];
-      if(imgs.length){
-        imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
-          +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
-          +'</div>';
-      }
+      imgs=imgDoc?(imgDoc.images||[]):[];
+    }
+    if(!imgs.length&&s.refImages&&s.refImages.length)imgs=s.refImages;
+    if(imgs.length){
+      imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+        +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+        +'</div>';
     }
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:12px;font-size:13px;vertical-align:top">'
