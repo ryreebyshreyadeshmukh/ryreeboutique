@@ -1865,7 +1865,14 @@ function pgOrders(){
       else{var cl=DB.clients.find(function(x){return x.id===oobj.clientId;});openWhatsApp(getClientPhone(oobj.clientId),'Hi '+(cl?cl.name:'there')+',');}
     };})(o),'btn btn-xs');
     waOrdBtn.style.cssText+='color:#25D366;border-color:#25D366';
-    if(isAssistant()){app(acts,[waOrdBtn]);}else{app(acts,[quotBtn,quickInvBtn,workBtn,createTasksBtn,waOrdBtn,editBtn,delBtn]);}
+    var genQuotBtn=mkBtn('Generate Quotation',(function(oid){return function(){generateQuotationFromOrder(oid);};})(o.id),'btn btn-xs');
+    genQuotBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
+    if(o.linkedQuotationId){
+      genQuotBtn.textContent='View Quotation';
+      genQuotBtn.onclick=(function(qid){return function(){nav('quotations');setTimeout(function(){var el=document.querySelector('[data-quot-id="'+qid+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},300);};})(o.linkedQuotationId);
+      genQuotBtn.style.cssText='padding:2px 8px;font-size:11px;color:#2D6B5E;border-color:#86EFAC';
+    }
+    if(isAssistant()){app(acts,[waOrdBtn]);}else{app(acts,[genQuotBtn,workBtn,quickInvBtn,waOrdBtn,editBtn,delBtn]);}
 
     var srDiv=mk('div');srDiv.style.cssText='font-size:11px;font-weight:700;color:#ccc;text-align:center';srDiv.textContent=String(orderSrNo);
     app(mainRow,[srDiv,clientDiv,amtDiv,sel,acts]);
@@ -1923,6 +1930,88 @@ function pgOrders(){
 
   setTimeout(function(){renderOrders();},0);
   return wrap;
+}
+
+function generateQuotationFromOrder(orderId){
+  var o=DB.orders.find(function(x){return x.id===orderId;});
+  if(!o){alert('Order not found.');return;}
+  if(o.linkedQuotationId){
+    if(!confirm('A quotation already exists for this order. Create another one?'))return;
+  }
+
+  var items=o.items||[{name:o.item,qty:1,amount:o.amount}];
+  var total=Number(o.amount||0);
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Generate Quotation'));
+  wrap.appendChild(mk('div','modal-sub','Creates a client-facing quotation from this order. Client sees items and price — not cost breakdown.'));
+
+  // Preview items
+  var preview=mk('div');preview.style.cssText='background:#fafafa;border-radius:8px;padding:12px 14px;margin-bottom:12px';
+  items.forEach(function(it){
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid #f0f0f0';
+    var nm=mk('span');nm.textContent=it.name+(it.qty>1?' x'+it.qty:'');
+    var amt=mk('span');amt.style.fontWeight='600';amt.textContent=it.amount?rupee(Number(it.amount)):'—';
+    app(row,[nm,amt]);preview.appendChild(row);
+  });
+  var totRow=mk('div');totRow.style.cssText='display:flex;justify-content:space-between;font-size:14px;font-weight:700;padding:8px 0 0';
+  var tl=mk('span');tl.textContent='Total';
+  var tv=mk('span');tv.style.color='#2D6B5E';tv.textContent=rupee(total);
+  app(totRow,[tl,tv]);preview.appendChild(totRow);
+
+  var validInp=mkInput('gen-quot-valid','date','');
+  validInp.value=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
+  var notesInp=mkInput('gen-quot-notes','text','Optional message to client');
+  notesInp.value=o.notes||'';
+
+  app(wrap,[
+    preview,
+    mkFg('Valid till',validInp),
+    mkFg('Notes',notesInp),
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Generate Quotation',function(){
+        var cl=o.clientId?DB.clients.find(function(x){return x.id===o.clientId;}):null;
+        var today=new Date().toISOString().split('T')[0];
+        var validTill=(document.getElementById('gen-quot-valid')||{}).value||today;
+        var notes=(document.getElementById('gen-quot-notes')||{}).value||'';
+        var quotId=uid();
+
+        var services=items.map(function(it){
+          return {
+            name:it.name+(it.qty>1?' x'+it.qty:''),
+            price:String(Number(it.amount||0)),
+            estSnapshot:it.estSnapshot||null
+          };
+        });
+
+        dbSave('quotations',{
+          id:quotId,
+          clientId:o.clientId||'',
+          clientName:cl?cl.name:o.clientName||'',
+          date:today,
+          validTill:validTill,
+          services:services,
+          travelCharges:'',
+          total:total,
+          notes:notes,
+          terms:DEFAULT_TERMS.join('\n'),
+          status:'Pending',
+          linkedOrderId:orderId,
+          linkedOrderNo:o.orderNo||'',
+          created:Date.now()
+        });
+
+        // Link order back to quotation
+        dbSave('orders',Object.assign({},o,{linkedQuotationId:quotId}));
+
+        closeModal();
+        nav('quotations');
+        alert('Quotation created! Go to Quotations to review and share with the client.');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
 }
 
 function convertQuotToOrder(quotId){
@@ -4857,8 +4946,18 @@ function pgQuotations(){
     sel.setAttribute('data-qid',q.id);
     sel.onchange=function(){
       var qid=this.getAttribute('data-qid');
+      var newStatus=this.value;
       var quot=DB.quotations.find(function(x){return x.id===qid;});
-      if(quot)dbSave('quotations',Object.assign({},quot,{status:this.value}));
+      if(quot){
+        dbSave('quotations',Object.assign({},quot,{status:newStatus}));
+        // Auto-update linked Order to In Progress when Quotation is Accepted
+        if(newStatus==='Accepted'&&quot.linkedOrderId){
+          var linkedOrd=DB.orders.find(function(x){return x.id===quot.linkedOrderId;});
+          if(linkedOrd&&linkedOrd.status==='Pending'){
+            dbSave('orders',Object.assign({},linkedOrd,{status:'In Progress'}));
+          }
+        }
+      }
     };
     var selTd=mk('td');selTd.appendChild(sel);
 
@@ -4866,19 +4965,6 @@ function pgQuotations(){
     var viewBtn=mkBtn('View',function(){viewQuotation(q.id);},'btn btn-xs');
     var editBtn=mkBtn('Edit',function(){openQuotationModal(q.id);},'btn btn-xs');
     var printBtn=mkBtn('Print',function(){printQuotation(q.id);},'btn btn-xs');
-    var invBtn=mkBtn('Generate Invoice',function(){
-      if(q.status!=='Accepted'){
-        alert('Please mark this quotation as Accepted first before generating an invoice.');
-        return;
-      }
-      generateInvoiceFromQuotation(q.id);
-    },'btn btn-xs');
-    if(q.status==='Accepted'){
-      invBtn.style.cssText+='color:#166534;border-color:#86EFAC';
-    } else {
-      invBtn.style.cssText+='color:#aaa;border-color:#e0e0e0;cursor:not-allowed;opacity:0.5';
-      invBtn.title='Mark quotation as Accepted first';
-    }
     var delBtn=mk('button','btn-danger','Del');delBtn.setAttribute('data-qid',q.id);
     delBtn.onclick=function(){
       var qid=this.getAttribute('data-qid');
@@ -4899,19 +4985,14 @@ function pgQuotations(){
     var hasAnySnapshot=q.estSnapshot||(q.services||[]).some(function(s){return s.estSnapshot;});
     if(!hasAnySnapshot){estBtn.style.opacity='0.35';estBtn.title='No estimate breakdown saved for this quotation';estBtn.disabled=true;}
 
-    var orderBtn=mkBtn('Convert to Order',(function(qid){return function(){convertQuotToOrder(qid);};})(q.id),'btn btn-xs');
-    if(q.status==='Accepted'&&!q.linkedOrderId){
-      orderBtn.style.cssText+='color:#166534;border-color:#86EFAC';
-    } else if(q.linkedOrderId){
-      orderBtn.textContent='View Order';
+    // Show View Order link if this quotation came from an order
+    var orderBtn=null;
+    if(q.linkedOrderId){
+      orderBtn=mkBtn('View Order',(function(oid){return function(){nav('orders');setTimeout(function(){var el=document.querySelector('[data-order-id="'+oid+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},200);};})(q.linkedOrderId),'btn btn-xs');
       orderBtn.style.cssText+='color:#2D6B5E;border-color:#86EFAC';
-      orderBtn.onclick=(function(oid){return function(){nav('orders');setTimeout(function(){var el=document.querySelector('[data-order-id="'+oid+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},200);};})(q.linkedOrderId);
-    } else {
-      orderBtn.style.cssText+='color:#aaa;border-color:#e0e0e0;cursor:not-allowed;opacity:0.5';
-      orderBtn.title='Mark quotation as Accepted first';
     }
 
-    app(acts,[viewBtn,editBtn,printBtn,estBtn,invBtn,orderBtn,delBtn]);
+    app(acts,[viewBtn,editBtn,printBtn,estBtn].concat(orderBtn?[orderBtn]:[]).concat([delBtn]));
     var actTd=mk('td');actTd.appendChild(acts);
 
     var clCell=mk('div');
@@ -4923,7 +5004,7 @@ function pgQuotations(){
     var validTd=mk('td');validTd.style.color='#888';validTd.style.fontSize='12px';validTd.textContent=q.validTill||'—';
 
     var srTdQ=mk('td');srTdQ.style.cssText='color:#aaa;font-size:12px';srTdQ.textContent=String(quotSrNo);
-    var tr=mk('tr');
+    var tr=mk('tr');tr.className='quot-row';tr.setAttribute('data-quot-id',q.id);tr.setAttribute('data-search',((cl?cl.name:q.clientName||'')+' '+serviceNames).toLowerCase());
     [srTdQ,clTd,svcTd,amtTd,validTd,selTd,actTd].forEach(function(td){tr.appendChild(td);});
     t._body.appendChild(tr);
   });
@@ -6224,8 +6305,8 @@ function renderDraftStrip(container){
   });
 
   var actRow=mk('div');actRow.style.cssText='display:flex;gap:8px;margin-top:12px';
-  var saveAllBtn=mkBtn('Save Draft as Quotation',function(){saveDraftAsQuotation();},'btn btn-primary btn-sm');
-  saveAllBtn.style.cssText+='background:#6D28D9;border-color:#6D28D9';
+  var saveAllBtn=mkBtn('Create Order',function(){createOrderFromDraft();},'btn btn-primary btn-sm');
+  saveAllBtn.style.cssText+='background:#2D6B5E;border-color:#2D6B5E';
   var clearBtn=mkBtn('Clear draft',function(){clearEstDraft();},'btn btn-xs');
   clearBtn.style.cssText+='color:#991B1B;border-color:#FCA5A5';
   app(actRow,[saveAllBtn,clearBtn]);
@@ -6422,7 +6503,7 @@ function renderEstimatorBody(){
       renderEstimatorBody();
     },'btn btn-sm'),
     mkBtn('+ Add to draft',function(){addCurrentItemToDraft();},'btn btn-primary btn-sm'),
-    mkBtn('Save as single quotation',function(){saveEstimatorAsQuotation();},'btn btn-sm'),
+    mkBtn('Save as single item quotation',function(){saveEstimatorAsQuotation();},'btn btn-sm'),
     mkBtn('Print estimate',function(){printEstimate();},'btn btn-sm')
   ]);
   body.appendChild(actions);
@@ -6600,16 +6681,17 @@ function saveEstimatorAsQuotation(){
   showM(wrap,true);
 }
 
-function saveDraftAsQuotation(){
+function createOrderFromDraft(){
   var draft=getEstDraft();
   if(!draft.items||!draft.items.length){alert('Add at least one item to the draft first.');return;}
 
   var wrap=mk('div');
-  wrap.appendChild(mk('div','modal-title','Save Draft as Quotation'));
-  wrap.appendChild(mk('div','modal-sub',draft.items.length+' item'+(draft.items.length>1?'s':'')+' in this draft. Choose a client to generate one quotation covering all items.'));
+  wrap.appendChild(mk('div','modal-title','Create Order'));
+  wrap.appendChild(mk('div','modal-sub',draft.items.length+' item'+(draft.items.length>1?'s':'')+' — choose a client, then add illustrations and references inside the Order.'));
 
   var clientSel3=mkClientSelect('est-draft-client',draft.clientId||'');
   var grandTotal=draft.items.reduce(function(a,it){return a+it.sellingPrice;},0);
+
   var itemsListDiv=mk('div');itemsListDiv.style.cssText='background:#fafafa;border-radius:8px;padding:10px 14px;margin-bottom:4px;font-size:12px;color:#555';
   draft.items.forEach(function(it){
     var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;padding:3px 0';
@@ -6617,23 +6699,33 @@ function saveDraftAsQuotation(){
     itemsListDiv.appendChild(row);
   });
   var totalDisp2=mk('div');totalDisp2.style.cssText='background:#e6f0ee;padding:10px 14px;border-radius:8px;font-size:14px;font-weight:700;color:#2D6B5E;margin-top:8px';
-  totalDisp2.textContent='Grand Total: '+rupee(grandTotal);
+  totalDisp2.textContent='Total: '+rupee(grandTotal);
+
+  var notesInp=mkInput('est-draft-notes','text','Optional notes for this order');
 
   app(wrap,[
     mkFg('Client',clientSel3),
     itemsListDiv,
     totalDisp2,
+    mkFg('Notes',notesInp),
     mkActions([
       mkBtn('Cancel',closeModal),
-      mkBtn('Save Quotation',function(){
+      mkBtn('Create Order',function(){
         var clientId=(document.getElementById('est-draft-client')||{}).value||'';
         var cl=clientId?DB.clients.find(function(x){return x.id===clientId;}):null;
-        var today=new Date().toISOString().split('T')[0];
-        var validTill=new Date(Date.now()+15*24*60*60*1000).toISOString().split('T')[0];
-        var services=draft.items.map(function(it){
+        var notes=(document.getElementById('est-draft-notes')||{}).value||'';
+        var orderId=uid();
+        var now=new Date();
+        var months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        var orderNo='ORD-'+months[now.getMonth()]+String(now.getFullYear()).slice(-2)+'-'+String(DB.orders.length+1).padStart(3,'0');
+
+        var items=draft.items.map(function(it){
           return {
             name:it.name,
-            price:String(it.sellingPrice),
+            qty:1,
+            amount:it.sellingPrice,
+            delivery:'',
+            itemNotes:'',
             estSnapshot:{
               garmentId:it.garmentId,garmentName:it.garmentName,components:it.components,
               cols:it.cols,data:it.data,discount:it.discount,markup:it.markup,
@@ -6641,27 +6733,35 @@ function saveDraftAsQuotation(){
             }
           };
         });
-        dbSave('quotations',{
-          id:uid(),
+
+        dbSave('orders',{
+          id:orderId,
+          orderNo:orderNo,
           clientId:clientId,
           clientName:cl?cl.name:'',
-          date:today,
-          validTill:validTill,
-          services:services,
-          travelCharges:'',
-          total:grandTotal,
-          notes:'Generated from Price Estimator ('+draft.items.length+' items)',
-          terms:DEFAULT_TERMS.join('\n'),
+          items:items,
+          item:items.map(function(i){return i.name;}).join(', '),
+          amount:grandTotal,
+          advance:'',
+          delivery:'',
+          notes:notes,
+          payments:[],
           status:'Pending',
           created:Date.now()
         });
-        // Clear the draft now that it's converted
+
+        // Clear draft
         draft.items=[];draft.clientId='';
         saveEstDraft(draft);
         closeModal();
-        alert('Quotation saved with '+services.length+' item(s)! Check the Quotations module.');
         renderDraftStrip();
-        renderEstimatorBody();
+        // Navigate to orders and highlight new order
+        nav('orders');
+        setTimeout(function(){
+          var el=document.querySelector('[data-order-id="'+orderId+'"]');
+          if(el)el.scrollIntoView({behavior:'smooth',block:'center'});
+        },400);
+        alert('Order '+orderNo+' created! Add illustrations and reference images in the Order view, then generate a Quotation when ready.');
       },'btn btn-primary')
     ])
   ]);
@@ -7979,7 +8079,7 @@ function pgInvoices(){
     var empty=mk('div','card');
     var msg=mk('div');msg.style.cssText='text-align:center;padding:32px';
     var tt=mk('div');tt.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';tt.textContent='No invoices yet.';
-    var ss=mk('div');ss.style.cssText='font-size:13px;color:#888';ss.textContent='Generate invoices from the Quotations module or via Quick Invoice on an order.';
+    var ss=mk('div');ss.style.cssText='font-size:13px;color:#888';ss.textContent='Generate invoices via Quick Invoice on an order.';
     app(msg,[tt,ss]);app(empty,[msg]);wrap.appendChild(empty);
     return wrap;
   }
@@ -8432,7 +8532,7 @@ function quickInvoiceFromOrder(orderId){
           advancePaid:0,
           payments:[],
           notes:o.notes||'',
-          terms:'',
+          terms:(function(){var srcQ=DB.quotations.find(function(qq){return qq.linkedOrderId===orderId;});return srcQ&&srcQ.terms?srcQ.terms:DEFAULT_TERMS.join('\n');})(),
           status:'Draft',
           created:Date.now()
         };
