@@ -4983,7 +4983,7 @@ function pgQuotations(){
     var estBtn=mkBtn('Est. Breakdown',(function(qid){return function(){viewEstBreakdown(qid);};})(q.id),'btn btn-xs');
     estBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
     var hasAnySnapshot=q.estSnapshot||(q.services||[]).some(function(s){return s.estSnapshot;})||(q.linkedOrderId&&DB.estSnapshots.some(function(s){return s.orderId===q.linkedOrderId;}));
-    if(!hasAnySnapshot){estBtn.style.opacity='0.35';estBtn.title='No estimate breakdown saved for this quotation';estBtn.disabled=true;}
+    if(!hasAnySnapshot){estBtn.style.opacity='0.35';estBtn.title='Estimate breakdown not available for this quotation';estBtn.disabled=true;estBtn.style.cursor='not-allowed';}
 
     // Show View Order link if this quotation came from an order
     var orderBtn=null;
@@ -5197,11 +5197,17 @@ function openQuotationModal(id){
 
 function saveQuotation(id){
   var rows=document.querySelectorAll('.quot-svc-row');
+  var existing=id?DB.quotations.find(function(x){return x.id===id;}):null;
+  var existingServices=existing?existing.services||[]:[];
   var services=[];
-  rows.forEach(function(r){
+  rows.forEach(function(r,idx){
     var name=r.querySelector('.quot-svc-name').value.trim();
     var price=r.querySelector('.quot-svc-price').value;
-    if(name)services.push({name:name,price:Number(price||0)});
+    if(name){
+      // Preserve existing service fields (estSnapshot, delivery, itemNotes etc.)
+      var existingSvc=existingServices[idx]||{};
+      services.push(Object.assign({},existingSvc,{name:name,price:Number(price||0)}));
+    }
   });
   if(!services.length){alert('Add at least one service.');return;}
   var clientId=document.getElementById('quot-client').value;
@@ -5209,7 +5215,7 @@ function saveQuotation(id){
   var clientName=cl?cl.name:document.getElementById('quot-client-name').value.trim();
   if(!clientName){alert('Please enter a client name.');return;}
   var qid=id||uid();
-  dbSave('quotations',{
+  dbSave('quotations',Object.assign({},existing||{},{
     id:qid,
     clientId:clientId||'',
     clientName:clientName,
@@ -5223,9 +5229,9 @@ function saveQuotation(id){
     discountVal:Number((document.getElementById('quot-disc-val')||{}).value||0),
     notes:document.getElementById('quot-notes').value,
     terms:document.getElementById('quot-terms').value,
-    status:id?(DB.quotations.find(function(x){return x.id===id;})||{}).status||'Pending':'Pending',
-    created:Date.now()
-  });
+    status:existing?existing.status||'Pending':'Pending',
+    created:existing?existing.created:Date.now()
+  }));
   closeModal();
 }
 
