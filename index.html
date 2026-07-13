@@ -532,7 +532,7 @@ function showChangeAsstPw(){
   showM(wrap,true);
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -542,7 +542,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -1980,8 +1980,8 @@ function generateQuotationFromOrder(orderId){
         var services=items.map(function(it){
           return {
             name:it.name+(it.qty>1?' x'+it.qty:''),
-            price:String(Number(it.amount||0)),
-            estSnapshot:it.estSnapshot||null
+            price:String(Number(it.amount||0))
+            // estSnapshot lives in estSnapshots collection linked by orderId
           };
         });
 
@@ -4982,7 +4982,7 @@ function pgQuotations(){
     };
     var estBtn=mkBtn('Est. Breakdown',(function(qid){return function(){viewEstBreakdown(qid);};})(q.id),'btn btn-xs');
     estBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
-    var hasAnySnapshot=q.estSnapshot||(q.services||[]).some(function(s){return s.estSnapshot;});
+    var hasAnySnapshot=q.estSnapshot||(q.services||[]).some(function(s){return s.estSnapshot;})||(q.linkedOrderId&&DB.estSnapshots.some(function(s){return s.orderId===q.linkedOrderId;}));
     if(!hasAnySnapshot){estBtn.style.opacity='0.35';estBtn.title='No estimate breakdown saved for this quotation';estBtn.disabled=true;}
 
     // Show View Order link if this quotation came from an order
@@ -6748,13 +6748,30 @@ function createOrderFromDraft(){
             qty:1,
             amount:it.sellingPrice,
             delivery:'',
-            itemNotes:'',
-            estSnapshot:{
-              garmentId:it.garmentId,garmentName:it.garmentName,components:it.components,
-              cols:it.cols,data:it.data,discount:it.discount,markup:it.markup,
-              totalCost:it.totalCost,mrp:it.mrp,sellingPrice:it.sellingPrice,savedAt:Date.now()
-            }
+            itemNotes:''
+            // estSnapshot stored separately in estSnapshots collection
           };
+        });
+
+        // Save est snapshots separately to avoid Firestore 1MB limit
+        draft.items.forEach(function(it,idx){
+          dbSave('estSnapshots',{
+            id:orderId+'_item_'+idx,
+            orderId:orderId,
+            itemIndex:idx,
+            itemName:it.name,
+            garmentId:it.garmentId,
+            garmentName:it.garmentName,
+            components:it.components,
+            cols:it.cols,
+            data:it.data,
+            discount:it.discount,
+            markup:it.markup,
+            totalCost:it.totalCost,
+            mrp:it.mrp,
+            sellingPrice:it.sellingPrice,
+            savedAt:Date.now()
+          });
         });
 
         dbSave('orders',{
@@ -6854,16 +6871,33 @@ function viewEstBreakdown(quotId){
   var quot=DB.quotations.find(function(x){return x.id===quotId;});
   if(!quot){alert('Quotation not found.');return;}
 
-  // Collect all available snapshots: legacy single estSnapshot, or per-service estSnapshot
+  // Collect all available snapshots:
+  // 1. New flow: estSnapshots collection (linked by orderId)
+  // 2. Mid-flow: per-service estSnapshot on quotation services
+  // 3. Legacy: single estSnapshot on quotation
   var itemSnapshots=[];
-  if(quot.services&&quot.services.length){
-    quot.services.forEach(function(svc,idx){
+
+  // Check estSnapshots collection (new flow via Order)
+  if(quot.linkedOrderId){
+    var orderSnaps=DB.estSnapshots.filter(function(s){return s.orderId===quot.linkedOrderId;})
+      .sort(function(a,b){return (a.itemIndex||0)-(b.itemIndex||0);});
+    orderSnaps.forEach(function(s){
+      itemSnapshots.push({label:s.itemName||s.garmentName||'Item',snapshot:s});
+    });
+  }
+
+  // Fallback: per-service estSnapshot
+  if(!itemSnapshots.length&&quot.services&&quot.services.length){
+    quot.services.forEach(function(svc){
       if(svc.estSnapshot)itemSnapshots.push({label:svc.name,snapshot:svc.estSnapshot});
     });
   }
+
+  // Fallback: legacy single estSnapshot
   if(!itemSnapshots.length&&quot.estSnapshot){
     itemSnapshots.push({label:quot.estSnapshot.garmentName||'Item',snapshot:quot.estSnapshot});
   }
+
   if(!itemSnapshots.length){alert('No estimate breakdown saved for this quotation.');return;}
 
   var wrap=mk('div');
