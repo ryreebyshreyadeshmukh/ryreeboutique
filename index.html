@@ -6593,6 +6593,208 @@ function saveEstDraft(draft){
   draft.updatedAt=Date.now();
   dbSave('estimatorDrafts',draft);
 }
+function openEstimateEditor(quotId){
+  var quot=DB.quotations.find(function(x){return x.id===quotId;});
+  if(!quot){alert('Quotation not found.');return;}
+
+  // Find snapshots for this quotation
+  var snaps=[];
+  if(quot.linkedOrderId){
+    snaps=DB.estSnapshots.filter(function(s){return s.orderId===quot.linkedOrderId;})
+      .sort(function(a,b){return (a.itemIndex||0)-(b.itemIndex||0);});
+  }
+  // Fallback: per-service snapshot
+  if(!snaps.length&&quot.services){
+    quot.services.forEach(function(svc,idx){
+      if(svc.estSnapshot)snaps.push(Object.assign({},svc.estSnapshot,{itemIndex:idx,itemName:svc.name,orderId:quot.linkedOrderId||''}));
+    });
+  }
+  // Fallback: legacy single snapshot
+  if(!snaps.length&&quot.estSnapshot){
+    snaps.push(Object.assign({},quot.estSnapshot,{itemIndex:0,itemName:quot.estSnapshot.garmentName||'Item',orderId:''}));
+  }
+
+  if(!snaps.length){
+    alert('No estimate data found for this quotation. The original estimate was not saved.');
+    return;
+  }
+
+  // For now handle single item (most common case)
+  // Multi-item: show picker
+  var snap=snaps[0];
+  if(snaps.length>1){
+    // Show item picker modal
+    var pickWrap=mk('div');
+    pickWrap.appendChild(mk('div','modal-title','Which item to edit?'));
+    var pickSub=mk('div','modal-sub');pickSub.textContent='Select the item whose estimate you want to edit.';
+    pickWrap.appendChild(pickSub);
+    var pickList=mk('div');pickList.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:12px';
+    snaps.forEach(function(s){
+      var btn=mkBtn(s.itemName||s.garmentName||'Item '+s.itemIndex,function(){
+        closeModal();
+        loadSnapIntoEstimatorForEdit(s,quotId);
+      },'btn btn-sm');
+      pickList.appendChild(btn);
+    });
+    app(pickWrap,[pickList,mkActions([mkBtn('Cancel',closeModal)])]);
+    showM(pickWrap,true);
+    return;
+  }
+
+  loadSnapIntoEstimatorForEdit(snap,quotId);
+}
+
+function loadSnapIntoEstimatorForEdit(snap,quotId){
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===snap.garmentId;});
+  if(!garmentObj){
+    alert('Cannot edit — the garment type "'+snap.garmentName+'" no longer exists in your estimator settings.');
+    return;
+  }
+
+  // Navigate to estimator
+  nav('estimator');
+
+  setTimeout(function(){
+    // Switch to correct garment
+    _estGarment=snap.garmentId;
+    // Restore cost data
+    _estData=JSON.parse(JSON.stringify(snap.data||{}));
+    // Restore discount
+    _estDiscount=snap.discount||20;
+
+    // Re-render estimator
+    renderEstimatorBody();
+
+    // Update garment tab button states
+    document.querySelectorAll('[data-garment]').forEach(function(btn){
+      btn.className=btn.getAttribute('data-garment')===snap.garmentId?'btn btn-primary btn-sm':'btn btn-sm';
+    });
+
+    // Update discount input
+    var discInp=document.getElementById('est-discount');
+    if(discInp)discInp.value=snap.discount||20;
+    updateEstTotals();
+
+    // Replace "+ Add to draft" with "Save changes to quotation"
+    var actions=document.querySelector('#est-body');
+    if(!actions)return;
+
+    // Add a prominent banner showing we're in edit mode
+    var editBanner=mk('div');
+    editBanner.id='est-edit-banner';
+    editBanner.style.cssText='background:#FEF3CD;border:1px solid #F59E0B;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center';
+    var bannerText=mk('div');bannerText.style.cssText='font-size:13px;font-weight:600;color:#92400E';
+    bannerText.textContent='Editing estimate for: '+(snap.itemName||snap.garmentName);
+    var saveEditBtn=mkBtn('Save & Update Quotation',function(){
+      saveEstimateEdit(snap,quotId);
+    },'btn btn-primary btn-sm');
+    var cancelEditBtn=mkBtn('Cancel',function(){
+      var banner=document.getElementById('est-edit-banner');
+      if(banner)banner.remove();
+      _estData={};_estDiscount=20;
+      renderEstimatorBody();
+    },'btn btn-sm');
+    app(editBanner,[bannerText,mk('div')]);
+    editBanner.appendChild(bannerText);
+    var btnRow=mk('div');btnRow.style.cssText='display:flex;gap:8px';
+    app(btnRow,[cancelEditBtn,saveEditBtn]);
+    editBanner.appendChild(btnRow);
+
+    // Insert banner before est-body
+    var estBody=document.getElementById('est-body');
+    if(estBody&&estBody.parentNode){
+      estBody.parentNode.insertBefore(editBanner,estBody);
+    }
+  },100);
+}
+
+function saveEstimateEdit(originalSnap,quotId){
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj){alert('Garment not found.');return;}
+
+  var cols=getEstCols();
+  var grand=garmentObj.components.reduce(function(a,comp){
+    return a+cols.reduce(function(b,colDef){return b+Number((_estData[comp]||{})[colDef.id]||0);},0);
+  },0);
+
+  if(grand<=0){alert('Please enter at least one cost value.');return;}
+
+  var markup=getEstMarkup();
+  var mrp=grand*markup;
+  var selling=Math.round(mrp-(mrp*(_estDiscount/100)));
+
+  var newSnap={
+    garmentId:_estGarment,
+    garmentName:garmentObj.name,
+    components:garmentObj.components,
+    cols:cols.map(function(c){return {id:c.id,label:c.label};}),
+    data:JSON.parse(JSON.stringify(_estData)),
+    discount:_estDiscount,
+    markup:markup,
+    totalCost:grand,
+    mrp:mrp,
+    sellingPrice:selling,
+    savedAt:Date.now(),
+    itemIndex:originalSnap.itemIndex||0,
+    itemName:originalSnap.itemName||garmentObj.name,
+    orderId:originalSnap.orderId||''
+  };
+
+  var quot=DB.quotations.find(function(x){return x.id===quotId;});
+  if(!quot){alert('Quotation not found.');return;}
+
+  // Update estSnapshot
+  var snapId=originalSnap.id||(originalSnap.orderId+'_item_'+originalSnap.itemIndex);
+  if(snapId&&snapId!=='_item_'){
+    dbSave('estSnapshots',Object.assign({},originalSnap,newSnap,{id:snapId}));
+  }
+
+  // Update quotation service price + reset to Pending if was Accepted
+  var services=(quot.services||[]).map(function(svc,idx){
+    if(idx===(originalSnap.itemIndex||0)){
+      return Object.assign({},svc,{price:selling,estSnapshot:newSnap});
+    }
+    return svc;
+  });
+
+  var newTotal=services.reduce(function(a,s){return a+Number(s.price||0);},0);
+
+  var wasAccepted=quot.status==='Accepted';
+  dbSave('quotations',Object.assign({},quot,{
+    services:services,
+    total:newTotal,
+    status:wasAccepted?'Pending':quot.status
+  }));
+
+  // Also update Order amount if linked
+  if(quot.linkedOrderId){
+    var linkedOrder=DB.orders.find(function(x){return x.id===quot.linkedOrderId;});
+    if(linkedOrder){
+      var updatedItems=(linkedOrder.items||[]).map(function(it,idx){
+        if(idx===(originalSnap.itemIndex||0)){
+          return Object.assign({},it,{amount:selling});
+        }
+        return it;
+      });
+      var newOrderTotal=updatedItems.reduce(function(a,it){return a+Number(it.amount||0);},0);
+      dbSave('orders',Object.assign({},linkedOrder,{items:updatedItems,amount:newOrderTotal}));
+    }
+  }
+
+  // Clean up estimator
+  var banner=document.getElementById('est-edit-banner');
+  if(banner)banner.remove();
+  _estData={};_estDiscount=20;
+  renderDraftStrip();
+  renderEstimatorBody();
+
+  var msg='Estimate updated! New selling price: '+rupee(selling)+'.';
+  if(wasAccepted)msg+=' Quotation reset to Pending — client will need to re-approve.';
+  alert(msg);
+}
+
 function loadDraftItemIntoEstimator(item){
   // Load a saved draft item back into the estimator for editing
   // Switch to correct garment tab
@@ -6987,7 +7189,22 @@ function viewEstBreakdown(quotId){
   }
   wrap.appendChild(contentWrap);
 
-  app(wrap,[mkActions([mkBtn('Close',closeModal)])]);
+  // Edit Estimate button — only if quotation not yet invoiced
+  var q2=DB.quotations.find(function(x){return x.id===quotId;});
+  var editEstBtn=mkBtn('Edit Estimate',function(){
+    if(q2&&q2.linkedInvoiceId){
+      alert('Cannot edit — an invoice has already been created for this quotation.');
+      return;
+    }
+    if(q2&&q2.status==='Accepted'){
+      if(!confirm('This quotation is already Accepted. Editing the estimate will reset it to Pending and the client will need to re-approve the revised price. Continue?')){return;}
+    }
+    closeModal();
+    openEstimateEditor(quotId);
+  },'btn btn-xs');
+  editEstBtn.style.cssText+='color:#B45309;border-color:#FCD34D';
+
+  app(wrap,[mkActions([editEstBtn,mkBtn('Close',closeModal)])]);
   showM(wrap,true);
 }
 
