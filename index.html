@@ -6324,11 +6324,13 @@ function renderDraftStrip(container){
   items.forEach(function(it){
     var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #EDE9FE;font-size:12px';
     var rowLeft=mk('span');rowLeft.style.color='#5B21B6';rowLeft.textContent=it.name;
-    var rowRight=mk('div');rowRight.style.cssText='display:flex;align-items:center;gap:10px';
+    var rowRight=mk('div');rowRight.style.cssText='display:flex;align-items:center;gap:8px';
     var rowPrice=mk('span');rowPrice.style.cssText='font-weight:600;color:#5B21B6';rowPrice.textContent=rupee(it.sellingPrice);
+    var editBtn=mk('button');editBtn.textContent='Edit';editBtn.style.cssText='background:none;border:1px solid #A78BFA;border-radius:4px;color:#6D28D9;cursor:pointer;font-size:11px;padding:2px 7px';
+    editBtn.onclick=(function(item){return function(){loadDraftItemIntoEstimator(item);};})(it);
     var rmBtn=mk('button');rmBtn.textContent='✕';rmBtn.style.cssText='background:none;border:none;color:#A78BFA;cursor:pointer;font-size:13px;padding:0 2px';
     rmBtn.onclick=(function(itemId){return function(){removeItemFromDraft(itemId);};})(it.itemId);
-    app(rowRight,[rowPrice,rmBtn]);
+    app(rowRight,[rowPrice,editBtn,rmBtn]);
     app(row,[rowLeft,rowRight]);
     card.appendChild(row);
   });
@@ -6591,6 +6593,53 @@ function saveEstDraft(draft){
   draft.updatedAt=Date.now();
   dbSave('estimatorDrafts',draft);
 }
+function loadDraftItemIntoEstimator(item){
+  // Load a saved draft item back into the estimator for editing
+  // Switch to correct garment tab
+  var garments=getEstGarments();
+  var garmentObj=garments.find(function(g){return g.id===item.garmentId;});
+  if(!garmentObj){
+    // Garment type no longer exists — can't load
+    alert('Cannot edit this item — the garment type no longer exists in your estimator settings.');
+    return;
+  }
+
+  if(!confirm('Load "'+item.name+'" into the estimator for editing? It will be removed from the draft and you can re-add it once edited.')){return;}
+
+  // Remove from draft first
+  var draft=getEstDraft();
+  draft.items=draft.items.filter(function(it){return it.itemId!==item.itemId;});
+  saveEstDraft(draft);
+
+  // Set garment tab
+  _estGarment=item.garmentId;
+
+  // Restore the cost data
+  _estData=JSON.parse(JSON.stringify(item.data||{}));
+
+  // Restore discount
+  _estDiscount=item.discount||20;
+
+  // Re-render
+  renderDraftStrip();
+  renderEstimatorBody();
+
+  // Update garment tab button states
+  setTimeout(function(){
+    document.querySelectorAll('[data-garment]').forEach(function(btn){
+      if(btn.getAttribute('data-garment')===item.garmentId){
+        btn.className='btn btn-primary btn-sm';
+      } else {
+        btn.className='btn btn-sm';
+      }
+    });
+    // Update discount input
+    var discInp=document.getElementById('est-discount');
+    if(discInp)discInp.value=item.discount||20;
+    updateEstTotals();
+  },50);
+}
+
 function addCurrentItemToDraft(){
   var garments=getEstGarments();
   var garmentObj=garments.find(function(g){return g.id===_estGarment;});
