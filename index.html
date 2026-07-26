@@ -532,7 +532,7 @@ function showChangeAsstPw(){
   showM(wrap,true);
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[],clientEstimates:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -542,7 +542,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots','clientEstimates'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -1381,7 +1381,53 @@ function pgClients(){
       });
       oc.appendChild(ow);
     }
-    if(isAssistant()){app(two,[mc]);}else{app(two,[mc,oc]);}wrap.appendChild(two);return wrap;
+    if(isAssistant()){app(two,[mc]);}else{app(two,[mc,oc]);}wrap.appendChild(two);
+
+    // Estimates section — only for admin
+    if(!isAssistant()){
+      var estSec=mk('div');estSec.style.marginTop='20px';
+      var estHdr=mk('div');estHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+      var estTitle=mk('div','section-title','Estimates');estTitle.style.margin='0';
+      var newEstBtn=mkBtn('+ New Estimate',function(){openClientEstimator(cl.id);},'btn btn-xs btn-primary');
+      app(estHdr,[estTitle,newEstBtn]);
+      estSec.appendChild(estHdr);
+
+      var clientEsts=DB.clientEstimates.filter(function(e){return e.clientId===cl.id;})
+        .sort(function(a,b){return (b.updatedAt||b.created||0)-(a.updatedAt||a.created||0);});
+
+      if(!clientEsts.length){
+        var noEst=mk('div','card-p0');
+        noEst.appendChild(mk('div','empty','No estimates yet. Click "+ New Estimate" to start.'));
+        estSec.appendChild(noEst);
+      } else {
+        var estCard=mk('div','card-p0');
+        clientEsts.forEach(function(est){
+          var eRow=mk('div');eRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5';
+          var eLeft=mk('div');
+          var eName=mk('div');eName.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';eName.textContent=est.name||est.garmentName||'Estimate';
+          var eMeta=mk('div');eMeta.style.cssText='font-size:11px;color:#aaa;margin-top:2px';
+          eMeta.textContent=fmtDate(new Date(est.updatedAt||est.created).toISOString().split('T')[0])+' · '+est.garmentName;
+          app(eLeft,[eName,eMeta]);
+          var eRight=mk('div');eRight.style.cssText='display:flex;align-items:center;gap:8px';
+          var ePrice=mk('div');ePrice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';ePrice.textContent=rupee(est.sellingPrice||0);
+          var eStatus=mk('span','badge');
+          eStatus.style.cssText='font-size:10px;background:'+(est.status==='Converted'?'#F0FDF4':'#FFFBEB')+';color:'+(est.status==='Converted'?'#166534':'#B45309');
+          eStatus.textContent=est.status||'Draft';
+          var eEditBtn=mkBtn('Edit',(function(eid){return function(){editClientEstimate(eid);};})(est.id),'btn btn-xs');
+          var eOrderBtn=mkBtn('→ Order',(function(eid){return function(){convertClientEstimateToOrder(eid);};})(est.id),'btn btn-xs');
+          eOrderBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+          if(est.status==='Converted'){eOrderBtn.style.opacity='0.4';eOrderBtn.disabled=true;}
+          var eDelBtn=mk('button','btn-danger','Del');eDelBtn.style.cssText='padding:2px 8px;font-size:11px';
+          eDelBtn.onclick=(function(eid){return function(){if(confirm('Delete this estimate?'))dbDel('clientEstimates',eid);};})(est.id);
+          app(eRight,[ePrice,eStatus,eEditBtn,eOrderBtn,eDelBtn]);
+          app(eRow,[eLeft,eRight]);
+          estCard.appendChild(eRow);
+        });
+        estSec.appendChild(estCard);
+      }
+      wrap.appendChild(estSec);
+    }
+    return wrap;
   }
   var searchVal=document.getElementById('cl-search')?document.getElementById('cl-search').value:'';
   var q=searchVal.toLowerCase();
@@ -2401,6 +2447,12 @@ function openOrderModal(id){
         var srcQuot=DB.quotations.find(function(x){return x.id===window._pendingOrderFromQuotId;});
         if(srcQuot)dbSave('quotations',Object.assign({},srcQuot,{linkedOrderId:orderId,linkedOrderNo:orderNo||''}));
         window._pendingOrderFromQuotId=null;
+      }
+      // If converted from a client estimate, mark it as Converted
+      if(!id&&window._pendingClientEstimateId){
+        var srcEst=DB.clientEstimates.find(function(x){return x.id===window._pendingClientEstimateId;});
+        if(srcEst)dbSave('clientEstimates',Object.assign({},srcEst,{status:'Converted',linkedOrderId:orderId}));
+        window._pendingClientEstimateId=null;
       }
       closeModal();
     },'btn btn-primary')])
@@ -6303,6 +6355,200 @@ function openEstGarmentModal(id){
 var _estGarment = null;
 var _estDiscount = 20;
 var _estData = {};
+var _estClientContext = null; // {clientId, estimateId} when launched from client profile
+var _estEditingId = null; // clientEstimate id being edited
+
+
+// ── CLIENT ESTIMATE FUNCTIONS ─────────────────────────────────
+
+function openClientEstimator(clientId, estimateId){
+  // Launch estimator in client context
+  _estClientContext = {clientId: clientId};
+  _estEditingId = estimateId || null;
+
+  // If editing, load existing data
+  if(estimateId){
+    var est = DB.clientEstimates.find(function(x){return x.id===estimateId;});
+    if(est){
+      _estGarment = est.garmentId;
+      _estData = JSON.parse(JSON.stringify(est.data||{}));
+      _estDiscount = est.discount||20;
+    }
+  } else {
+    // Fresh estimate
+    _estData = {};
+    _estDiscount = 20;
+  }
+
+  nav('estimator');
+
+  setTimeout(function(){
+    renderEstimatorBody();
+
+    // Update garment tab if editing
+    if(estimateId){
+      document.querySelectorAll('[data-garment]').forEach(function(btn){
+        btn.className = btn.getAttribute('data-garment')===_estGarment?'btn btn-primary btn-sm':'btn btn-sm';
+      });
+      var discInp=document.getElementById('est-discount');
+      if(discInp)discInp.value=_estDiscount;
+      updateEstTotals();
+    }
+
+    // Show client context banner
+    var cl = DB.clients.find(function(x){return x.id===clientId;});
+    var existingBanner = document.getElementById('est-client-banner');
+    if(existingBanner)existingBanner.remove();
+
+    var banner = mk('div');banner.id='est-client-banner';
+    banner.style.cssText='background:#e6f0ee;border:1px solid #86EFAC;border-radius:8px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center';
+    var bannerLeft = mk('div');
+    var bannerTitle = mk('div');bannerTitle.style.cssText='font-size:13px;font-weight:700;color:#1e514c';
+    bannerTitle.textContent = (estimateId?'Editing estimate':'New estimate')+' for: '+(cl?cl.name:'Client');
+    var bannerSub = mk('div');bannerSub.style.cssText='font-size:11px;color:#2D6B5E;margin-top:2px';
+    bannerSub.textContent = 'Will be saved to client profile. Click "Save Estimate" when done.';
+    app(bannerLeft,[bannerTitle,bannerSub]);
+
+    var bannerRight = mk('div');bannerRight.style.cssText='display:flex;gap:8px';
+    var cancelBtn = mkBtn('Cancel',function(){
+      _estClientContext=null;_estEditingId=null;
+      _estData={};_estDiscount=20;
+      var b=document.getElementById('est-client-banner');if(b)b.remove();
+      renderEstimatorBody();
+      nav('clients');
+    },'btn btn-sm');
+    app(bannerRight,[cancelBtn]);
+    app(banner,[bannerLeft,bannerRight]);
+
+    var estBody = document.getElementById('est-body');
+    if(estBody&&estBody.parentNode){
+      estBody.parentNode.insertBefore(banner,estBody);
+    }
+  },100);
+}
+
+function saveClientEstimate(){
+  if(!_estClientContext||!_estClientContext.clientId){return false;}
+
+  var garments = getEstGarments();
+  var garmentObj = garments.find(function(g){return g.id===_estGarment;});
+  if(!garmentObj){alert('Please select a garment type.');return false;}
+
+  var cols = getEstCols();
+  var grand = garmentObj.components.reduce(function(a,comp){
+    return a+cols.reduce(function(b,colDef){return b+Number((_estData[comp]||{})[colDef.id]||0);},0);
+  },0);
+  if(grand<=0){alert('Please enter at least one cost value before saving.');return false;}
+
+  var markup = getEstMarkup();
+  var mrp = grand*markup;
+  var selling = Math.round(mrp-(mrp*(_estDiscount/100)));
+
+  // Ask for estimate name if new
+  var estId = _estEditingId || uid();
+  var existing = _estEditingId ? DB.clientEstimates.find(function(x){return x.id===_estEditingId;}) : null;
+  var defaultName = existing ? existing.name : garmentObj.name+' — '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+
+  var wrap = mk('div');
+  wrap.appendChild(mk('div','modal-title',_estEditingId?'Update Estimate':'Save Estimate'));
+  var nameInp = mkInput('est-save-name','text','Estimate name',existing?existing.name:defaultName);
+  var err = mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+
+  // Show summary
+  var summary = mk('div');summary.style.cssText='background:#fafafa;border-radius:8px;padding:12px;margin:8px 0;font-size:12px';
+  summary.innerHTML='<div style="display:flex;justify-content:space-between;padding:3px 0"><span>Total Cost</span><span style="font-weight:600">'+rupee(grand)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>MRP (×'+markup+')</span><span style="font-weight:600">'+rupee(mrp)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:3px 0;color:#2D6B5E"><span>Selling Price (−'+_estDiscount+'%)</span><span style="font-weight:700;font-size:13px">'+rupee(selling)+'</span></div>';
+
+  app(wrap,[
+    mkFg('Estimate name',nameInp),
+    summary,err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(_estEditingId?'Update':'Save',function(){
+        var name = (document.getElementById('est-save-name')||{}).value.trim();
+        if(!name){err.textContent='Please enter a name for this estimate.';return;}
+
+        var estData = {
+          id: estId,
+          clientId: _estClientContext.clientId,
+          name: name,
+          garmentId: _estGarment,
+          garmentName: garmentObj.name,
+          components: garmentObj.components,
+          cols: cols.map(function(c){return {id:c.id,label:c.label};}),
+          data: JSON.parse(JSON.stringify(_estData)),
+          discount: _estDiscount,
+          markup: markup,
+          totalCost: grand,
+          mrp: mrp,
+          sellingPrice: selling,
+          status: existing?existing.status:'Draft',
+          linkedOrderId: existing?existing.linkedOrderId:'',
+          created: existing?existing.created:Date.now(),
+          updatedAt: Date.now()
+        };
+
+        dbSave('clientEstimates', estData);
+
+        // Also update linked quotation snapshot if editing
+        if(_estEditingId && existing && existing.linkedOrderId){
+          DB.estSnapshots.filter(function(s){return s.orderId===existing.linkedOrderId;})
+            .forEach(function(s){
+              dbSave('estSnapshots',Object.assign({},s,{
+                data:estData.data,discount:estData.discount,markup:estData.markup,
+                totalCost:grand,mrp:mrp,sellingPrice:selling,savedAt:Date.now()
+              }));
+            });
+        }
+
+        // Clean up context
+        _estClientContext=null;_estEditingId=null;
+        _estData={};_estDiscount=20;
+        var banner=document.getElementById('est-client-banner');if(banner)banner.remove();
+        closeModal();
+        renderEstimatorBody();
+
+        // Navigate back to client
+        selClient=estData.clientId;
+        nav('clients');
+        alert('Estimate saved to '+garmentObj.name+'!');
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+  return true;
+}
+
+function editClientEstimate(estimateId){
+  var est = DB.clientEstimates.find(function(x){return x.id===estimateId;});
+  if(!est){alert('Estimate not found.');return;}
+  openClientEstimator(est.clientId, estimateId);
+}
+
+function convertClientEstimateToOrder(estimateId){
+  var est = DB.clientEstimates.find(function(x){return x.id===estimateId;});
+  if(!est){alert('Estimate not found.');return;}
+  if(est.status==='Converted'){alert('This estimate has already been converted to an order.');return;}
+
+  // Pre-fill order draft
+  window._orderDraft = {
+    items:[{
+      name:est.name||est.garmentName,
+      qty:1,
+      amount:est.sellingPrice,
+      delivery:'',
+      itemNotes:''
+    }],
+    clientId:est.clientId,
+    notes:'',
+    fromClientEstimateId:estimateId
+  };
+  window._pendingClientEstimateId = estimateId;
+  openOrderModal();
+}
+
+// ── END CLIENT ESTIMATE FUNCTIONS ────────────────────────────
 
 function renderDraftStrip(container){
   if(!container){container=document.getElementById('est-draft-strip');}
@@ -6533,7 +6779,9 @@ function renderEstimatorBody(){
       Object.keys(_estData).forEach(function(c){cols.forEach(function(colDef){_estData[c][colDef.id]=0;});});
       renderEstimatorBody();
     },'btn btn-sm'),
-    mkBtn('+ Add to draft',function(){addCurrentItemToDraft();},'btn btn-primary btn-sm'),
+    (_estClientContext&&_estClientContext.clientId?
+      mkBtn(_estEditingId?'Update Estimate':'Save Estimate',function(){saveClientEstimate();},'btn btn-primary btn-sm'):
+      mkBtn('+ Add to draft',function(){addCurrentItemToDraft();},'btn btn-primary btn-sm')),
 
     mkBtn('Print estimate',function(){printEstimate();},'btn btn-sm')
   ]);
