@@ -5331,7 +5331,7 @@ function viewQuotation(id){
       left2.appendChild(iname);
       if(it.itemNotes){var inotes=mk('div');inotes.style.cssText='font-size:11px;color:#888;margin-top:2px';inotes.textContent=it.itemNotes;left2.appendChild(inotes);}
       // Reference images from order
-      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===idx2;});
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===i;});
       var imgs=imgDoc?(imgDoc.images||[imgDoc.base64||''].filter(Boolean)):[];
       if(imgs.length){
         var imgRow=mk('div');imgRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:8px';
@@ -5448,7 +5448,7 @@ function printQuotation(id){
     }
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:12px;font-size:13px;vertical-align:top">'
-        +'<div style="font-weight:700;font-size:14px;color:#2D6B5E">'+(i+1)+'. '+s.name+'</div>'
+        +'<div style="font-weight:700;font-size:14px;color:#2D6B5E">'+(idx2+1)+'. '+s.name+'</div>'
         +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
         +(function(){var oi=linkedOrder&&linkedOrder.items?linkedOrder.items[idx2]:null;var dt=s.description||s.itemNotes||(oi?oi.itemNotes:'');return dt?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+dt+'</div>':'';})()
         +imgHtml
