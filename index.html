@@ -2026,7 +2026,8 @@ function generateQuotationFromOrder(orderId){
         var services=items.map(function(it){
           return {
             name:it.name+(it.qty>1?' x'+it.qty:''),
-            price:String(Number(it.amount||0))
+            price:String(Number(it.amount||0)),
+            description:it.itemNotes||''
             // estSnapshot lives in estSnapshots collection linked by orderId
           };
         });
@@ -5130,7 +5131,7 @@ function openQuotationModal(id){
     var delInp=mk('input','form-input');delInp.type='date';delInp.value=svc.delivery||'';delInp.className='quot-item-delivery form-input';delInp.style.cssText='flex:1;background:#fff;max-width:180px';
     app(mid,[delLabel,delInp]);
 
-    var notesInp=mk('textarea','form-input');notesInp.value=svc.itemNotes||'';notesInp.placeholder='Item notes...';notesInp.className='quot-item-notes form-input';notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
+    var notesInp=mk('textarea','form-input');notesInp.value=svc.description||svc.itemNotes||'';notesInp.placeholder='Item description...';notesInp.className='quot-item-notes form-input';notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
 
     // Images — load from orderImages if available
     var imgSlots=mk('div');imgSlots.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px';
@@ -5226,6 +5227,7 @@ function openQuotationModal(id){
           var price=Number((row.querySelector('.quot-item-amount')||{}).value||0);
           var delivery=(row.querySelector('.quot-item-delivery')||{}).value||'';
           var notes=(row.querySelector('.quot-item-notes')||{}).value||'';
+          var description=notes; // same field, stored as description
           if(name)items2.push({name:name,price:price,delivery:delivery,itemNotes:notes});
         });
         if(!items2.length){alert('Add at least one item.');return;}
@@ -5258,7 +5260,7 @@ function saveQuotation(id){
     if(name){
       // Preserve existing service fields (estSnapshot, delivery, itemNotes etc.)
       var existingSvc=existingServices[idx]||{};
-      services.push(Object.assign({},existingSvc,{name:name,price:Number(price||0)}));
+      services.push(Object.assign({},existingSvc,{name:name,price:Number(price||0),description:description||'',itemNotes:description||'',delivery:delivery||''}));
     }
   });
   if(!services.length){alert('Add at least one service.');return;}
@@ -5349,9 +5351,12 @@ function viewQuotation(id){
     // Show services
     svcs.forEach(function(s,i){
       var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 14px;'+(i<svcs.length-1?'border-bottom:1px solid #f0f0f0;':'')+'background:'+(i%2===0?'#fff':'#fafafa');
-      var sname=mk('div');sname.style.cssText='font-size:13px;color:#333';sname.textContent=s.name||'—';
-      var sprice=mk('div');sprice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';sprice.textContent=rupee(s.price||0);
-      app(row,[sname,sprice]);itemsContainer.appendChild(row);
+      var sleft=mk('div');
+      var sname=mk('div');sname.style.cssText='font-size:13px;font-weight:600;color:#333';sname.textContent=s.name||'—';
+      sleft.appendChild(sname);
+      if(s.description){var sdesc=mk('div');sdesc.style.cssText='font-size:11px;color:#888;margin-top:2px';sdesc.textContent=s.description;sleft.appendChild(sdesc);}
+      var sprice=mk('div');sprice.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;white-space:nowrap;margin-left:12px';sprice.textContent=rupee(s.price||0);
+      app(row,[sleft,sprice]);itemsContainer.appendChild(row);
     });
     if(Number(q.travelCharge||0)>0){
       var trow=mk('div');trow.style.cssText='display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid #f0f0f0;background:#fafafa';
@@ -5444,7 +5449,7 @@ function printQuotation(id){
       +'<td style="padding:12px;font-size:13px;vertical-align:top">'
         +'<div style="font-weight:700;font-size:14px;color:#2D6B5E">'+(i+1)+'. '+s.name+'</div>'
         +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
-        +(s.itemNotes?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
+        +((s.description||s.itemNotes)?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+(s.description||s.itemNotes)+'</div>':'')
         +imgHtml
       +'</td>'
       +'<td style="padding:12px;text-align:right;font-size:15px;font-weight:700;vertical-align:top;color:#2D6B5E;white-space:nowrap">'
