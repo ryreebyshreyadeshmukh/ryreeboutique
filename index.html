@@ -5438,7 +5438,7 @@ function printQuotation(id){
   var itemsHtml=services.map(function(s,idx2){
     var imgHtml='';
     if(q.linkedOrderId){
-      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===i;});
+      var imgDoc=DB.orderImages.find(function(img){return img.orderId===q.linkedOrderId&&img.itemIndex===idx2;});
       var imgs=imgDoc?(imgDoc.images||[]):[];
       if(imgs.length){
         imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
