@@ -535,7 +535,7 @@ function showChangeAsstPw(){
   showM(wrap,true);
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[],clientEstimates:[],embWorkers:[],embAttendance:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[],clientEstimates:[],embWorkers:[],embAttendance:[],embPayments:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -545,7 +545,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots','clientEstimates','embWorkers','embAttendance'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots','clientEstimates','embWorkers','embAttendance','embPayments'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -3485,9 +3485,10 @@ function pgEmbroidery(){
 
     var card=mk('div','card-p0');
     var hdr=mk('div');hdr.style.cssText='display:grid;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
-    hdr.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr';
+    hdr.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr 120px';
     var hdrs=['Worker','Days Worked','Total Hours'];
     if(!isAssistant())hdrs.push('Amount Due');
+    if(!isAssistant())hdrs.push('');
     hdrs.forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
     card.appendChild(hdr);
 
@@ -3498,7 +3499,7 @@ function pgEmbroidery(){
       var days=wAtt.length;
 
       var row=mk('div');row.style.cssText='display:grid;gap:8px;padding:12px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
-      row.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr';
+      row.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr 120px';
 
       var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600';nameCell.textContent=w.name;
       var daysCell=mk('div');daysCell.style.cssText='font-size:13px;color:#555';daysCell.textContent=days+' day'+(days!==1?'s':'');
@@ -3510,9 +3511,20 @@ function pgEmbroidery(){
         var amt=Math.round(totalHours*Number(w.ratePerHour));
         var amtCell=mk('div');amtCell.style.cssText='font-size:13px;font-weight:700;color:#166534';amtCell.textContent=totalHours?rupee(amt):'—';
         cells.push(amtCell);
+        // Mark as Paid button
+        var paidCell=mk('div');
+        if(totalHours>0){
+          var payBtn=mkBtn('Mark Paid',(function(worker,hours,amount,fd,td){
+            return function(){openEmbPaymentModal(worker,hours,amount,fd,td);};
+          })(w,totalHours,amt,fromDate,toDate),'btn btn-xs');
+          payBtn.style.cssText+='color:#166534;border-color:#86EFAC';
+          paidCell.appendChild(payBtn);
+        }
+        cells.push(paidCell);
       } else if(!isAssistant()){
         var amtCell2=mk('div');amtCell2.style.cssText='font-size:12px;color:#aaa';amtCell2.textContent='Rate not set';
         cells.push(amtCell2);
+        cells.push(mk('div'));
       }
 
       cells.forEach(function(c){row.appendChild(c);});
@@ -3557,7 +3569,11 @@ function pgEmbroidery(){
       var left=mk('div');
       var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=w.name;
       var meta=mk('div');meta.style.cssText='font-size:11px;color:#aaa;margin-top:2px';
-      meta.textContent=(w.ratePerHour?rupee(w.ratePerHour)+'/hr':'Rate not set')+(w.active===false?' · Inactive':'· Active');
+      // Find last payment for this worker
+      var lastPay=DB.embPayments.filter(function(p){return p.workerId===w.id;})
+        .sort(function(a,b){return (b.paidOn||'').localeCompare(a.paidOn||'');});
+      var lastPayText=lastPay.length?'Last paid till: '+fmtDate(lastPay[0].toDate):'Never paid';
+      meta.textContent=(w.ratePerHour?rupee(w.ratePerHour)+'/hr':'Rate not set')+' · '+(w.active===false?'Inactive':'Active')+' · '+lastPayText;
       app(left,[nm,meta]);
       var acts=mk('div');acts.style.cssText='display:flex;gap:6px';
       var editBtn=mkBtn('Edit',(function(wid){return function(){openEmbWorkerModal(wid);};})(w.id),'btn btn-xs');
@@ -3565,7 +3581,11 @@ function pgEmbroidery(){
         dbSave('embWorkers',Object.assign({},worker,{active:worker.active===false}));
       };})(w),'btn btn-xs');
       toggleBtn.style.cssText+=(w.active===false?'color:#166534;border-color:#86EFAC':'color:#991B1B;border-color:#FCA5A5');
-      app(acts,[editBtn,toggleBtn]);
+      var histBtn=mkBtn('Payment History',(function(wid,wname){return function(){
+        openEmbPaymentHistory(wid,wname);
+      };})(w.id,w.name),'btn btn-xs');
+      histBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
+      app(acts,[editBtn,histBtn,toggleBtn]);
       app(row,[left,acts]);card.appendChild(row);
     });
     cw.appendChild(card);
@@ -3607,6 +3627,103 @@ function openEmbWorkerModal(id){
       },'btn btn-primary')
     ])
   ]);
+  showM(wrap,true);
+}
+
+function openEmbPaymentModal(worker,totalHours,amount,fromDate,toDate){
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Record Payment'));
+  var sub=mk('div','modal-sub');
+  sub.textContent=worker.name+' · '+fmtDate(fromDate)+' to '+fmtDate(toDate);
+  wrap.appendChild(sub);
+
+  // Summary
+  var summary=mk('div');summary.style.cssText='background:#f0fdf4;border-radius:8px;padding:12px 14px;margin-bottom:12px';
+  summary.innerHTML='<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>Total Hours</span><span style="font-weight:700">'+totalHours+'h</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:14px;padding:3px 0;color:#166534"><span>Amount Due</span><span style="font-weight:800">'+rupee(amount)+'</span></div>';
+
+  var amtInp=mkInput('ep-amount','number','Amount paid',String(amount));
+  var today=new Date().toISOString().split('T')[0];
+  var dateInp=mkInput('ep-date','date','',today);
+  var modeOpts=[{value:'Cash',label:'Cash'},{value:'UPI',label:'UPI'},{value:'Bank Transfer',label:'Bank Transfer'}];
+  var modeSel=mkSelect('ep-mode',modeOpts,'Cash');
+  var noteInp=mkInput('ep-note','text','Optional note','');
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+
+  app(wrap,[
+    summary,
+    mkFg('Amount paid (₹)',amtInp),
+    mkFg('Payment date',dateInp),
+    mkFg('Payment mode',modeSel),
+    mkFg('Note (optional)',noteInp),
+    err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save Payment',function(){
+        var amt=Number((document.getElementById('ep-amount')||{}).value||0);
+        var date=(document.getElementById('ep-date')||{}).value;
+        var mode=(document.getElementById('ep-mode')||{}).value||'Cash';
+        var note=(document.getElementById('ep-note')||{}).value||'';
+        if(!amt){err.textContent='Please enter the amount paid.';return;}
+        if(!date){err.textContent='Please enter the payment date.';return;}
+        dbSave('embPayments',{
+          id:uid(),
+          workerId:worker.id,
+          workerName:worker.name,
+          fromDate:fromDate,
+          toDate:toDate,
+          totalHours:totalHours,
+          amount:amt,
+          mode:mode,
+          paidOn:date,
+          note:note,
+          created:Date.now()
+        });
+        closeModal();
+        alert('Payment of '+rupee(amt)+' recorded for '+worker.name+' (period: '+fmtDate(fromDate)+' – '+fmtDate(toDate)+').');
+        render();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+function openEmbPaymentHistory(workerId,workerName){
+  var payments=DB.embPayments.filter(function(p){return p.workerId===workerId;})
+    .sort(function(a,b){return (b.paidOn||'').localeCompare(a.paidOn||'');});
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title','Payment History'));
+  wrap.appendChild(mk('div','modal-sub',workerName));
+
+  if(!payments.length){
+    wrap.appendChild(mk('div','empty','No payments recorded yet.'));
+    app(wrap,[mkActions([mkBtn('Close',closeModal)])]);
+    showM(wrap,true);return;
+  }
+
+  var totalPaid=payments.reduce(function(s,p){return s+Number(p.amount||0);},0);
+
+  var card=mk('div','card-p0');card.style.marginBottom='12px';
+  payments.forEach(function(p){
+    var row=mk('div');row.style.cssText='padding:12px 16px;border-bottom:1px solid #f5f5f5';
+    var top=mk('div');top.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px';
+    var tl=mk('div');tl.style.cssText='font-size:13px;font-weight:600;color:#166534';tl.textContent=rupee(p.amount);
+    var tr2=mk('div');tr2.style.cssText='font-size:12px;color:#aaa';tr2.textContent=fmtDate(p.paidOn)+' · '+p.mode;
+    app(top,[tl,tr2]);
+    var period=mk('div');period.style.cssText='font-size:11px;color:#888';
+    period.textContent='Period: '+fmtDate(p.fromDate)+' – '+fmtDate(p.toDate)+' · '+p.totalHours+'h';
+    row.appendChild(top);row.appendChild(period);
+    if(p.note){var note=mk('div');note.style.cssText='font-size:11px;color:#aaa;margin-top:2px;font-style:italic';note.textContent=p.note;row.appendChild(note);}
+    card.appendChild(row);
+  });
+
+  var totalRow=mk('div');totalRow.style.cssText='background:#f0fdf4;padding:12px 16px;border-radius:8px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#166534';
+  var tl2=mk('span');tl2.textContent='Total Paid';
+  var tr3=mk('span');tr3.textContent=rupee(totalPaid);
+  app(totalRow,[tl2,tr3]);
+
+  app(wrap,[card,totalRow,mkActions([mkBtn('Close',closeModal)])]);
   showM(wrap,true);
 }
 
