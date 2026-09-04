@@ -239,6 +239,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-questionnaire" data-page="questionnaire">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2"/><path d="M11.3 10.3l1 1" stroke-linecap="round"/></svg>Questionnaire
     </div>
+    <div class="nav-item" id="nav-embroidery" data-page="embroidery">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
+    </div>
     <div class="nav-item" id="nav-estsettings" data-page="estsettings">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
     </div>
@@ -441,7 +444,7 @@ function applyRoleRestrictions(){
     // Show role badge
     if(badge){badge.style.display='block';badge.textContent='Signed in as: Sanika';}
     // Hide all nav items except leads and appointments
-    var allowed=['nav-leads','nav-appointments','nav-clients','nav-orders','nav-dashboard'];
+    var allowed=['nav-leads','nav-appointments','nav-clients','nav-orders','nav-dashboard','nav-embroidery'];
     document.querySelectorAll('.nav-item').forEach(function(el){
       var id=el.id;
       if(allowed.indexOf(id)===-1)el.style.display='none';
@@ -532,7 +535,7 @@ function showChangeAsstPw(){
   showM(wrap,true);
 }
 
-var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[],clientEstimates:[]};
+var DB={settings:[],tctemplates:[],tasktemplates:[],invoices:[],leads:[],measitems:[],clothing:[],clients:[],orders:[],appointments:[],receipts:[],expenses:[],staff:[],inventory:[],vendors:[],purchases:[],quotations:[],services:[],tasks:[],estgarments:[],estcols:[],estconfig:[],orderImages:[],questionnaireQuestions:[],questionnaireResponses:[],estimatorDrafts:[],estSnapshots:[],clientEstimates:[],embWorkers:[],embAttendance:[]};
 var unsubs=[];
 function setSync(s,msg){
   var d=document.getElementById('sync-dot'),t=document.getElementById('sync-text');
@@ -542,7 +545,7 @@ function setSync(s,msg){
 }
 function initDB(){
   setSync('loading','Connecting...');
-  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots','clientEstimates'];
+  var cols=['settings','tctemplates','tasktemplates','invoices','measitems','clothing','clients','orders','appointments','receipts','expenses','staff','inventory','vendors','purchases','quotations','services','tasks','estgarments','estcols','estconfig','orderImages','leads','collabs','questionnaireQuestions','questionnaireResponses','estimatorDrafts','estSnapshots','clientEstimates','embWorkers','embAttendance'];
   var loaded=0;
   unsubs.forEach(function(u){u();});unsubs=[];
   cols.forEach(function(col){
@@ -793,7 +796,7 @@ function mkTr(cells){
 var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   // Role guard — assistant can only view leads and appointments
-  var allowedForAssistant=['leads','appointments','clients','orders','dashboard'];
+  var allowedForAssistant=['leads','appointments','clients','orders','dashboard','embroidery'];
   if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
@@ -1070,7 +1073,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -3235,6 +3238,381 @@ function getNewBriefs(){
 
 // ══════════════════════════════════════════════════════════════
 // END QUESTIONNAIRE MODULE
+// ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+// EMBROIDERY ATTENDANCE MODULE
+// ══════════════════════════════════════════════════════════════
+
+function pgEmbroidery(){
+  var wrap=mk('div');
+  var today=new Date().toISOString().split('T')[0];
+
+  // Header with tab switcher
+  wrap.appendChild(mkPageHeader('Embroidery Attendance','Track daily hours for embroidery workers',
+    !isAssistant()?mkBtn('+ Add Worker',function(){openEmbWorkerModal();},'btn btn-primary'):null
+  ));
+
+  // Tabs: Attendance | Summary | Workers(admin)
+  var activeTab='attendance';
+  var tabRow=mk('div');tabRow.style.cssText='display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f0f0f0';
+  var tabs={};
+  var tabDefs=[{key:'attendance',label:'Daily Attendance'},{key:'summary',label:'Hours Summary'}];
+  if(!isAssistant())tabDefs.push({key:'workers',label:'Workers'});
+
+  var contentWrap=mk('div');contentWrap.id='emb-content';
+
+  function setTab(key){
+    activeTab=key;
+    Object.keys(tabs).forEach(function(k){
+      tabs[k].style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;'+(k===key?'font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px':'color:#aaa');
+    });
+    renderEmbContent(key);
+  }
+
+  tabDefs.forEach(function(td){
+    var tb=mk('button');tb.textContent=td.label;
+    tb.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';
+    tb.onclick=function(){setTab(td.key);};
+    tabs[td.key]=tb;tabRow.appendChild(tb);
+  });
+  wrap.appendChild(tabRow);
+  wrap.appendChild(contentWrap);
+
+  function renderEmbContent(tab){
+    var cw=document.getElementById('emb-content');if(!cw)return;
+    cw.innerHTML='';
+    if(tab==='attendance')renderAttendanceTab(cw);
+    else if(tab==='summary')renderSummaryTab(cw);
+    else if(tab==='workers')renderWorkersTab(cw);
+  }
+
+  // ── ATTENDANCE TAB ──────────────────────────────────────────
+  function renderAttendanceTab(cw){
+    var workers=DB.embWorkers.filter(function(w){return w.active!==false;})
+      .sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+
+    if(!workers.length){
+      var noW=mk('div','card-p0');
+      noW.appendChild(mk('div','empty',isAssistant()?'No workers set up yet. Ask Shreya to add embroidery workers.':'No workers yet. Add workers first using the "+ Add Worker" button.'));
+      cw.appendChild(noW);return;
+    }
+
+    // Date selector
+    var dateRow=mk('div');dateRow.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:16px';
+    var dateLabel=mk('div');dateLabel.style.cssText='font-size:13px;font-weight:600;color:#555';dateLabel.textContent='Date:';
+    var dateInp=mk('input');dateInp.type='date';dateInp.value=today;dateInp.className='form-input';
+    dateInp.style.cssText='width:180px';
+    var loadBtn=mkBtn('Load',function(){renderAttendanceForm(workers,dateInp.value,formWrap);},'btn btn-primary btn-sm');
+    app(dateRow,[dateLabel,dateInp,loadBtn]);
+    cw.appendChild(dateRow);
+
+    var formWrap=mk('div');cw.appendChild(formWrap);
+    renderAttendanceForm(workers,today,formWrap);
+  }
+
+  function renderAttendanceForm(workers,date,formWrap){
+    formWrap.innerHTML='';
+
+    // Load existing attendance for this date
+    var existing=DB.embAttendance.filter(function(a){return a.date===date;});
+
+    var card=mk('div','card-p0');
+    var hdr=mk('div');hdr.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr 60px;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
+    ['Worker','In Time','Out Time','Hours','Present'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
+    card.appendChild(hdr);
+
+    var entries={};
+    workers.forEach(function(w){
+      var att=existing.find(function(a){return a.workerId===w.id;});
+      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',hours:att?att.hours:0};
+    });
+
+    function calcHours(inTime,outTime){
+      if(!inTime||!outTime)return 0;
+      // Convert 12hr to minutes
+      function toMins(t){
+        if(!t)return 0;
+        var parts=t.split(':');var h=parseInt(parts[0]);var rest=parts[1]||'';
+        var m=parseInt(rest)||0;
+        var ap=rest.indexOf('AM')>-1?'AM':rest.indexOf('PM')>-1?'PM':'';
+        if(ap==='PM'&&h!==12)h+=12;
+        if(ap==='AM'&&h===12)h=0;
+        return h*60+m;
+      }
+      var diff=toMins(outTime)-toMins(inTime);
+      return diff>0?Math.round(diff/60*100)/100:0;
+    }
+
+    var hoursDisplays={};
+    workers.forEach(function(w){
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr 60px;gap:8px;padding:12px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
+      var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';nameCell.textContent=w.name;
+
+      // 12hr time selectors
+      function mkTimeSelect(prefix,wid,defaultVal){
+        var wrap2=mk('div');wrap2.style.cssText='display:flex;gap:3px;align-items:center';
+        var h='',m='00',ap='AM';
+        if(defaultVal){
+          var parts=defaultVal.split(':');
+          var hr=parseInt(parts[0]);m=parts[1]||'00';
+          ap=hr>=12?'PM':'AM';hr=hr%12||12;h=String(hr);
+        }
+        var hrOpts=[{value:'',label:'--'}].concat([1,2,3,4,5,6,7,8,9,10,11,12].map(function(x){return {value:String(x),label:String(x)};}));
+        var mnOpts=[{value:'00',label:'00'},{value:'15',label:'15'},{value:'30',label:'30'},{value:'45',label:'45'}];
+        var apOpts=[{value:'AM',label:'AM'},{value:'PM',label:'PM'}];
+        var hSel=mkSelect(prefix+'-h-'+wid,hrOpts,h);hSel.style.cssText='width:48px;padding:4px;font-size:12px';
+        var mSel=mkSelect(prefix+'-m-'+wid,mnOpts,m);mSel.style.cssText='width:44px;padding:4px;font-size:12px';
+        var aSel=mkSelect(prefix+'-ap-'+wid,apOpts,ap);aSel.style.cssText='width:48px;padding:4px;font-size:12px';
+        app(wrap2,[hSel,mk('span',null,':'),mSel,aSel]);
+        return wrap2;
+      }
+
+      function getTime24(prefix,wid){
+        var h=parseInt((document.getElementById(prefix+'-h-'+wid)||{}).value||0);
+        var m=(document.getElementById(prefix+'-m-'+wid)||{}).value||'00';
+        var ap=(document.getElementById(prefix+'-ap-'+wid)||{}).value||'AM';
+        if(!h)return '';
+        if(ap==='PM'&&h!==12)h+=12;
+        if(ap==='AM'&&h===12)h=0;
+        return String(h).padStart(2,'0')+':'+m;
+      }
+
+      var inSel=mkTimeSelect('in',w.id,entries[w.id].inTime);
+      var outSel=mkTimeSelect('out',w.id,entries[w.id].outTime);
+
+      var hoursCell=mk('div');hoursCell.id='emb-hrs-'+w.id;hoursCell.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';
+      hoursCell.textContent=entries[w.id].hours?entries[w.id].hours+'h':'—';
+      hoursDisplays[w.id]=hoursCell;
+
+      // Update hours when time changes
+      function updateHrs(){
+        var it=getTime24('in',w.id);var ot=getTime24('out',w.id);
+        var h=calcHours(it,ot);
+        var hc=document.getElementById('emb-hrs-'+w.id);
+        if(hc)hc.textContent=h>0?h+'h':'—';
+      }
+      inSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      outSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+
+      // Present checkbox
+      var presentCell=mk('div');presentCell.style.cssText='display:flex;justify-content:center';
+      var chk=mk('input');chk.type='checkbox';chk.id='emb-present-'+w.id;
+      chk.checked=entries[w.id].present;
+      chk.style.cssText='width:18px;height:18px;cursor:pointer;accent-color:#2D6B5E';
+      chk.onchange=function(){
+        var isP=this.checked;
+        row.style.background=isP?'#f0fdf4':'#fff';
+        inSel.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.4';});
+        outSel.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.4';});
+      };
+      // Init disabled state
+      if(!chk.checked){
+        inSel.querySelectorAll('select').forEach(function(s){s.disabled=true;s.style.opacity='0.4';});
+        outSel.querySelectorAll('select').forEach(function(s){s.disabled=true;s.style.opacity='0.4';});
+      } else {
+        row.style.background='#f0fdf4';
+      }
+      presentCell.appendChild(chk);
+
+      app(row,[nameCell,inSel,outSel,hoursCell,presentCell]);
+      card.appendChild(row);
+    });
+
+    formWrap.appendChild(card);
+
+    // Save button
+    var saveErr=mk('div');saveErr.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:8px';
+    var saveBtn=mkBtn('Save Attendance for '+fmtDate(date),function(){
+      var saved=0;var errors=[];
+      workers.forEach(function(w){
+        var present=(document.getElementById('emb-present-'+w.id)||{}).checked;
+        if(present){
+          var it=getTime24('in',w.id);
+          var ot=getTime24('out',w.id);
+          if(!it||!ot){errors.push(w.name+': please enter both in and out time');return;}
+          var hrs=calcHours(it,ot);
+          if(hrs<=0){errors.push(w.name+': out time must be after in time');return;}
+          var attId=date+'_'+w.id;
+          dbSave('embAttendance',{id:attId,workerId:w.id,workerName:w.name,date:date,inTime:it,outTime:ot,hours:hrs,created:Date.now()});
+          saved++;
+        } else {
+          // Remove attendance if unchecked (worker was previously marked present)
+          var attId=date+'_'+w.id;
+          var existing2=DB.embAttendance.find(function(a){return a.id===attId;});
+          if(existing2)dbDel('embAttendance',attId);
+        }
+      });
+      if(errors.length){saveErr.textContent=errors[0];return;}
+      saveErr.textContent='';
+      alert('Attendance saved! '+saved+' worker'+(saved!==1?'s':'')+' marked present for '+fmtDate(date)+'.');
+    },'btn btn-primary');
+    saveBtn.style.marginTop='16px';
+    formWrap.appendChild(saveErr);
+    formWrap.appendChild(saveBtn);
+  }
+
+  // ── SUMMARY TAB ─────────────────────────────────────────────
+  function renderSummaryTab(cw){
+    var workers=DB.embWorkers.filter(function(w){return w.active!==false;})
+      .sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+
+    if(!workers.length){
+      cw.appendChild(mk('div','card-p0')).appendChild(mk('div','empty','No workers set up yet.'));
+      return;
+    }
+
+    // Date range selector
+    var rangeRow=mk('div');rangeRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap';
+    var weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay()+1);
+    var fromInp=mk('input');fromInp.type='date';fromInp.className='form-input';fromInp.style.width='160px';
+    fromInp.value=weekStart.toISOString().split('T')[0];
+    var toInp=mk('input');toInp.type='date';toInp.className='form-input';toInp.style.width='160px';
+    toInp.value=today;
+    var calcBtn=mkBtn('Calculate',function(){renderSummaryTable(workers,fromInp.value,toInp.value,tableWrap);},'btn btn-primary btn-sm');
+    var fromL=mk('span');fromL.style.cssText='font-size:13px;color:#555';fromL.textContent='From:';
+    var toL=mk('span');toL.style.cssText='font-size:13px;color:#555';toL.textContent='To:';
+    app(rangeRow,[fromL,fromInp,toL,toInp,calcBtn]);
+    cw.appendChild(rangeRow);
+
+    var tableWrap=mk('div');cw.appendChild(tableWrap);
+    renderSummaryTable(workers,fromInp.value,toInp.value,tableWrap);
+  }
+
+  function renderSummaryTable(workers,fromDate,toDate,tableWrap){
+    tableWrap.innerHTML='';
+    var att=DB.embAttendance.filter(function(a){return a.date>=fromDate&&a.date<=toDate;});
+
+    var card=mk('div','card-p0');
+    var hdr=mk('div');hdr.style.cssText='display:grid;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
+    hdr.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr';
+    var hdrs=['Worker','Days Worked','Total Hours'];
+    if(!isAssistant())hdrs.push('Amount Due');
+    hdrs.forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
+    card.appendChild(hdr);
+
+    workers.forEach(function(w){
+      var wAtt=att.filter(function(a){return a.workerId===w.id;});
+      var totalHours=wAtt.reduce(function(s,a){return s+Number(a.hours||0);},0);
+      totalHours=Math.round(totalHours*100)/100;
+      var days=wAtt.length;
+
+      var row=mk('div');row.style.cssText='display:grid;gap:8px;padding:12px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
+      row.style.gridTemplateColumns=isAssistant()?'2fr 1fr 1fr':'2fr 1fr 1fr 1fr';
+
+      var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600';nameCell.textContent=w.name;
+      var daysCell=mk('div');daysCell.style.cssText='font-size:13px;color:#555';daysCell.textContent=days+' day'+(days!==1?'s':'');
+      var hoursCell=mk('div');hoursCell.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';hoursCell.textContent=totalHours?totalHours+'h':'—';
+
+      var cells=[nameCell,daysCell,hoursCell];
+
+      if(!isAssistant()&&w.ratePerHour){
+        var amt=Math.round(totalHours*Number(w.ratePerHour));
+        var amtCell=mk('div');amtCell.style.cssText='font-size:13px;font-weight:700;color:#166534';amtCell.textContent=totalHours?rupee(amt):'—';
+        cells.push(amtCell);
+      } else if(!isAssistant()){
+        var amtCell2=mk('div');amtCell2.style.cssText='font-size:12px;color:#aaa';amtCell2.textContent='Rate not set';
+        cells.push(amtCell2);
+      }
+
+      cells.forEach(function(c){row.appendChild(c);});
+
+      // Expand to show daily breakdown
+      row.style.cursor='pointer';
+      var expanded=false;
+      var detailRow=mk('div');detailRow.style.cssText='display:none;background:#fafafa;border-bottom:1px solid #f5f5f5;padding:8px 16px 12px';
+      if(wAtt.length){
+        var dlabel=mk('div');dlabel.style.cssText='font-size:11px;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px';dlabel.textContent='Daily breakdown';
+        detailRow.appendChild(dlabel);
+        wAtt.sort(function(a,b){return a.date.localeCompare(b.date);}).forEach(function(a){
+          var drow=mk('div');drow.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#555';
+          var dl=mk('span');dl.textContent=fmtDate(a.date)+' · '+fmt12(a.inTime)+' – '+fmt12(a.outTime);
+          var dr=mk('span');dr.style.fontWeight='600';dr.textContent=a.hours+'h';
+          app(drow,[dl,dr]);detailRow.appendChild(drow);
+        });
+      } else {
+        detailRow.appendChild(mk('div','empty','No attendance in this period.'));
+      }
+      row.onclick=function(){
+        expanded=!expanded;
+        detailRow.style.display=expanded?'block':'none';
+        row.style.background=expanded?'#f9f9f9':'';
+      };
+      card.appendChild(row);
+      card.appendChild(detailRow);
+    });
+
+    tableWrap.appendChild(card);
+  }
+
+  // ── WORKERS TAB (admin only) ─────────────────────────────────
+  function renderWorkersTab(cw){
+    var workers=DB.embWorkers.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+    if(!workers.length){
+      var noW=mk('div','card-p0');noW.appendChild(mk('div','empty','No workers yet.'));cw.appendChild(noW);return;
+    }
+    var card=mk('div','card-p0');
+    workers.forEach(function(w){
+      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f5f5f5';
+      var left=mk('div');
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=w.name;
+      var meta=mk('div');meta.style.cssText='font-size:11px;color:#aaa;margin-top:2px';
+      meta.textContent=(w.ratePerHour?rupee(w.ratePerHour)+'/hr':'Rate not set')+(w.active===false?' · Inactive':'· Active');
+      app(left,[nm,meta]);
+      var acts=mk('div');acts.style.cssText='display:flex;gap:6px';
+      var editBtn=mkBtn('Edit',(function(wid){return function(){openEmbWorkerModal(wid);};})(w.id),'btn btn-xs');
+      var toggleBtn=mkBtn(w.active===false?'Activate':'Deactivate',(function(worker){return function(){
+        dbSave('embWorkers',Object.assign({},worker,{active:worker.active===false}));
+      };})(w),'btn btn-xs');
+      toggleBtn.style.cssText+=(w.active===false?'color:#166534;border-color:#86EFAC':'color:#991B1B;border-color:#FCA5A5');
+      app(acts,[editBtn,toggleBtn]);
+      app(row,[left,acts]);card.appendChild(row);
+    });
+    cw.appendChild(card);
+  }
+
+  setTimeout(function(){setTab('attendance');},0);
+  return wrap;
+}
+
+function fmt12(t){
+  if(!t)return '';
+  var p=t.split(':');var h=parseInt(p[0]);var m=p[1]||'00';
+  var ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+ap;
+}
+
+function openEmbWorkerModal(id){
+  var w=id?DB.embWorkers.find(function(x){return x.id===id;}):null;
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',w?'Edit Worker':'Add Worker'));
+  var nameInp=mkInput('ew-name','text','Worker name',w?w.name:'');
+  var rateInp=mkInput('ew-rate','number','e.g. 80',w?String(w.ratePerHour||''):'');
+  var rateHint=mk('div');rateHint.style.cssText='font-size:11px;color:#aaa;margin-top:4px';rateHint.textContent='Rate is only visible to Shreya, not Sanika.';
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+  var rateGroup=mk('div','form-group');
+  rateGroup.appendChild(mk('label','form-label','Rate per hour (₹)'));
+  rateGroup.appendChild(rateInp);rateGroup.appendChild(rateHint);
+  app(wrap,[
+    mkFg('Worker name *',nameInp),
+    rateGroup,
+    err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save',function(){
+        var name=(document.getElementById('ew-name')||{}).value.trim();
+        var rate=Number((document.getElementById('ew-rate')||{}).value||0);
+        if(!name){err.textContent='Name is required.';return;}
+        dbSave('embWorkers',{id:w?w.id:uid(),name:name,ratePerHour:rate||null,active:w?w.active!==false:true,created:w?w.created:Date.now()});
+        closeModal();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+// ══════════════════════════════════════════════════════════════
+// END EMBROIDERY MODULE
 // ══════════════════════════════════════════════════════════════
 
 // ── GOOGLE CALENDAR SYNC ──────────────────────────────────────────────────
