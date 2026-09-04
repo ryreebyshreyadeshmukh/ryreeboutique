@@ -3245,6 +3245,27 @@ function getNewBriefs(){
 // EMBROIDERY ATTENDANCE MODULE
 // ══════════════════════════════════════════════════════════════
 
+function embGetTime24(prefix,wid){
+  var h=parseInt((document.getElementById(prefix+'-h-'+wid)||{}).value||0);
+  var m=(document.getElementById(prefix+'-m-'+wid)||{}).value||'00';
+  var ap=(document.getElementById(prefix+'-ap-'+wid)||{}).value||'AM';
+  if(!h)return '';
+  if(ap==='PM'&&h!==12)h+=12;
+  if(ap==='AM'&&h===12)h=0;
+  return String(h).padStart(2,'0')+':'+m;
+}
+
+function embCalcHours(inTime,outTime){
+  if(!inTime||!outTime)return 0;
+  function toMins(t){
+    if(!t)return 0;
+    var parts=t.split(':');var h=parseInt(parts[0]);var m=parseInt(parts[1]||0);
+    return h*60+m;
+  }
+  var diff=toMins(outTime)-toMins(inTime);
+  return diff>0?Math.round(diff/60*100)/100:0;
+}
+
 function pgEmbroidery(){
   var wrap=mk('div');
   var today=new Date().toISOString().split('T')[0];
@@ -3329,21 +3350,7 @@ function pgEmbroidery(){
       entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',hours:att?att.hours:0};
     });
 
-    function calcHours(inTime,outTime){
-      if(!inTime||!outTime)return 0;
-      // Convert 12hr to minutes
-      function toMins(t){
-        if(!t)return 0;
-        var parts=t.split(':');var h=parseInt(parts[0]);var rest=parts[1]||'';
-        var m=parseInt(rest)||0;
-        var ap=rest.indexOf('AM')>-1?'AM':rest.indexOf('PM')>-1?'PM':'';
-        if(ap==='PM'&&h!==12)h+=12;
-        if(ap==='AM'&&h===12)h=0;
-        return h*60+m;
-      }
-      var diff=toMins(outTime)-toMins(inTime);
-      return diff>0?Math.round(diff/60*100)/100:0;
-    }
+
 
     var hoursDisplays={};
     workers.forEach(function(w){
@@ -3369,15 +3376,7 @@ function pgEmbroidery(){
         return wrap2;
       }
 
-      function getTime24(prefix,wid){
-        var h=parseInt((document.getElementById(prefix+'-h-'+wid)||{}).value||0);
-        var m=(document.getElementById(prefix+'-m-'+wid)||{}).value||'00';
-        var ap=(document.getElementById(prefix+'-ap-'+wid)||{}).value||'AM';
-        if(!h)return '';
-        if(ap==='PM'&&h!==12)h+=12;
-        if(ap==='AM'&&h===12)h=0;
-        return String(h).padStart(2,'0')+':'+m;
-      }
+  
 
       var inSel=mkTimeSelect('in',w.id,entries[w.id].inTime);
       var outSel=mkTimeSelect('out',w.id,entries[w.id].outTime);
@@ -3388,8 +3387,8 @@ function pgEmbroidery(){
 
       // Update hours when time changes
       function updateHrs(){
-        var it=getTime24('in',w.id);var ot=getTime24('out',w.id);
-        var h=calcHours(it,ot);
+        var it=embGetTime24('in',w.id);var ot=embGetTime24('out',w.id);
+        var h=embCalcHours(it,ot);
         var hc=document.getElementById('emb-hrs-'+w.id);
         if(hc)hc.textContent=h>0?h+'h':'—';
       }
@@ -3429,10 +3428,10 @@ function pgEmbroidery(){
       workers.forEach(function(w){
         var present=(document.getElementById('emb-present-'+w.id)||{}).checked;
         if(present){
-          var it=getTime24('in',w.id);
-          var ot=getTime24('out',w.id);
+          var it=embGetTime24('in',w.id);
+          var ot=embGetTime24('out',w.id);
           if(!it||!ot){errors.push(w.name+': please enter both in and out time');return;}
-          var hrs=calcHours(it,ot);
+          var hrs=embCalcHours(it,ot);
           if(hrs<=0){errors.push(w.name+': out time must be after in time');return;}
           var attId=date+'_'+w.id;
           dbSave('embAttendance',{id:attId,workerId:w.id,workerName:w.name,date:date,inTime:it,outTime:ot,hours:hrs,created:Date.now()});
