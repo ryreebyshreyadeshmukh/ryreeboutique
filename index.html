@@ -3514,11 +3514,21 @@ function pgEmbroidery(){
         // Mark as Paid button
         var paidCell=mk('div');
         if(totalHours>0){
-          var payBtn=mkBtn('Mark Paid',(function(worker,hours,amount,fd,td){
-            return function(){openEmbPaymentModal(worker,hours,amount,fd,td);};
-          })(w,totalHours,amt,fromDate,toDate),'btn btn-xs');
-          payBtn.style.cssText+='color:#166534;border-color:#86EFAC';
-          paidCell.appendChild(payBtn);
+          // Check if this period is already paid
+          var alreadyPaid=DB.embPayments.some(function(p){
+            return p.workerId===w.id&&p.fromDate===fromDate&&p.toDate===toDate;
+          });
+          if(alreadyPaid){
+            var paidBadge=mk('div');paidBadge.style.cssText='font-size:11px;font-weight:700;color:#166534;padding:3px 8px;background:#F0FDF4;border:1px solid #86EFAC;border-radius:4px;display:inline-block';
+            paidBadge.textContent='✓ Paid';
+            paidCell.appendChild(paidBadge);
+          } else {
+            var payBtn=mkBtn('Mark Paid',(function(worker,hours,amount,fd,td){
+              return function(){openEmbPaymentModal(worker,hours,amount,fd,td);};
+            })(w,totalHours,amt,fromDate,toDate),'btn btn-xs');
+            payBtn.style.cssText+='color:#166634;border-color:#86EFAC';
+            paidCell.appendChild(payBtn);
+          }
         }
         cells.push(paidCell);
       } else if(!isAssistant()){
@@ -3585,7 +3595,13 @@ function pgEmbroidery(){
         openEmbPaymentHistory(wid,wname);
       };})(w.id,w.name),'btn btn-xs');
       histBtn.style.cssText+='color:#6D28D9;border-color:#DDD6FE';
-      app(acts,[editBtn,histBtn,toggleBtn]);
+      var delWBtn=mk('button','btn-danger','Del');delWBtn.style.cssText='padding:2px 8px;font-size:11px';
+      delWBtn.onclick=(function(wid,wname){return function(){
+        if(confirm('Delete worker "'+wname+'"? Their attendance records will be kept but they will no longer appear in daily entry.')){
+          dbDel('embWorkers',wid);
+        }
+      };})(w.id,w.name);
+      app(acts,[editBtn,histBtn,toggleBtn,delWBtn]);
       app(row,[left,acts]);card.appendChild(row);
     });
     cw.appendChild(card);
