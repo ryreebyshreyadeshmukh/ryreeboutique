@@ -3408,11 +3408,44 @@ function pgEmbroidery(){
         .filter(Boolean).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
 
       function getEstComponents(orderId,itemIdx){
-        var snap=DB.estSnapshots.find(function(s){return s.orderId===orderId&&(s.itemIndex||0)===parseInt(itemIdx||0);});
+        var idx=parseInt(itemIdx||0);
+
+        // Path 1: estSnapshots collection (new Estimator→Order flow)
+        var snap=DB.estSnapshots.find(function(s){
+          return s.orderId===orderId&&(s.itemIndex||0)===idx;
+        });
+        console.log('[EMB] estSnapshots for order',orderId,'item',idx,':',snap?'found '+JSON.stringify(snap.components):'not found');
         if(snap&&snap.components&&snap.components.length)return snap.components;
-        var est=DB.clientEstimates.find(function(e){return e.linkedOrderId===orderId;});
-        if(est&&est.components&&est.components.length)return est.components;
-        return null;
+
+        // Path 2: quotation services[idx].estSnapshot (mid-transition flow)
+        var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
+        if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
+          var qsnap=quot.services[idx].estSnapshot;
+          if(qsnap&&qsnap.components&&qsnap.components.length)return qsnap.components;
+        }
+
+        // Path 3: clientEstimates linked to order, matched by position
+        var linkedEsts=DB.clientEstimates.filter(function(e){
+          return e.linkedOrderId===orderId;
+        }).sort(function(a,b){return (a.created||0)-(b.created||0);});
+        if(linkedEsts.length){
+          var est=linkedEsts[idx]||linkedEsts[0];
+          if(est&&est.components&&est.components.length)return est.components;
+        }
+
+        // Path 4: garment type config from estgarments
+        // Use the garmentId stored on the snapshot if available
+        var order2=DB.orders.find(function(o){return o.id===orderId;});
+        if(order2&&order2.items&&order2.items[idx]){
+          // Try to find a clientEstimate for this client matching this garment
+          var clientEsts=DB.clientEstimates.filter(function(e){
+            return e.clientId===order2.clientId&&e.components&&e.components.length;
+          }).sort(function(a,b){return (b.updatedAt||b.created||0)-(a.updatedAt||a.created||0);});
+          if(clientEsts[idx]&&clientEsts[idx].components)return clientEsts[idx].components;
+          if(clientEsts[0]&&clientEsts[0].components)return clientEsts[0].components;
+        }
+
+        return null; // no components found — will show free text input
       }
 
       function buildAssignmentRow(assignment,rowIdx){
@@ -3513,8 +3546,10 @@ function pgEmbroidery(){
         d2Sel.onchange=function(){
           var val=this.value;
           if(!val){hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';d3Sel.style.display='none';d3Inp.style.display='none';return;}
-          var p=val.split('|');hidOrderId.value=p[0]||'';hidItemIdx.value=p[1]||'0';hidItemLabel.value=p[2]||'';
-          showD3(p[0],parseInt(p[1])||0,'');
+          var p=val.split('|');
+          var oid=p[0]||'';var iidx=parseInt(p[1])||0;
+          hidOrderId.value=oid;hidItemIdx.value=String(iidx);hidItemLabel.value=p[2]||'';
+          showD3(oid,iidx,'');
         };
 
         // Hours
