@@ -3481,16 +3481,29 @@ function pgEmbroidery(){
         var d3Wrap=mk('div');app(d3Wrap,[d3Sel,d3Inp]);
 
         function showD3(orderId,itemIdx,existingComp){
-          d3Sel.style.display='none';d3Inp.style.display='none';
-          while(d3Sel.options.length)d3Sel.remove(0);
+          // Reset both
+          d3Sel.style.display='none';
+          d3Inp.style.display='none';
+          while(d3Sel.options.length>0)d3Sel.remove(0);
           if(!orderId){return;}
           var comps=getEstComponents(orderId,itemIdx);
+          console.log('[EMB] showD3 comps for item',itemIdx,':',comps);
           if(comps&&comps.length){
-            d3Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select component —';return o;})());
-            comps.forEach(function(c){var o=mk('option');o.value=c;o.textContent=c;if(c===existingComp)o.selected=true;d3Sel.appendChild(o);});
+            var defOpt=mk('option');defOpt.value='';defOpt.textContent='— Select component —';
+            d3Sel.appendChild(defOpt);
+            comps.forEach(function(c){
+              var o=document.createElement('option');
+              o.value=c;o.textContent=c;
+              if(c===existingComp)o.selected=true;
+              d3Sel.appendChild(o);
+            });
+            d3Sel.disabled=false;
             d3Sel.style.display='block';
+            d3Sel.style.visibility='visible';
           } else {
-            d3Inp.value=existingComp||'';d3Inp.style.display='block';
+            d3Inp.value=existingComp||'';
+            d3Inp.style.display='block';
+            d3Inp.style.visibility='visible';
           }
         }
 
@@ -3511,7 +3524,7 @@ function pgEmbroidery(){
             });
           });
           d2Sel.disabled=false;
-          if(preOrdId){showD3(preOrdId,parseInt(preItemIdx||0),preComp);}
+          if(preOrdId){setTimeout(function(){showD3(preOrdId,parseInt(preItemIdx||0),preComp);},0);}
         }
 
         // Pre-fill
