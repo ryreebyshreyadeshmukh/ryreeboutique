@@ -3410,43 +3410,27 @@ function pgEmbroidery(){
       function getEstComponents(orderId,itemIdx){
         var idx=parseInt(itemIdx||0);
 
-        // Path 1: estSnapshots — find exact match by orderId AND itemIndex
+        // Path 1: estSnapshots — strict match by orderId AND itemIndex
         var allSnaps=DB.estSnapshots.filter(function(s){return s.orderId===orderId;});
         var snap=allSnaps.find(function(s){return (s.itemIndex||0)===idx;});
-        // If only one snapshot exists for this order, only use it for item 0
-        if(snap&&snap.components&&snap.components.length&&(allSnaps.length>1||idx===0)){
-          return snap.components;
-        }
+        if(snap&&snap.components&&snap.components.length)return snap.components;
 
-        // Path 2: quotation services[idx].estSnapshot (mid-transition flow)
+        // Path 2: quotation services[idx].estSnapshot
         var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
         if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
           var qsnap=quot.services[idx].estSnapshot;
           if(qsnap&&qsnap.components&&qsnap.components.length)return qsnap.components;
         }
 
-        // Path 3: clientEstimates linked to order, matched by position
+        // Path 3: clientEstimates strictly linked to THIS order only
         var linkedEsts=DB.clientEstimates.filter(function(e){
-          return e.linkedOrderId===orderId;
+          return e.linkedOrderId===orderId&&e.components&&e.components.length;
         }).sort(function(a,b){return (a.created||0)-(b.created||0);});
-        if(linkedEsts.length){
-          var est=linkedEsts[idx]||linkedEsts[0];
-          if(est&&est.components&&est.components.length)return est.components;
-        }
+        if(linkedEsts[idx])return linkedEsts[idx].components;
+        if(linkedEsts[0]&&idx===0)return linkedEsts[0].components;
 
-        // Path 4: garment type config from estgarments
-        // Use the garmentId stored on the snapshot if available
-        var order2=DB.orders.find(function(o){return o.id===orderId;});
-        if(order2&&order2.items&&order2.items[idx]){
-          // Try to find a clientEstimate for this client matching this garment
-          var clientEsts=DB.clientEstimates.filter(function(e){
-            return e.clientId===order2.clientId&&e.components&&e.components.length;
-          }).sort(function(a,b){return (b.updatedAt||b.created||0)-(a.updatedAt||a.created||0);});
-          if(clientEsts[idx]&&clientEsts[idx].components)return clientEsts[idx].components;
-          if(clientEsts[0]&&clientEsts[0].components)return clientEsts[0].components;
-        }
-
-        return null; // no components found — will show free text input
+        // No data found — free text input will show
+        return null;
       }
 
       function buildAssignmentRow(assignment,rowIdx){
