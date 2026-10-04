@@ -3482,29 +3482,28 @@ function pgEmbroidery(){
         var d3Wrap=mk('div');app(d3Wrap,[d3Sel,d3Inp]);
 
         function showD3(orderId,itemIdx,existingComp){
-          // Reset both
+          // Hide both first
           d3Sel.style.display='none';
           d3Inp.style.display='none';
-          while(d3Sel.options.length>0)d3Sel.remove(0);
           if(!orderId){return;}
           var comps=getEstComponents(orderId,itemIdx);
-          console.log('[EMB] showD3 comps for item',itemIdx,':',comps);
           if(comps&&comps.length){
-            var defOpt=mk('option');defOpt.value='';defOpt.textContent='— Select component —';
-            d3Sel.appendChild(defOpt);
+            // Replace d3Sel with a fresh element to force full repaint
+            var newSel=document.createElement('select');
+            newSel.className=d3Sel.className;
+            newSel.style.cssText=d3Sel.style.cssText;
+            newSel.style.display='block';
+            // Build option HTML string — fastest and most reliable
+            var optHtml='<option value="">— Select component —</option>';
             comps.forEach(function(c){
-              var o=document.createElement('option');
-              o.value=c;o.textContent=c;
-              if(c===existingComp)o.selected=true;
-              d3Sel.appendChild(o);
+              optHtml+='<option value="'+c+'"'+(c===existingComp?' selected':'')+'>'+c+'</option>';
             });
-            d3Sel.disabled=false;
-            d3Sel.style.display='block';
-            d3Sel.style.visibility='visible';
+            newSel.innerHTML=optHtml;
+            d3Wrap.replaceChild(newSel,d3Sel);
+            d3Sel=newSel; // update reference
           } else {
             d3Inp.value=existingComp||'';
             d3Inp.style.display='block';
-            d3Inp.style.visibility='visible';
           }
         }
 
