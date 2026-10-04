@@ -3410,12 +3410,13 @@ function pgEmbroidery(){
       function getEstComponents(orderId,itemIdx){
         var idx=parseInt(itemIdx||0);
 
-        // Path 1: estSnapshots collection (new Estimator→Order flow)
-        var snap=DB.estSnapshots.find(function(s){
-          return s.orderId===orderId&&(s.itemIndex||0)===idx;
-        });
-        console.log('[EMB] estSnapshots for order',orderId,'item',idx,':',snap?'found '+JSON.stringify(snap.components):'not found');
-        if(snap&&snap.components&&snap.components.length)return snap.components;
+        // Path 1: estSnapshots — find exact match by orderId AND itemIndex
+        var allSnaps=DB.estSnapshots.filter(function(s){return s.orderId===orderId;});
+        var snap=allSnaps.find(function(s){return (s.itemIndex||0)===idx;});
+        // If only one snapshot exists for this order, only use it for item 0
+        if(snap&&snap.components&&snap.components.length&&(allSnaps.length>1||idx===0)){
+          return snap.components;
+        }
 
         // Path 2: quotation services[idx].estSnapshot (mid-transition flow)
         var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
@@ -3471,7 +3472,7 @@ function pgEmbroidery(){
         d2Sel.disabled=true;
 
         // DD3: Component (dropdown or text)
-        var d3Lbl=mk('div');d3Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d3Lbl.textContent='COMPONENT';
+        var d3Lbl=mk('div');d3Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em;display:none';d3Lbl.textContent='COMPONENT';
         var d3Sel=mk('select');d3Sel.className='emb-comp-sel-'+w.id;
         d3Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff;display:none';
         var d3Inp=mk('input');d3Inp.type='text';d3Inp.placeholder='e.g. Blouse, Saree body...';
@@ -3524,7 +3525,7 @@ function pgEmbroidery(){
             });
           });
           d2Sel.disabled=false;
-          if(preOrdId){setTimeout(function(){showD3(preOrdId,parseInt(preItemIdx||0),preComp);},0);}
+          if(preOrdId){d3Lbl.style.display='block';setTimeout(function(){showD3(preOrdId,parseInt(preItemIdx||0),preComp);},0);}
         }
 
         // Pre-fill
@@ -3558,11 +3559,18 @@ function pgEmbroidery(){
 
         d2Sel.onchange=function(){
           var val=this.value;
-          if(!val){hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';d3Sel.style.display='none';d3Inp.style.display='none';return;}
+          if(!val){
+            hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';
+            d3Sel.style.display='none';d3Inp.style.display='none';
+            d3Lbl.style.display='none';
+            return;
+          }
           var p=val.split('|');
           var oid=p[0]||'';var iidx=parseInt(p[1])||0;
           hidOrderId.value=oid;hidItemIdx.value=String(iidx);hidItemLabel.value=p[2]||'';
-          showD3(oid,iidx,'');
+          d3Lbl.style.display='block';
+          // Use setTimeout to ensure d3Sel is in DOM flow before populating
+          setTimeout(function(){showD3(oid,iidx,'');},10);
         };
 
         // Hours
