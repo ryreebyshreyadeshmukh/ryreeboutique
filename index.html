@@ -3568,6 +3568,8 @@ function pgEmbroidery(){
           var itemIdxEls=document.querySelectorAll('.emb-item-idx-'+w.id);
           var itemLabelEls=document.querySelectorAll('.emb-item-label-'+w.id);
           var orderHrss=document.querySelectorAll('.emb-order-hrs-'+w.id);
+          var compSels=document.querySelectorAll('.emb-comp-sel-'+w.id);
+          var compInps=document.querySelectorAll('.emb-comp-inp-'+w.id);
           var assignments=[];
           var splitHrsTotal=0;
           orderIdEls.forEach(function(el,oi){
@@ -3575,11 +3577,16 @@ function pgEmbroidery(){
             var iidx=parseInt((itemIdxEls[oi]||{}).value||0);
             var ilabel=(itemLabelEls[oi]||{}).value||'';
             var oh=Number((orderHrss[oi]||{}).value||0);
+            // Read component from dropdown or text input
+            var cSel=compSels[oi];var cInp=compInps[oi];
+            var comp='';
+            if(cSel&&cSel.style.display!=='none')comp=cSel.value||'';
+            else if(cInp&&cInp.style.display!=='none')comp=cInp.value||'';
             if(oid){
               var so=DB.orders.find(function(o){return o.id===oid;});
               var sc=so?DB.clients.find(function(c){return c.id===so.clientId;}):null;
-              var ol=so?((sc?sc.name+' · ':'')+ilabel):'';
-              assignments.push({orderId:oid,orderLabel:ol,itemIndex:iidx,itemLabel:ilabel,hours:oh||0});
+              var ol=so?((sc?sc.name+' · ':'')+ilabel+(comp?' · '+comp:'')):'';
+              assignments.push({orderId:oid,orderLabel:ol,itemIndex:iidx,itemLabel:ilabel,component:comp,hours:oh||0});
               splitHrsTotal+=oh||0;
             }
           });
@@ -3597,6 +3604,7 @@ function pgEmbroidery(){
             orderLabel:firstAssign.orderLabel||'',
             itemIndex:firstAssign.itemIndex||0,
             itemLabel:firstAssign.itemLabel||'',
+            component:firstAssign.component||'',
             assignments:assignments.length>1?assignments:[],
             created:Date.now()
           });
@@ -3610,6 +3618,7 @@ function pgEmbroidery(){
                 hours:a.hours||Math.round(hrs/assignments.length*100)/100,
                 orderId:a.orderId,orderLabel:a.orderLabel,
                 itemIndex:a.itemIndex||0,itemLabel:a.itemLabel||'',
+                component:a.component||'',
                 isSplit:true,parentId:attId,
                 created:Date.now()
               });
