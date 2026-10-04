@@ -3397,129 +3397,147 @@ function pgEmbroidery(){
       outSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
 
       // Present checkbox
-      // Two-dropdown assignment: Client (with search) → Items
+      // Three-dropdown: Client (search) → Garment → Component
       var activeOrders=DB.orders.filter(function(o){return o.status!=='Delivered'&&o.status!=='Cancelled';});
-
       var splitWrap=mk('div');splitWrap.id='emb-split-'+w.id;splitWrap.style.cssText='display:flex;flex-direction:column;gap:6px';
-      var existingAssignments=entries[w.id].assignments||(entries[w.id].orderId?[{orderId:entries[w.id].orderId,itemIndex:entries[w.id].itemIndex||0,itemLabel:entries[w.id].itemLabel||'',hours:''}]:[{}]);
+      var existingAssignments=entries[w.id].assignments||(entries[w.id].orderId?[{orderId:entries[w.id].orderId,itemIndex:entries[w.id].itemIndex||0,itemLabel:entries[w.id].itemLabel||'',component:entries[w.id].component||'',hours:''}]:[{}]);
       if(!existingAssignments.length)existingAssignments=[{}];
-
       var activeClientIds=[];
       activeOrders.forEach(function(o){if(activeClientIds.indexOf(o.clientId)<0)activeClientIds.push(o.clientId);});
       var activeClients=activeClientIds.map(function(cid){return DB.clients.find(function(c){return c.id===cid;});})
         .filter(Boolean).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
 
+      function getEstComponents(orderId,itemIdx){
+        var snap=DB.estSnapshots.find(function(s){return s.orderId===orderId&&(s.itemIndex||0)===parseInt(itemIdx||0);});
+        if(snap&&snap.components&&snap.components.length)return snap.components;
+        var est=DB.clientEstimates.find(function(e){return e.linkedOrderId===orderId;});
+        if(est&&est.components&&est.components.length)return est.components;
+        return null;
+      }
+
       function buildAssignmentRow(assignment,rowIdx){
         var rowId='emb-asgn-'+w.id+'-'+rowIdx;
-        var splitRow=mk('div');splitRow.id=rowId;splitRow.style.cssText='background:#fafafa;border-radius:6px;padding:6px 8px;border:1px solid #e8e8e8';
-
+        var splitRow=mk('div');splitRow.id=rowId;splitRow.style.cssText='background:#fafafa;border-radius:6px;padding:8px;border:1px solid #e8e8e8;display:flex;flex-direction:column;gap:4px';
         var hidOrderId=mk('input');hidOrderId.type='hidden';hidOrderId.className='emb-order-id-'+w.id;hidOrderId.value=assignment.orderId||'';
         var hidItemIdx=mk('input');hidItemIdx.type='hidden';hidItemIdx.className='emb-item-idx-'+w.id;hidItemIdx.value=String(assignment.itemIndex||0);
         var hidItemLabel=mk('input');hidItemLabel.type='hidden';hidItemLabel.className='emb-item-label-'+w.id;hidItemLabel.value=assignment.itemLabel||'';
 
-        // Dropdown 1: Client with search
-        var d1Label=mk('div');d1Label.style.cssText='font-size:10px;color:#888;margin-bottom:2px';d1Label.textContent='Client:';
-        var d1Wrap=mk('div');d1Wrap.style.cssText='position:relative;margin-bottom:6px';
+        // DD1: Client search
+        var d1Lbl=mk('div');d1Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d1Lbl.textContent='CLIENT';
+        var d1Wrap=mk('div');d1Wrap.style.cssText='position:relative';
         var d1Inp=mk('input');d1Inp.type='text';d1Inp.placeholder='Search client name...';
         d1Inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
-        var d1Drop=mk('div');d1Drop.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0e0e0;border-radius:4px;max-height:150px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.12)';
+        var d1Drop=mk('div');d1Drop.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0e0e0;border-radius:4px;max-height:150px;overflow-y:auto;z-index:300;box-shadow:0 4px 12px rgba(0,0,0,.12)';
+        app(d1Wrap,[d1Inp,d1Drop]);
 
-        // Dropdown 2: Garment/Item
-        var d2Label=mk('div');d2Label.style.cssText='font-size:10px;color:#888;margin-bottom:2px';d2Label.textContent='Garment:';
+        // DD2: Garment
+        var d2Lbl=mk('div');d2Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d2Lbl.textContent='GARMENT';
         var d2Sel=mk('select');d2Sel.className='emb-item-sel-'+w.id;
-        d2Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;margin-bottom:6px;background:#fff';
-        var d2Default=mk('option');d2Default.value='';d2Default.textContent='— Select garment —';
-        d2Sel.appendChild(d2Default);d2Sel.disabled=true;
+        d2Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff';
+        d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select garment —';return o;})());
+        d2Sel.disabled=true;
 
-        function populateItems(clientId){
-          while(d2Sel.options.length>0)d2Sel.remove(0);
-          var def=mk('option');def.value='';def.textContent='— Select garment —';d2Sel.appendChild(def);
+        // DD3: Component (dropdown or text)
+        var d3Lbl=mk('div');d3Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d3Lbl.textContent='COMPONENT';
+        var d3Sel=mk('select');d3Sel.className='emb-comp-sel-'+w.id;
+        d3Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff;display:none';
+        var d3Inp=mk('input');d3Inp.type='text';d3Inp.placeholder='e.g. Blouse, Saree body...';
+        d3Inp.className='emb-comp-inp-'+w.id;
+        d3Inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box;display:none';
+        d3Inp.value=assignment.component||'';
+        var d3Wrap=mk('div');app(d3Wrap,[d3Sel,d3Inp]);
+
+        function showD3(orderId,itemIdx,existingComp){
+          d3Sel.style.display='none';d3Inp.style.display='none';
+          while(d3Sel.options.length)d3Sel.remove(0);
+          if(!orderId){return;}
+          var comps=getEstComponents(orderId,itemIdx);
+          if(comps&&comps.length){
+            d3Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select component —';return o;})());
+            comps.forEach(function(c){var o=mk('option');o.value=c;o.textContent=c;if(c===existingComp)o.selected=true;d3Sel.appendChild(o);});
+            d3Sel.style.display='block';
+          } else {
+            d3Inp.value=existingComp||'';d3Inp.style.display='block';
+          }
+        }
+
+        function populateGarments(clientId,preOrdId,preItemIdx,preComp){
+          while(d2Sel.options.length)d2Sel.remove(0);
+          d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select garment —';return o;})());
+          d3Sel.style.display='none';d3Inp.style.display='none';
           if(!clientId){d2Sel.disabled=true;return;}
-          var cOrders=activeOrders.filter(function(o){return o.clientId===clientId;});
-          cOrders.forEach(function(o){
+          var cOrds=activeOrders.filter(function(o){return o.clientId===clientId;});
+          cOrds.forEach(function(o){
             var items=o.items&&o.items.length?o.items:[{name:o.item||'Item'}];
-            var orderLabel=o.orderNo?(' ('+o.orderNo+')'):'';
+            var oNo=o.orderNo?' ('+o.orderNo+')':'';
             items.forEach(function(it,idx){
-              var opt=mk('option');
-              opt.value=o.id+'|'+idx+'|'+(it.name||o.item||'');
-              opt.textContent=(it.name||o.item||'Item')+orderLabel;
+              var opt=mk('option');opt.value=o.id+'|'+idx+'|'+(it.name||o.item||'');
+              opt.textContent=(it.name||o.item||'Item')+oNo;
+              if(preOrdId&&o.id===preOrdId&&idx===parseInt(preItemIdx||0))opt.selected=true;
               d2Sel.appendChild(opt);
             });
           });
           d2Sel.disabled=false;
+          if(preOrdId){showD3(preOrdId,parseInt(preItemIdx||0),preComp);}
         }
 
-        // Pre-fill existing assignment
+        // Pre-fill
         if(assignment.orderId){
           var preOrd=activeOrders.find(function(o){return o.id===assignment.orderId;});
           if(preOrd){
             var preCl=DB.clients.find(function(c){return c.id===preOrd.clientId;});
             if(preCl)d1Inp.value=preCl.name;
-            populateItems(preOrd.clientId);
-            var preVal=assignment.orderId+'|'+assignment.itemIndex+'|'+assignment.itemLabel;
-            for(var pi=0;pi<d2Sel.options.length;pi++){
-              if(d2Sel.options[pi].value===preVal){d2Sel.selectedIndex=pi;break;}
-            }
+            populateGarments(preOrd.clientId,assignment.orderId,assignment.itemIndex||0,assignment.component||'');
           }
         }
 
-        function showClientDrop(q){
+        // Client search
+        function showDrop1(q){
           d1Drop.innerHTML='';
-          var filtered=activeClients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q.toLowerCase())>-1;});
-          if(!filtered.length){
-            var nr=mk('div');nr.style.cssText='padding:8px 10px;font-size:11px;color:#aaa';nr.textContent='No clients found';d1Drop.appendChild(nr);
-          }
-          filtered.forEach(function(cl){
-            var opt=mk('div');opt.style.cssText='padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-weight:500;display:flex;justify-content:space-between;align-items:center';
-            var nm=mk('span');nm.textContent=cl.name;
-            var cnt=activeOrders.filter(function(o){return o.clientId===cl.id;}).length;
-            var sub=mk('span');sub.style.cssText='font-size:10px;color:#aaa;font-weight:400';sub.textContent=cnt+' order'+(cnt!==1?'s':'');
-            app(opt,[nm,sub]);
-            opt.onmouseover=function(){this.style.background='#f0fdf4';};
-            opt.onmouseout=function(){this.style.background='';};
-            opt.onmousedown=function(e){
-              e.preventDefault();
-              d1Inp.value=cl.name;
-              d1Drop.style.display='none';
-              hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';
-              populateItems(cl.id);
-            };
-            d1Drop.appendChild(opt);
-          });
+          activeClients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q.toLowerCase())>-1;})
+            .forEach(function(cl){
+              var opt=mk('div');opt.style.cssText='padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between';
+              var nm=mk('span');nm.style.fontWeight='500';nm.textContent=cl.name;
+              var cnt=mk('span');cnt.style.cssText='font-size:10px;color:#aaa';cnt.textContent=activeOrders.filter(function(o){return o.clientId===cl.id;}).length+' orders';
+              app(opt,[nm,cnt]);
+              opt.onmouseover=function(){this.style.background='#f0fdf4';};opt.onmouseout=function(){this.style.background='';};
+              opt.onmousedown=function(e){e.preventDefault();d1Inp.value=cl.name;d1Drop.style.display='none';hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';populateGarments(cl.id,'',0,'');};
+              d1Drop.appendChild(opt);
+            });
           d1Drop.style.display='block';
         }
-        d1Inp.oninput=function(){showClientDrop(this.value);};
-        d1Inp.onfocus=function(){showClientDrop(this.value);};
+        d1Inp.oninput=function(){showDrop1(this.value);};
+        d1Inp.onfocus=function(){showDrop1(this.value);};
         d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
 
         d2Sel.onchange=function(){
-          var val=this.value;if(!val){hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';return;}
-          var parts=val.split('|');hidOrderId.value=parts[0]||'';hidItemIdx.value=parts[1]||'0';hidItemLabel.value=parts[2]||'';
+          var val=this.value;
+          if(!val){hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';d3Sel.style.display='none';d3Inp.style.display='none';return;}
+          var p=val.split('|');hidOrderId.value=p[0]||'';hidItemIdx.value=p[1]||'0';hidItemLabel.value=p[2]||'';
+          showD3(p[0],parseInt(p[1])||0,'');
         };
 
-        // Hours input
-        var hrsRow=mk('div');hrsRow.style.cssText='display:flex;align-items:center;gap:8px';
-        var hrsLabel2=mk('span');hrsLabel2.style.cssText='font-size:10px;color:#888;white-space:nowrap';hrsLabel2.textContent='Hours:';
+        // Hours
+        var hrsRow=mk('div');hrsRow.style.cssText='display:flex;align-items:center;gap:8px;margin-top:2px';
+        var hLbl=mk('span');hLbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em;white-space:nowrap';hLbl.textContent='HOURS:';
         var hInp=mk('input');hInp.type='number';hInp.min='0';hInp.max='24';hInp.step='0.5';
         hInp.className='emb-hrs-inp emb-order-hrs-'+w.id+' form-input';
         hInp.placeholder='e.g. 4';hInp.value=assignment.hours||'';
         hInp.style.cssText='width:60px;padding:3px 5px;font-size:12px;text-align:center';
         var rmBtn=mk('button');rmBtn.textContent='Remove';rmBtn.style.cssText='background:none;border:none;color:#E24B4A;cursor:pointer;font-size:10px;flex-shrink:0';
         rmBtn.onclick=function(){
-          var rows=splitWrap.querySelectorAll('[id^="emb-asgn-'+w.id+'"]');
-          if(rows.length>1){splitRow.remove();}
-          else{d1Inp.value='';while(d2Sel.options.length>0)d2Sel.remove(0);var def2=mk('option');def2.value='';def2.textContent='— Select garment —';d2Sel.appendChild(def2);d2Sel.disabled=true;hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';hInp.value='';}
+          if(splitWrap.querySelectorAll('[id^="emb-asgn-'+w.id+'"]').length>1)splitRow.remove();
+          else{d1Inp.value='';while(d2Sel.options.length)d2Sel.remove(0);d2Sel.disabled=true;d3Sel.style.display='none';d3Inp.style.display='none';hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';hInp.value='';}
         };
-        app(hrsRow,[hrsLabel2,hInp,rmBtn]);
-        app(d1Wrap,[d1Inp,d1Drop]);
-        app(splitRow,[hidOrderId,hidItemIdx,hidItemLabel,d1Label,d1Wrap,d2Label,d2Sel,hrsRow]);
+        app(hrsRow,[hLbl,hInp,rmBtn]);
+        app(splitRow,[hidOrderId,hidItemIdx,hidItemLabel,d1Lbl,d1Wrap,d2Lbl,d2Sel,d3Lbl,d3Wrap,hrsRow]);
         return splitRow;
       }
 
       var rowCounter=0;
       existingAssignments.forEach(function(a){splitWrap.appendChild(buildAssignmentRow(a,rowCounter++));});
       var addSplitBtn=mk('button');addSplitBtn.textContent='+ Split day across another garment';
-      addSplitBtn.style.cssText='background:none;border:1px dashed #2D6B5E;color:#2D6B5E;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;margin-top:2px';
+      addSplitBtn.style.cssText='background:none;border:1px dashed #2D6B5E;color:#2D6B5E;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;margin-top:4px';
       addSplitBtn.onclick=function(){splitWrap.insertBefore(buildAssignmentRow({},rowCounter++),addSplitBtn);};
       splitWrap.appendChild(addSplitBtn);
       var orderSel=splitWrap;
