@@ -3397,119 +3397,131 @@ function pgEmbroidery(){
       outSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
 
       // Present checkbox
-      // Order + Item selector with search — supports split day
-      var activeOrders=DB.orders.filter(function(o){return o.status!=='Delivered'&&o.status!=='Cancelled';})
-        .sort(function(a,b){
-          var ca=DB.clients.find(function(c){return c.id===a.clientId;});
-          var cb=DB.clients.find(function(c){return c.id===b.clientId;});
-          return ((ca?ca.name:'')).localeCompare((cb?cb.name:''));
-        });
+      // Two-dropdown assignment: Client (with search) → Items
+      var activeOrders=DB.orders.filter(function(o){return o.status!=='Delivered'&&o.status!=='Cancelled';});
 
       var splitWrap=mk('div');splitWrap.id='emb-split-'+w.id;splitWrap.style.cssText='display:flex;flex-direction:column;gap:6px';
       var existingAssignments=entries[w.id].assignments||(entries[w.id].orderId?[{orderId:entries[w.id].orderId,itemIndex:entries[w.id].itemIndex||0,itemLabel:entries[w.id].itemLabel||'',hours:''}]:[{}]);
       if(!existingAssignments.length)existingAssignments=[{}];
 
+      var activeClientIds=[];
+      activeOrders.forEach(function(o){if(activeClientIds.indexOf(o.clientId)<0)activeClientIds.push(o.clientId);});
+      var activeClients=activeClientIds.map(function(cid){return DB.clients.find(function(c){return c.id===cid;});})
+        .filter(Boolean).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+
       function buildAssignmentRow(assignment,rowIdx){
         var rowId='emb-asgn-'+w.id+'-'+rowIdx;
-        var splitRow=mk('div');splitRow.id=rowId;splitRow.style.cssText='background:#fafafa;border-radius:6px;padding:6px;border:1px solid #e8e8e8';
+        var splitRow=mk('div');splitRow.id=rowId;splitRow.style.cssText='background:#fafafa;border-radius:6px;padding:6px 8px;border:1px solid #e8e8e8';
 
-        // Search input for order
-        var searchWrap=mk('div');searchWrap.style.cssText='position:relative;margin-bottom:4px';
-        var searchInp=mk('input');searchInp.type='text';searchInp.placeholder='Search by client, order no, or item...';
-        searchInp.style.cssText='width:100%;padding:4px 8px;font-size:11px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
-        searchInp.className='emb-order-search-'+w.id;
-
-        // Hidden fields for selected order+item
         var hidOrderId=mk('input');hidOrderId.type='hidden';hidOrderId.className='emb-order-id-'+w.id;hidOrderId.value=assignment.orderId||'';
         var hidItemIdx=mk('input');hidItemIdx.type='hidden';hidItemIdx.className='emb-item-idx-'+w.id;hidItemIdx.value=String(assignment.itemIndex||0);
         var hidItemLabel=mk('input');hidItemLabel.type='hidden';hidItemLabel.className='emb-item-label-'+w.id;hidItemLabel.value=assignment.itemLabel||'';
 
-        // Pre-fill search with existing selection
-        if(assignment.orderId){
-          var preOrder=DB.orders.find(function(o){return o.id===assignment.orderId;});
-          var preCl=preOrder?DB.clients.find(function(c){return c.id===preOrder.clientId;}):null;
-          searchInp.value=(preCl?preCl.name+' · ':'')+( preOrder?preOrder.item:'')+(preOrder&&preOrder.orderNo?' ('+preOrder.orderNo+')':'');
-        }
+        // Dropdown 1: Client with search
+        var d1Label=mk('div');d1Label.style.cssText='font-size:10px;color:#888;margin-bottom:2px';d1Label.textContent='Client:';
+        var d1Wrap=mk('div');d1Wrap.style.cssText='position:relative;margin-bottom:6px';
+        var d1Inp=mk('input');d1Inp.type='text';d1Inp.placeholder='Search client name...';
+        d1Inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
+        var d1Drop=mk('div');d1Drop.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0e0e0;border-radius:4px;max-height:150px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.12)';
 
-        // Dropdown results list
-        var dropList=mk('div');dropList.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0e0e0;border-radius:4px;max-height:160px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1)';
+        // Dropdown 2: Garment/Item
+        var d2Label=mk('div');d2Label.style.cssText='font-size:10px;color:#888;margin-bottom:2px';d2Label.textContent='Garment:';
+        var d2Sel=mk('select');d2Sel.className='emb-item-sel-'+w.id;
+        d2Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;margin-bottom:6px;background:#fff';
+        var d2Default=mk('option');d2Default.value='';d2Default.textContent='— Select garment —';
+        d2Sel.appendChild(d2Default);d2Sel.disabled=true;
 
-        function showDrop(query){
-          dropList.innerHTML='';
-          var q=(query||'').toLowerCase();
-          var filtered=activeOrders.filter(function(o){
-            var cl=DB.clients.find(function(c){return c.id===o.clientId;});
-            var searchStr=((cl?cl.name:'')+' '+(o.orderNo||'')+' '+(o.item||'')+' '+((o.items||[]).map(function(it){return it.name||'';}).join(' '))).toLowerCase();
-            return !q||searchStr.indexOf(q)>-1;
-          });
-          if(!filtered.length){
-            var noRes=mk('div');noRes.style.cssText='padding:8px 10px;font-size:11px;color:#aaa';noRes.textContent='No orders found';
-            dropList.appendChild(noRes);
-          }
-          filtered.forEach(function(o){
-            var cl=DB.clients.find(function(c){return c.id===o.clientId;});
-            var orderLabel=(cl?cl.name+' · ':'')+o.item+(o.orderNo?' ('+o.orderNo+')':'');
-            var items=o.items&&o.items.length?o.items:[{name:o.item,itemIndex:0}];
+        function populateItems(clientId){
+          while(d2Sel.options.length>0)d2Sel.remove(0);
+          var def=mk('option');def.value='';def.textContent='— Select garment —';d2Sel.appendChild(def);
+          if(!clientId){d2Sel.disabled=true;return;}
+          var cOrders=activeOrders.filter(function(o){return o.clientId===clientId;});
+          cOrders.forEach(function(o){
+            var items=o.items&&o.items.length?o.items:[{name:o.item||'Item'}];
+            var orderLabel=o.orderNo?(' ('+o.orderNo+')'):'';
             items.forEach(function(it,idx){
-              var opt=mk('div');opt.style.cssText='padding:7px 10px;font-size:11px;cursor:pointer;border-bottom:1px solid #f5f5f5;line-height:1.4';
-              opt.onmouseover=function(){this.style.background='#f0fdf4';};
-              opt.onmouseout=function(){this.style.background='';};
-              var optMain=mk('div');optMain.style.cssText='font-weight:600;color:#1a1a1a';
-              optMain.textContent=(items.length>1?it.name||('Item '+(idx+1)):o.item);
-              var optSub=mk('div');optSub.style.cssText='color:#888;font-size:10px;margin-top:1px';
-              optSub.textContent=(cl?cl.name:'')+(o.orderNo?' · '+o.orderNo:'');
-              app(opt,[optMain,optSub]);
-              opt.onmousedown=function(e){
-                e.preventDefault();
-                // Set hidden fields
-                hidOrderId.value=o.id;
-                hidItemIdx.value=String(idx);
-                hidItemLabel.value=it.name||o.item||'';
-                // Update search input display
-                searchInp.value=(cl?cl.name+' · ':'')+(it.name||o.item)+(o.orderNo?' ('+o.orderNo+')':'');
-                dropList.style.display='none';
-                // Update hours placeholder
-                var hInp=splitRow.querySelector('.emb-hrs-inp');
-                if(hInp)hInp.placeholder='hrs';
-              };
-              dropList.appendChild(opt);
+              var opt=mk('option');
+              opt.value=o.id+'|'+idx+'|'+(it.name||o.item||'');
+              opt.textContent=(it.name||o.item||'Item')+orderLabel;
+              d2Sel.appendChild(opt);
             });
           });
-          dropList.style.display=filtered.length||q?'block':'none';
+          d2Sel.disabled=false;
         }
 
-        searchInp.oninput=function(){showDrop(this.value);};
-        searchInp.onfocus=function(){showDrop(this.value);};
-        searchInp.onblur=function(){setTimeout(function(){dropList.style.display='none';},200);};
-        app(searchWrap,[searchInp,dropList,hidOrderId,hidItemIdx,hidItemLabel]);
+        // Pre-fill existing assignment
+        if(assignment.orderId){
+          var preOrd=activeOrders.find(function(o){return o.id===assignment.orderId;});
+          if(preOrd){
+            var preCl=DB.clients.find(function(c){return c.id===preOrd.clientId;});
+            if(preCl)d1Inp.value=preCl.name;
+            populateItems(preOrd.clientId);
+            var preVal=assignment.orderId+'|'+assignment.itemIndex+'|'+assignment.itemLabel;
+            for(var pi=0;pi<d2Sel.options.length;pi++){
+              if(d2Sel.options[pi].value===preVal){d2Sel.selectedIndex=pi;break;}
+            }
+          }
+        }
+
+        function showClientDrop(q){
+          d1Drop.innerHTML='';
+          var filtered=activeClients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q.toLowerCase())>-1;});
+          if(!filtered.length){
+            var nr=mk('div');nr.style.cssText='padding:8px 10px;font-size:11px;color:#aaa';nr.textContent='No clients found';d1Drop.appendChild(nr);
+          }
+          filtered.forEach(function(cl){
+            var opt=mk('div');opt.style.cssText='padding:8px 12px;font-size:12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-weight:500;display:flex;justify-content:space-between;align-items:center';
+            var nm=mk('span');nm.textContent=cl.name;
+            var cnt=activeOrders.filter(function(o){return o.clientId===cl.id;}).length;
+            var sub=mk('span');sub.style.cssText='font-size:10px;color:#aaa;font-weight:400';sub.textContent=cnt+' order'+(cnt!==1?'s':'');
+            app(opt,[nm,sub]);
+            opt.onmouseover=function(){this.style.background='#f0fdf4';};
+            opt.onmouseout=function(){this.style.background='';};
+            opt.onmousedown=function(e){
+              e.preventDefault();
+              d1Inp.value=cl.name;
+              d1Drop.style.display='none';
+              hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';
+              populateItems(cl.id);
+            };
+            d1Drop.appendChild(opt);
+          });
+          d1Drop.style.display='block';
+        }
+        d1Inp.oninput=function(){showClientDrop(this.value);};
+        d1Inp.onfocus=function(){showClientDrop(this.value);};
+        d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
+
+        d2Sel.onchange=function(){
+          var val=this.value;if(!val){hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';return;}
+          var parts=val.split('|');hidOrderId.value=parts[0]||'';hidItemIdx.value=parts[1]||'0';hidItemLabel.value=parts[2]||'';
+        };
 
         // Hours input
-        var hrsRow=mk('div');hrsRow.style.cssText='display:flex;align-items:center;gap:6px';
-        var hrsLabel=mk('span');hrsLabel.style.cssText='font-size:10px;color:#888';hrsLabel.textContent='Hours:';
+        var hrsRow=mk('div');hrsRow.style.cssText='display:flex;align-items:center;gap:8px';
+        var hrsLabel2=mk('span');hrsLabel2.style.cssText='font-size:10px;color:#888;white-space:nowrap';hrsLabel2.textContent='Hours:';
         var hInp=mk('input');hInp.type='number';hInp.min='0';hInp.max='24';hInp.step='0.5';
         hInp.className='emb-hrs-inp emb-order-hrs-'+w.id+' form-input';
-        hInp.placeholder='hrs';hInp.value=assignment.hours||'';
-        hInp.style.cssText='width:60px;padding:3px 5px;font-size:11px;text-align:center';
-
-        // Remove button
-        var rmBtn=mk('button');rmBtn.textContent='Remove';rmBtn.style.cssText='background:none;border:none;color:#E24B4A;cursor:pointer;font-size:10px;margin-left:auto';
+        hInp.placeholder='e.g. 4';hInp.value=assignment.hours||'';
+        hInp.style.cssText='width:60px;padding:3px 5px;font-size:12px;text-align:center';
+        var rmBtn=mk('button');rmBtn.textContent='Remove';rmBtn.style.cssText='background:none;border:none;color:#E24B4A;cursor:pointer;font-size:10px;flex-shrink:0';
         rmBtn.onclick=function(){
-          if(splitWrap.querySelectorAll('[id^="emb-asgn-'+w.id+'"]').length>1){splitRow.remove();}
-          else{searchInp.value='';hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';hInp.value='';}
+          var rows=splitWrap.querySelectorAll('[id^="emb-asgn-'+w.id+'"]');
+          if(rows.length>1){splitRow.remove();}
+          else{d1Inp.value='';while(d2Sel.options.length>0)d2Sel.remove(0);var def2=mk('option');def2.value='';def2.textContent='— Select garment —';d2Sel.appendChild(def2);d2Sel.disabled=true;hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';hInp.value='';}
         };
-        app(hrsRow,[hrsLabel,hInp,rmBtn]);
-        app(splitRow,[searchWrap,hrsRow]);
+        app(hrsRow,[hrsLabel2,hInp,rmBtn]);
+        app(d1Wrap,[d1Inp,d1Drop]);
+        app(splitRow,[hidOrderId,hidItemIdx,hidItemLabel,d1Label,d1Wrap,d2Label,d2Sel,hrsRow]);
         return splitRow;
       }
 
       var rowCounter=0;
       existingAssignments.forEach(function(a){splitWrap.appendChild(buildAssignmentRow(a,rowCounter++));});
-
       var addSplitBtn=mk('button');addSplitBtn.textContent='+ Split day across another garment';
-      addSplitBtn.style.cssText='background:none;border:1px dashed #2D6B5E;color:#2D6B5E;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%';
+      addSplitBtn.style.cssText='background:none;border:1px dashed #2D6B5E;color:#2D6B5E;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;margin-top:2px';
       addSplitBtn.onclick=function(){splitWrap.insertBefore(buildAssignmentRow({},rowCounter++),addSplitBtn);};
       splitWrap.appendChild(addSplitBtn);
-
       var orderSel=splitWrap;
 
       var presentCell=mk('div');presentCell.style.cssText='display:flex;justify-content:center';
