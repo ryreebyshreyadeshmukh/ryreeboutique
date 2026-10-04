@@ -3482,35 +3482,41 @@ function pgEmbroidery(){
         var d3Wrap=mk('div');app(d3Wrap,[d3Sel,d3Inp]);
 
         function showD3(orderId,itemIdx,existingComp){
-          // Hide both first
-          d3Sel.style.display='none';
-          d3Inp.style.display='none';
-          if(!orderId){return;}
+          d3Wrap.innerHTML=''; // clear everything in the component container
+          if(!orderId){d3Lbl.style.display='none';return;}
           var comps=getEstComponents(orderId,itemIdx);
+          d3Lbl.style.display='block';
           if(comps&&comps.length){
-            // Replace d3Sel with a fresh element to force full repaint
+            // Build fresh select with innerHTML
             var newSel=document.createElement('select');
-            newSel.className=d3Sel.className;
-            newSel.style.cssText=d3Sel.style.cssText;
-            newSel.style.display='block';
-            // Build option HTML string — fastest and most reliable
+            newSel.className='emb-comp-sel-'+w.id;
+            newSel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff';
             var optHtml='<option value="">— Select component —</option>';
             comps.forEach(function(c){
-              optHtml+='<option value="'+c+'"'+(c===existingComp?' selected':'')+'>'+c+'</option>';
+              var safe=c.replace(/"/g,'&quot;');
+              optHtml+='<option value="'+safe+'"'+(c===existingComp?' selected':'')+'>'+c+'</option>';
             });
             newSel.innerHTML=optHtml;
-            d3Wrap.replaceChild(newSel,d3Sel);
-            d3Sel=newSel; // update reference
+            d3Wrap.appendChild(newSel);
+            d3Sel=newSel;
           } else {
-            d3Inp.value=existingComp||'';
-            d3Inp.style.display='block';
+            // Free text fallback
+            var inp=document.createElement('input');
+            inp.type='text';
+            inp.className='emb-comp-inp-'+w.id;
+            inp.placeholder='e.g. Blouse, Saree body...';
+            inp.value=existingComp||'';
+            inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
+            d3Wrap.appendChild(inp);
+            d3Inp=inp;
           }
         }
 
         function populateGarments(clientId,preOrdId,preItemIdx,preComp){
           while(d2Sel.options.length)d2Sel.remove(0);
           d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select garment —';return o;})());
-          d3Sel.style.display='none';d3Inp.style.display='none';
+          // Clear d3Wrap completely — don't reference stale d3Sel
+          d3Wrap.innerHTML='';d3Lbl.style.display='none';
           if(!clientId){d2Sel.disabled=true;return;}
           var cOrds=activeOrders.filter(function(o){return o.clientId===clientId;});
           cOrds.forEach(function(o){
@@ -3560,16 +3566,13 @@ function pgEmbroidery(){
           var val=this.value;
           if(!val){
             hidOrderId.value='';hidItemIdx.value='0';hidItemLabel.value='';
-            d3Sel.style.display='none';d3Inp.style.display='none';
-            d3Lbl.style.display='none';
+            d3Wrap.innerHTML='';d3Lbl.style.display='none';
             return;
           }
           var p=val.split('|');
           var oid=p[0]||'';var iidx=parseInt(p[1])||0;
           hidOrderId.value=oid;hidItemIdx.value=String(iidx);hidItemLabel.value=p[2]||'';
-          d3Lbl.style.display='block';
-          // Use setTimeout to ensure d3Sel is in DOM flow before populating
-          setTimeout(function(){showD3(oid,iidx,'');},10);
+          showD3(oid,iidx,'');
         };
 
         // Hours
