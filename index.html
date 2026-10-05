@@ -242,6 +242,9 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-embroidery" data-page="embroidery">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
     </div>
+    <div class="nav-item" id="nav-gst" data-page="gst">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l2-2h8l2 2"/><path d="M6 8h4M8 6v4" stroke-linecap="round"/></svg>GST
+    </div>
     <div class="nav-item" id="nav-estsettings" data-page="estsettings">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
     </div>
@@ -1073,7 +1076,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,gst:pgGST,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -1533,6 +1536,10 @@ function openClientModal(id){
     app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Email',em)]),
     mkFg('Notes',no),
     mkFg('Birthday (for reminders)',mkInput('m-bday','date','',c?(c.birthday||''):'')),
+    app(mk('div','form-row'),[
+      mkFg('State Code (for GST)',mkInput('m-state','text','e.g. 27',c?(c.state||'27'):'27')),
+      mkFg('GSTIN (optional)',mkInput('m-gstin','text','Client GSTIN',c?(c.gstin||''):'')),
+    ]),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var name=document.getElementById('m-name').value.trim();if(!name)return;
       var ex=id?DB.clients.find(function(x){return x.id===id;}):null;
@@ -1542,6 +1549,8 @@ function openClientModal(id){
         email:document.getElementById('m-email').value.trim(),
         notes:document.getElementById('m-notes').value.trim(),
         birthday:document.getElementById('m-bday').value,
+        state:document.getElementById('m-state').value.trim()||'27',
+        gstin:document.getElementById('m-gstin').value.trim(),
         measurements:ex?(ex.measurements||{}):{}});
       closeModal();
     },'btn btn-primary')])
@@ -3240,6 +3249,383 @@ function getNewBriefs(){
 // END QUESTIONNAIRE MODULE
 // ══════════════════════════════════════════════════════════════
 
+
+
+// ══════════════════════════════════════════════════════════════
+// GST MODULE
+// ══════════════════════════════════════════════════════════════
+
+function getGSTConfig(){
+  var cfg=DB.settings.find(function(x){return x.id==='config';});
+  return cfg||{};
+}
+
+function getCurrentFinYear(){
+  var now=new Date();
+  var yr=now.getFullYear();
+  var mo=now.getMonth()+1; // 1-12
+  if(mo<4)yr=yr-1; // before April → previous year
+  return yr+'-'+(String(yr+1).slice(2)); // e.g. "2026-27"
+}
+
+function getNextInvoiceNo(){
+  var cfg=getGSTConfig();
+  var prefix=cfg.invoicePrefix||'RYREE';
+  var fy=getCurrentFinYear();
+  var counter=Number(cfg.invoiceCounter||0)+1;
+  return prefix+'/'+fy+'/'+String(counter).padStart(3,'0');
+}
+
+function incrementInvoiceCounter(){
+  var cfg=getGSTConfig();
+  var counter=Number(cfg.invoiceCounter||0)+1;
+  dbSave('settings',Object.assign({},cfg,{id:'config',invoiceCounter:counter}));
+  return counter;
+}
+
+function getGSTRate(rate,taxableValue){
+  var r=Number(rate||0);
+  var tv=Number(taxableValue||0);
+  return {
+    cgst:Math.round(tv*r/2)/100,
+    sgst:Math.round(tv*r/2)/100,
+    igst:0,
+    total:Math.round(tv*r)/100
+  };
+}
+
+function isInterState(clientState){
+  var bizState=(getGSTConfig().stateCode||'27');
+  return clientState&&clientState!==bizState;
+}
+
+function pgGST(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('GST Settings','Configure GST for invoicing and compliance',null));
+
+  var cfg=getGSTConfig();
+  var activeTab='settings';
+  var tabRow=mk('div');tabRow.style.cssText='display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f0f0f0';
+  var tabs={};
+  var tabDefs=[{key:'settings',label:'GST Settings'},{key:'services',label:'Services & HSN'},{key:'reports',label:'GST Reports'}];
+  var contentWrap=mk('div');contentWrap.id='gst-content';
+
+  function setTab(key){
+    activeTab=key;
+    Object.keys(tabs).forEach(function(k){
+      tabs[k].style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;'+(k===key?'font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px':'color:#aaa');
+    });
+    renderGSTContent(key);
+  }
+
+  tabDefs.forEach(function(td){
+    var tb=mk('button');tb.textContent=td.label;
+    tb.style.cssText='padding:8px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';
+    tb.onclick=function(){setTab(td.key);};
+    tabs[td.key]=tb;tabRow.appendChild(tb);
+  });
+  wrap.appendChild(tabRow);
+  wrap.appendChild(contentWrap);
+
+  // ── GST SETTINGS TAB ────────────────────────────────────────
+  function renderSettingsTab(cw){
+    var cfg2=getGSTConfig();
+    var card=mk('div','card');
+    card.style.maxWidth='600px';
+
+    var fields=[
+      {id:'gstin',label:'GSTIN *',val:cfg2.gstin||'27CFNPD4493L1ZV',ph:'e.g. 27ABCDE1234F1Z5'},
+      {id:'legalName',label:'Legal Business Name *',val:cfg2.legalName||'Ryree by Shreya Deshmukh',ph:'As per GST registration'},
+      {id:'addr1',label:'Address Line 1',val:cfg2.addr1||'Magarpatta Road',ph:'Street / Building'},
+      {id:'addr2',label:'Address Line 2',val:cfg2.addr2||'',ph:'Area / Locality (optional)'},
+      {id:'city',label:'City',val:cfg2.city||'Pune',ph:'City'},
+      {id:'state',label:'State',val:cfg2.state||'Maharashtra',ph:'State'},
+      {id:'pin',label:'PIN Code',val:cfg2.pin||'',ph:'6-digit PIN'},
+      {id:'stateCode',label:'State Code',val:cfg2.stateCode||'27',ph:'e.g. 27 for Maharashtra'},
+      {id:'invoicePrefix',label:'Invoice Number Prefix',val:cfg2.invoicePrefix||'RYREE',ph:'e.g. RYREE'},
+      {id:'invoiceCounter',label:'Last Invoice Number',val:String(cfg2.invoiceCounter||0),ph:'0 = starts from 001'},
+    ];
+
+    fields.forEach(function(f){
+      var inp=mkInput('gst-'+f.id,'text',f.ph,f.val);
+      card.appendChild(mkFg(f.label,inp));
+    });
+
+    // GST enabled toggle
+    var toggleRow=mk('div');toggleRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-top:1px solid #f0f0f0;margin-top:8px';
+    var toggleLbl=mk('div');
+    var toggleTitle=mk('div');toggleTitle.style.cssText='font-size:13px;font-weight:600';toggleTitle.textContent='GST Enabled on Invoices';
+    var toggleSub=mk('div');toggleSub.style.cssText='font-size:11px;color:#aaa;margin-top:2px';toggleSub.textContent='New invoices will use GST format with CGST/SGST breakdown';
+    app(toggleLbl,[toggleTitle,toggleSub]);
+    var chk=mk('input');chk.type='checkbox';chk.id='gst-enabled';chk.checked=!!cfg2.gstEnabled;
+    chk.style.cssText='width:20px;height:20px;cursor:pointer;accent-color:#2D6B5E';
+    app(toggleRow,[toggleLbl,chk]);
+    card.appendChild(toggleRow);
+
+    var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+    var saveBtn=mkBtn('Save GST Settings',function(){
+      var gstin=(document.getElementById('gst-gstin')||{}).value.trim().toUpperCase();
+      var legalName=(document.getElementById('gst-legalName')||{}).value.trim();
+      if(!gstin){err.textContent='GSTIN is required.';return;}
+      if(!legalName){err.textContent='Legal business name is required.';return;}
+      var updated=Object.assign({},cfg2,{
+        id:'config',
+        gstin:gstin,
+        legalName:legalName,
+        addr1:(document.getElementById('gst-addr1')||{}).value.trim(),
+        addr2:(document.getElementById('gst-addr2')||{}).value.trim(),
+        city:(document.getElementById('gst-city')||{}).value.trim(),
+        state:(document.getElementById('gst-state')||{}).value.trim(),
+        pin:(document.getElementById('gst-pin')||{}).value.trim(),
+        stateCode:(document.getElementById('gst-stateCode')||{}).value.trim()||'27',
+        invoicePrefix:(document.getElementById('gst-invoicePrefix')||{}).value.trim()||'RYREE',
+        invoiceCounter:Number((document.getElementById('gst-invoiceCounter')||{}).value||0),
+        gstEnabled:(document.getElementById('gst-enabled')||{}).checked
+      });
+      dbSave('settings',updated);
+      err.textContent='';
+      alert('GST settings saved!');
+    },'btn btn-primary');
+
+    app(card,[err,saveBtn]);
+    cw.appendChild(card);
+  }
+
+  // ── SERVICES & HSN TAB ──────────────────────────────────────
+  function renderServicesTab(cw){
+    var services=DB.services.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+
+    var addBtn=mkBtn('+ Add Service',function(){openServiceModal();},'btn btn-primary btn-sm');
+    var hdr2=mk('div');hdr2.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+    var title=mk('div','section-title','Services & HSN/SAC Codes');title.style.margin='0';
+    app(hdr2,[title,addBtn]);
+    cw.appendChild(hdr2);
+
+    if(!services.length){
+      var noS=mk('div','card-p0');noS.appendChild(mk('div','empty','No services yet. Add services with their HSN/SAC codes and GST rates.'));
+      cw.appendChild(noS);return;
+    }
+
+    var card=mk('div','card-p0');
+    var hdrRow=mk('div');hdrRow.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr 80px;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
+    ['Service','HSN/SAC','Type','GST Rate',''].forEach(function(h){var th=mk('div');th.textContent=h;hdrRow.appendChild(th);});
+    card.appendChild(hdrRow);
+
+    services.forEach(function(s){
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr 1fr 80px;gap:8px;padding:12px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
+      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=s.name||'—';
+      var hsn=mk('div');hsn.style.cssText='font-size:12px;color:#555';hsn.textContent=s.hsn||'—';
+      var type=mk('div');
+      var typeBadge=mk('span','badge');typeBadge.style.cssText='font-size:10px;background:'+(s.hsnType==='SAC'?'#EFF6FF':'#F0FDF4')+';color:'+(s.hsnType==='SAC'?'#1D4ED8':'#166534');
+      typeBadge.textContent=s.hsnType||'HSN';type.appendChild(typeBadge);
+      var rate=mk('div');rate.style.cssText='font-size:13px;font-weight:600;color:#2D6B5E';rate.textContent=s.gstRate?s.gstRate+'%':'—';
+      var acts=mk('div');acts.style.cssText='display:flex;gap:4px';
+      var editBtn=mkBtn('Edit',(function(sid){return function(){openServiceModal(sid);};})(s.id),'btn btn-xs');
+      var delBtn=mk('button');delBtn.textContent='Del';delBtn.className='btn-danger';delBtn.style.cssText='padding:2px 8px;font-size:11px';
+      delBtn.onclick=(function(sid){return function(){if(confirm('Delete this service?'))dbDel('services',sid);};})(s.id);
+      app(acts,[editBtn,delBtn]);
+      app(row,[nm,hsn,type,rate,acts]);card.appendChild(row);
+    });
+    cw.appendChild(card);
+  }
+
+  // ── GST REPORTS TAB ─────────────────────────────────────────
+  function renderReportsTab(cw){
+    var cfg3=getGSTConfig();
+    if(!cfg3.gstEnabled){
+      var noGST=mk('div','card-p0');
+      var msg=mk('div','empty','GST is not enabled. Enable it in GST Settings to start generating reports.');
+      noGST.appendChild(msg);cw.appendChild(noGST);return;
+    }
+
+    // Date range
+    var now=new Date();
+    var monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().split('T')[0];
+    var today=now.toISOString().split('T')[0];
+
+    var rangeRow=mk('div');rangeRow.style.cssText='display:flex;align-items:flex-end;gap:10px;margin-bottom:20px;flex-wrap:wrap';
+    var fromInp=mk('input');fromInp.type='date';fromInp.value=monthStart;fromInp.className='form-input';fromInp.style.width='160px';
+    var toInp=mk('input');toInp.type='date';toInp.value=today;toInp.className='form-input';toInp.style.width='160px';
+    var fromL=mk('div');
+    fromL.appendChild(mk('div','form-label','From'));fromL.appendChild(fromInp);
+    var toL=mk('div');
+    toL.appendChild(mk('div','form-label','To'));toL.appendChild(toInp);
+    var genBtn=mkBtn('Generate Reports',function(){renderGSTReports(fromInp.value,toInp.value,reportWrap);},'btn btn-primary btn-sm');
+    genBtn.style.marginBottom='1px';
+    app(rangeRow,[fromL,toL,genBtn]);
+    cw.appendChild(rangeRow);
+
+    var reportWrap=mk('div');cw.appendChild(reportWrap);
+    renderGSTReports(monthStart,today,reportWrap);
+  }
+
+  function renderGSTReports(fromDate,toDate,reportWrap){
+    reportWrap.innerHTML='';
+    // Get GST invoices in range
+    var invs=DB.invoices.filter(function(inv){
+      return inv.gstEnabled&&inv.date>=fromDate&&inv.date<=toDate;
+    }).sort(function(a,b){return (a.gstInvoiceNo||'').localeCompare(b.gstInvoiceNo||'');});
+
+    if(!invs.length){
+      reportWrap.appendChild(mk('div','card-p0')).appendChild(mk('div','empty','No GST invoices found for this period.'));
+      return;
+    }
+
+    // Summary cards
+    var totalTaxable=invs.reduce(function(s,inv){return s+Number(inv.taxableAmount||0);},0);
+    var totalCGST=invs.reduce(function(s,inv){return s+Number(inv.cgst||0);},0);
+    var totalSGST=invs.reduce(function(s,inv){return s+Number(inv.sgst||0);},0);
+    var totalIGST=invs.reduce(function(s,inv){return s+Number(inv.igst||0);},0);
+    var totalTax=totalCGST+totalSGST+totalIGST;
+    var totalInv=invs.reduce(function(s,inv){return s+Number(inv.total||0);},0);
+
+    var sumRow=mk('div');sumRow.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px';
+    function sCard3(label,val,sub){
+      var c=mk('div');c.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px';
+      var l=mk('div');l.style.cssText='font-size:11px;color:#888;font-weight:700;text-transform:uppercase;margin-bottom:4px';l.textContent=label;
+      var v=mk('div');v.style.cssText='font-size:16px;font-weight:800;color:#1e514c';v.textContent=rupee(val);
+      app(c,[l,v]);
+      if(sub){var s2=mk('div');s2.style.cssText='font-size:11px;color:#aaa;margin-top:3px';s2.textContent=sub;c.appendChild(s2);}
+      return c;
+    }
+    app(sumRow,[
+      sCard3('Taxable Value',totalTaxable,invs.length+' invoices'),
+      sCard3('CGST',totalCGST,''),
+      sCard3('SGST',totalSGST,''),
+      sCard3('Total Tax',totalTax,'Payable to Govt')
+    ]);
+    reportWrap.appendChild(sumRow);
+
+    // Sales Register
+    var srTitle=mk('div','section-title','Sales Register');srTitle.style.marginBottom='10px';
+    reportWrap.appendChild(srTitle);
+
+    var srCard=mk('div','card-p0');srCard.style.marginBottom='24px';
+    var srHdr=mk('div');srHdr.style.cssText='display:grid;grid-template-columns:1fr 1.5fr 2fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:10px;font-weight:700;color:#888;text-transform:uppercase';
+    ['Date','Invoice No','Client','Taxable','CGST','SGST','Total'].forEach(function(h){var th=mk('div');th.textContent=h;srHdr.appendChild(th);});
+    srCard.appendChild(srHdr);
+
+    invs.forEach(function(inv){
+      var cl=DB.clients.find(function(c){return c.id===inv.clientId;});
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr 1.5fr 2fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;border-bottom:1px solid #f5f5f5;font-size:12px;align-items:center';
+      [fmtDate(inv.date),inv.gstInvoiceNo||'—',cl?cl.name:inv.clientName||'—',rupee(inv.taxableAmount||0),rupee(inv.cgst||0),rupee(inv.sgst||0),rupee(inv.total||0)]
+        .forEach(function(v,i){var td=mk('div');td.textContent=v;if(i===0)td.style.color='#888';if(i===6)td.style.fontWeight='700';row.appendChild(td);});
+      srCard.appendChild(row);
+    });
+
+    // Total row
+    var totRow=mk('div');totRow.style.cssText='display:grid;grid-template-columns:1fr 1.5fr 2fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;background:#f0fdf4;font-size:12px;font-weight:700;color:#166534';
+    ['','','Total',rupee(totalTaxable),rupee(totalCGST),rupee(totalSGST),rupee(totalInv)]
+      .forEach(function(v){var td=mk('div');td.textContent=v;totRow.appendChild(td);});
+    srCard.appendChild(totRow);
+    reportWrap.appendChild(srCard);
+
+    // GSTR-1 B2C Summary (rate-wise)
+    var g1Title=mk('div','section-title','GSTR-1 B2C Summary (Rate-wise)');g1Title.style.marginBottom='10px';
+    reportWrap.appendChild(g1Title);
+
+    var byRate={};
+    invs.forEach(function(inv){
+      var rate=String(inv.gstRate||0);
+      if(!byRate[rate])byRate[rate]={rate:Number(rate),taxable:0,cgst:0,sgst:0,igst:0,total:0,count:0};
+      byRate[rate].taxable+=Number(inv.taxableAmount||0);
+      byRate[rate].cgst+=Number(inv.cgst||0);
+      byRate[rate].sgst+=Number(inv.sgst||0);
+      byRate[rate].igst+=Number(inv.igst||0);
+      byRate[rate].total+=Number(inv.total||0);
+      byRate[rate].count++;
+    });
+
+    var g1Card=mk('div','card-p0');g1Card.style.marginBottom='24px';
+    var g1Hdr=mk('div');g1Hdr.style.cssText='display:grid;grid-template-columns:1fr 2fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:10px;font-weight:700;color:#888;text-transform:uppercase';
+    ['GST Rate','Invoices','Taxable Value','CGST','SGST','Total Tax'].forEach(function(h){var th=mk('div');th.textContent=h;g1Hdr.appendChild(th);});
+    g1Card.appendChild(g1Hdr);
+
+    Object.keys(byRate).sort().forEach(function(r){
+      var d=byRate[r];
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1fr 2fr 1fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;border-bottom:1px solid #f5f5f5;font-size:12px';
+      [d.rate+'%',d.count+' invoice'+(d.count!==1?'s':''),rupee(d.taxable),rupee(d.cgst),rupee(d.sgst),rupee(d.cgst+d.sgst+d.igst)]
+        .forEach(function(v,i){var td=mk('div');td.textContent=v;if(i===0)td.style.fontWeight='700';row.appendChild(td);});
+      g1Card.appendChild(row);
+    });
+    reportWrap.appendChild(g1Card);
+
+    // Print button
+    var printBtn=mkBtn('Print / Export',function(){
+      var w=window.open('','_blank');
+      w.document.write('<html><head><title>GST Report '+fromDate+' to '+toDate+'</title>');
+      w.document.write('<style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th,td{border:1px solid #ddd;padding:6px 10px;text-align:left}th{background:#f5f5f5;font-weight:700}h2{color:#1e514c}h3{color:#333;margin-top:20px}</style></head><body>');
+      w.document.write('<h2>GST Report — '+fmtDate(fromDate)+' to '+fmtDate(toDate)+'</h2>');
+      w.document.write('<p>Total Taxable: '+rupee(totalTaxable)+' | CGST: '+rupee(totalCGST)+' | SGST: '+rupee(totalSGST)+' | Total Tax: '+rupee(totalTax)+'</p>');
+      w.document.write('<h3>Sales Register</h3><table><tr><th>Date</th><th>Invoice No</th><th>Client</th><th>Taxable</th><th>CGST</th><th>SGST</th><th>Total</th></tr>');
+      invs.forEach(function(inv){
+        var cl=DB.clients.find(function(c){return c.id===inv.clientId;});
+        w.document.write('<tr><td>'+fmtDate(inv.date)+'</td><td>'+(inv.gstInvoiceNo||'—')+'</td><td>'+(cl?cl.name:inv.clientName||'—')+'</td><td>'+rupee(inv.taxableAmount||0)+'</td><td>'+rupee(inv.cgst||0)+'</td><td>'+rupee(inv.sgst||0)+'</td><td>'+rupee(inv.total||0)+'</td></tr>');
+      });
+      w.document.write('<tr style="font-weight:700;background:#f0f0f0"><td colspan="3">Total</td><td>'+rupee(totalTaxable)+'</td><td>'+rupee(totalCGST)+'</td><td>'+rupee(totalSGST)+'</td><td>'+rupee(totalInv)+'</td></tr></table>');
+      w.document.write('</body></html>');
+      w.document.close();w.print();
+    },'btn btn-sm');
+    printBtn.style.marginTop='8px';
+    reportWrap.appendChild(printBtn);
+  }
+
+  function renderGSTContent(tab){
+    var cw=document.getElementById('gst-content');if(!cw)return;
+    cw.innerHTML='';
+    if(tab==='settings')renderSettingsTab(cw);
+    else if(tab==='services')renderServicesTab(cw);
+    else if(tab==='reports')renderReportsTab(cw);
+  }
+
+  setTimeout(function(){setTab('settings');},0);
+  return wrap;
+}
+
+// Service add/edit modal
+function openServiceModal(id){
+  var s=id?DB.services.find(function(x){return x.id===id;}):null;
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',s?'Edit Service':'Add Service'));
+  var nameInp=mkInput('svc-name','text','e.g. Silk Lehenga Stitching',s?s.name||'':'');
+  var hsnInp=mkInput('svc-hsn','text','e.g. 6211 or 9988',s?s.hsn||'':'');
+  var typeOpts=[{value:'HSN',label:'HSN (Goods)'},{value:'SAC',label:'SAC (Service)'}];
+  var typeSel=mkSelect('svc-hsntype',typeOpts,s?s.hsnType||'HSN':'HSN');
+  var rateOpts=[{value:'0',label:'0%'},{value:'5',label:'5%'},{value:'12',label:'12%'},{value:'18',label:'18%'}];
+  var rateSel=mkSelect('svc-rate',rateOpts,s?String(s.gstRate||0):'5');
+  var descInp=mkInput('svc-desc','text','Optional description',s?s.description||'':'');
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+  app(wrap,[
+    mkFg('Service name *',nameInp),
+    mkFg('HSN / SAC Code',hsnInp),
+    mkFg('Code Type',typeSel),
+    mkFg('GST Rate',rateSel),
+    mkFg('Description (optional)',descInp),
+    err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn('Save',function(){
+        var name=(document.getElementById('svc-name')||{}).value.trim();
+        if(!name){err.textContent='Service name is required.';return;}
+        dbSave('services',{
+          id:s?s.id:uid(),
+          name:name,
+          hsn:(document.getElementById('svc-hsn')||{}).value.trim(),
+          hsnType:(document.getElementById('svc-hsntype')||{}).value||'HSN',
+          gstRate:Number((document.getElementById('svc-rate')||{}).value||0),
+          description:(document.getElementById('svc-desc')||{}).value.trim(),
+          created:s?s.created:Date.now()
+        });
+        closeModal();
+      },'btn btn-primary')
+    ])
+  ]);
+  showM(wrap,true);
+}
+
+// ══════════════════════════════════════════════════════════════
+// END GST MODULE
+// ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
 // EMBROIDERY ATTENDANCE MODULE
@@ -9815,15 +10201,51 @@ function createInvoiceFromQuotation(qid){
           return Object.assign({},svc,{refImages:images});
         });
 
+        // GST Calculation
+        var gstCfg=getGSTConfig();
+        var gstEnabled=!!gstCfg.gstEnabled;
+        var gstInvoiceNo='';
+        var taxableAmount=0,cgst=0,sgst=0,igst=0,gstRate=0;
+
+        if(gstEnabled){
+          // Get GST rate from first service (or default 5%)
+          var firstSvc=services[0];
+          var svcRecord=firstSvc&&firstSvc.serviceId?DB.services.find(function(s){return s.id===firstSvc.serviceId;}):null;
+          // Try matching by name
+          if(!svcRecord&&firstSvc)svcRecord=DB.services.find(function(s){return s.name===firstSvc.name;});
+          gstRate=svcRecord?Number(svcRecord.gstRate||5):5;
+
+          taxableAmount=Math.round(total*100)/100; // GST exclusive — total is base price
+          var clientState=cl?cl.state||'27':'27';
+          var interState=clientState!=='27'&&clientState!==(gstCfg.stateCode||'27');
+          if(interState){
+            igst=Math.round(taxableAmount*gstRate)/100;
+          } else {
+            cgst=Math.round(taxableAmount*gstRate/2)/100;
+            sgst=Math.round(taxableAmount*gstRate/2)/100;
+          }
+          var gstTotal=cgst+sgst+igst;
+          total=Math.round((taxableAmount+gstTotal)*100)/100;
+
+          // Generate sequential invoice number
+          gstInvoiceNo=getNextInvoiceNo();
+          incrementInvoiceCounter();
+          invoiceNo=gstInvoiceNo;
+        }
+
         var inv={
           id:uid(),
           invoiceNo:invoiceNo,
+          gstInvoiceNo:gstInvoiceNo,
+          gstEnabled:gstEnabled,
           quotationId:qid,
           linkedOrderId:q.linkedOrderId||'',
           linkedOrderNo:linkedOrder?linkedOrder.orderNo||'':'',
           clientId:q.clientId||'',
           clientName:cl?cl.name:q.clientName||'',
           clientPhone:cl?(cl.phone||''):'',
+          clientState:cl?cl.state||'27':'27',
+          clientGstin:cl?cl.gstin||'':'',
           date:now.toISOString().split('T')[0],
           services:servicesWithImages,
           travelCharge:q.travelCharge||'',
@@ -9831,6 +10253,11 @@ function createInvoiceFromQuotation(qid){
           discountVal:discVal,
           subtotal:subtotal,
           discountAmt:discAmt,
+          taxableAmount:gstEnabled?taxableAmount:total,
+          gstRate:gstEnabled?gstRate:0,
+          cgst:cgst,
+          sgst:sgst,
+          igst:igst,
           total:total,
           advancePaid:0,
           payments:[],
@@ -9845,7 +10272,7 @@ function createInvoiceFromQuotation(qid){
         dbSave('quotations',Object.assign({},q,{linkedInvoiceId:inv.id}));
         closeModal();
         nav('invoices');
-        alert('Invoice '+invoiceNo+' created!');
+        alert('Invoice '+invoiceNo+' created!'+(gstEnabled?' (GST: CGST '+rupee(cgst)+' + SGST '+rupee(sgst)+')':''));
       },'btn btn-primary')
     ])
   ]);
