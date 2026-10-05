@@ -3862,10 +3862,18 @@ function pgEmbroidery(){
     reportWrap.appendChild(orderHdr);
 
     // Get all attendance records for this order
-    // Prefer split records (item-level) over main records
-    var splitRecords=DB.embAttendance.filter(function(a){return a.orderId===orderId&&a.isSplit;});
-    var mainRecords=DB.embAttendance.filter(function(a){return a.orderId===orderId&&!a.isSplit;});
-    var attRecords=(splitRecords.length?splitRecords:mainRecords)
+    // Logic: for each day+worker combination:
+    //   - If split records exist for that day+worker → use split records (they have per-item hours)
+    //   - If no split records → use main record (full hours assigned to this order)
+    var allForOrder=DB.embAttendance.filter(function(a){return a.orderId===orderId;});
+    var splitRecords=allForOrder.filter(function(a){return a.isSplit;});
+    // Get main records only for workers/days that have NO split records
+    var splitKeys={};
+    splitRecords.forEach(function(a){splitKeys[a.date+'_'+a.workerId]=true;});
+    var mainRecords=allForOrder.filter(function(a){
+      return !a.isSplit&&!a.parentId&&!splitKeys[a.date+'_'+a.workerId];
+    });
+    var attRecords=splitRecords.concat(mainRecords)
       .sort(function(a,b){return a.date.localeCompare(b.date);});
     if(!attRecords.length){
       var noAtt=mk('div','card-p0');noAtt.appendChild(mk('div','empty','No embroidery time logged for this order yet.'));
