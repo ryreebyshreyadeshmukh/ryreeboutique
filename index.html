@@ -3355,7 +3355,7 @@ function pgEmbroidery(){
 
     var hoursDisplays={};
     workers.forEach(function(w){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:12px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:14px 16px;border-bottom:2px solid #e0e0e0;align-items:start;background:#fff';
       var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';nameCell.textContent=w.name;
 
       // 12hr time selectors
@@ -3818,7 +3818,6 @@ function pgEmbroidery(){
 
   // ── GARMENT REPORT TAB ──────────────────────────────────────────
   function renderGarmentReportTab(cw){
-    // Order selector
     var activeOrders=DB.orders.filter(function(o){return o.status!=='Cancelled';})
       .sort(function(a,b){return (b.created||0)-(a.created||0);});
 
@@ -3826,24 +3825,81 @@ function pgEmbroidery(){
       var noO=mk('div','card-p0');noO.appendChild(mk('div','empty','No orders found.'));cw.appendChild(noO);return;
     }
 
-    var selRow=mk('div');selRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap';
-    var selLabel=mk('div');selLabel.style.cssText='font-size:13px;font-weight:600;color:#555';selLabel.textContent='Select Order:';
-    var orderOpts=activeOrders.map(function(o){
-      var cl=DB.clients.find(function(c){return c.id===o.clientId;});
-      return {value:o.id,label:(cl?cl.name+' · ':'')+o.item+(o.orderNo?' ('+o.orderNo+')':'')};
-    });
-    var orderSel2=mkSelect('emb-garment-order',orderOpts,activeOrders[0]?activeOrders[0].id:'');
-    orderSel2.style.cssText='flex:1;max-width:400px';
+    // Client search → filtered orders
+    var selRow=mk('div');selRow.style.cssText='display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end';
+
+    // Client search
+    var d1Wrap=mk('div');d1Wrap.style.cssText='position:relative;flex:1;min-width:180px;max-width:260px';
+    var d1Lbl=mk('div');d1Lbl.style.cssText='font-size:11px;font-weight:600;color:#888;margin-bottom:4px';d1Lbl.textContent='CLIENT';
+    var d1Inp=mk('input');d1Inp.type='text';d1Inp.placeholder='Search client...';
+    d1Inp.style.cssText='width:100%;padding:7px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:6px;box-sizing:border-box';
+    var d1Drop=mk('div');d1Drop.style.cssText='display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #e0e0e0;border-radius:6px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:2px';
+    app(d1Wrap,[d1Lbl,d1Inp,d1Drop]);
+
+    // Order dropdown
+    var d2Wrap=mk('div');d2Wrap.style.cssText='flex:1;min-width:220px;max-width:360px';
+    var d2Lbl=mk('div');d2Lbl.style.cssText='font-size:11px;font-weight:600;color:#888;margin-bottom:4px';d2Lbl.textContent='ORDER';
+    var d2Sel=mk('select');d2Sel.id='emb-garment-order';
+    d2Sel.style.cssText='width:100%;padding:7px 8px;font-size:13px;border:1px solid #e0e0e0;border-radius:6px;color:#555;background:#fff';
+    d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select order —';return o;})());
+    app(d2Wrap,[d2Lbl,d2Sel]);
+
     var viewBtn=mkBtn('View Report',function(){
-      var oid=(document.getElementById('emb-garment-order')||{}).value;
+      var oid=d2Sel.value;
       if(oid)renderGarmentReport(oid,reportWrap);
+      else alert('Please select an order.');
     },'btn btn-primary btn-sm');
-    app(selRow,[selLabel,orderSel2,viewBtn]);
+    viewBtn.style.alignSelf='flex-end';
+
+    // Get unique clients with orders
+    var clientIds=[];
+    activeOrders.forEach(function(o){if(clientIds.indexOf(o.clientId)<0)clientIds.push(o.clientId);});
+    var clients=clientIds.map(function(cid){return DB.clients.find(function(c){return c.id===cid;});})
+      .filter(Boolean).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+
+    var selectedClientId='';
+
+    function populateOrders(clientId){
+      while(d2Sel.options.length>0)d2Sel.remove(0);
+      d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select order —';return o;})());
+      if(!clientId)return;
+      var cOrds=activeOrders.filter(function(o){return o.clientId===clientId;});
+      cOrds.forEach(function(o){
+        var opt=mk('option');opt.value=o.id;
+        opt.textContent=o.item+(o.orderNo?' ('+o.orderNo+')':'');
+        d2Sel.appendChild(opt);
+      });
+      // Auto-select if only one order
+      if(cOrds.length===1){d2Sel.selectedIndex=1;renderGarmentReport(cOrds[0].id,reportWrap);}
+    }
+
+    function showClientDrop(q){
+      d1Drop.innerHTML='';
+      var filtered=clients.filter(function(c){return !q||c.name.toLowerCase().indexOf(q.toLowerCase())>-1;});
+      if(!filtered.length){var nr=mk('div');nr.style.cssText='padding:10px;font-size:12px;color:#aaa';nr.textContent='No clients found';d1Drop.appendChild(nr);}
+      filtered.forEach(function(cl){
+        var cnt=activeOrders.filter(function(o){return o.clientId===cl.id;}).length;
+        var opt=mk('div');opt.style.cssText='padding:10px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center';
+        var nm=mk('span');nm.style.fontWeight='500';nm.textContent=cl.name;
+        var sub=mk('span');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=cnt+' order'+(cnt!==1?'s':'');
+        app(opt,[nm,sub]);
+        opt.onmouseover=function(){this.style.background='#f0fdf4';};opt.onmouseout=function(){this.style.background='';};
+        opt.onmousedown=function(e){
+          e.preventDefault();d1Inp.value=cl.name;d1Drop.style.display='none';
+          selectedClientId=cl.id;populateOrders(cl.id);
+        };
+        d1Drop.appendChild(opt);
+      });
+      d1Drop.style.display='block';
+    }
+    d1Inp.oninput=function(){showClientDrop(this.value);};
+    d1Inp.onfocus=function(){showClientDrop(this.value);};
+    d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
+
+    app(selRow,[d1Wrap,d2Wrap,viewBtn]);
     cw.appendChild(selRow);
 
     var reportWrap=mk('div');cw.appendChild(reportWrap);
-    // Auto-load first order
-    if(activeOrders[0])renderGarmentReport(activeOrders[0].id,reportWrap);
   }
 
   function renderGarmentReport(orderId,reportWrap){
@@ -3929,8 +3985,8 @@ function pgEmbroidery(){
 
     // Per worker breakdown
     var card=mk('div','card-p0');
-    var hdr2=mk('div');hdr2.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr'+(isAssistant()?'':'  1fr')+';gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
-    var hCols=['Worker','Days','Hours'];
+    var hdr2=mk('div');hdr2.style.cssText='display:grid;grid-template-columns:2fr 1fr'+(isAssistant()?'':' 1fr')+';gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
+    var hCols=['Worker','Hours'];
     if(!isAssistant())hCols.push('Cost');
     hCols.forEach(function(h){var th=mk('div');th.textContent=h;hdr2.appendChild(th);});
     card.appendChild(hdr2);
@@ -3943,10 +3999,9 @@ function pgEmbroidery(){
       var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr'+(isAssistant()?'':'  1fr')+';gap:8px;padding:11px 16px;border-bottom:1px solid #f5f5f5;align-items:center;cursor:pointer';
 
       var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=wd.name;
-      var dy=mk('div');dy.style.cssText='font-size:13px;color:#555';dy.textContent=wd.records.length+'d';
       var hr=mk('div');hr.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';hr.textContent=hrs+'h';
 
-      var cells=[nm,dy,hr];
+      var cells=[nm,hr];
       if(!isAssistant()&&worker&&worker.ratePerHour){
         var cost=Math.round(hrs*Number(worker.ratePerHour));
         var co=mk('div');co.style.cssText='font-size:13px;font-weight:700;color:#166534';co.textContent=rupee(cost);
@@ -3976,9 +4031,10 @@ function pgEmbroidery(){
     });
 
     // Total row
-    var totRow=mk('div');totRow.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr'+(isAssistant()?'':'  1fr')+';gap:8px;padding:12px 16px;background:#f0fdf4;font-size:13px;font-weight:700;color:#166534';
-    var tCols=[mk('div'),mk('div'),mk('div')];
-    tCols[0].textContent='Total';tCols[2].textContent=totalHoursAll+'h';
+    var totRow=mk('div');totRow.style.cssText='display:grid;grid-template-columns:2fr 1fr'+(isAssistant()?'':' 1fr')+';gap:8px;padding:12px 16px;background:#f0fdf4;font-size:13px;font-weight:700;color:#166534';
+    var tCols=[mk('div'),mk('div')];
+    tCols[0].textContent='Total';tCols[1].textContent=totalHoursAll+'h';
+    tCols[0].style.fontWeight='700';tCols[1].style.fontWeight='700';
     if(!isAssistant()){
       var totalCost=Object.keys(byWorker).reduce(function(s,wid){
         var wd=byWorker[wid];var w=DB.embWorkers.find(function(x){return x.id===wid;});
