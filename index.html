@@ -40,8 +40,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 .logo{padding:8px 16px 10px;border-bottom:1px solid rgba(201,168,76,.25);margin-bottom:8px;text-align:center;user-select:none;cursor:default}
 .logo-name{font-size:20px;font-weight:700;color:#C9A84C;letter-spacing:.04em}
 .logo-sub{font-size:10px;color:rgba(201,168,76,.6);margin-top:4px}
-.nav-section{padding:10px 14px 3px;font-size:10px;letter-spacing:.08em;color:rgba(201,168,76,.45);text-transform:uppercase;font-weight:600}
-.nav-item{display:flex;align-items:center;gap:9px;padding:8px 16px;cursor:pointer;border-radius:7px;margin:1px 8px;font-size:13px;color:rgba(255,255,255,.75);transition:background .12s;user-select:none;-webkit-user-select:none}
+.nav-section{padding:8px 14px 2px;font-size:9.5px;letter-spacing:.08em;color:rgba(201,168,76,.45);text-transform:uppercase;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;border-radius:6px;margin:1px 6px;font-size:12.5px;color:rgba(255,255,255,.75);transition:background .12s;user-select:none;-webkit-user-select:none}
 .nav-item:hover{background:rgba(255,255,255,.1)}
 .nav-item.active{background:rgba(201,168,76,.18);color:#C9A84C;font-weight:600}
 .nav-item.active .ni{opacity:1;stroke:#C9A84C}
@@ -193,32 +193,42 @@ textarea.form-input{resize:vertical}
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/></svg>Lead Bank
     </div>
 
-    <div class="nav-section">Finance</div>
-    <div class="nav-item" id="nav-expenses" data-page="expenses">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
+    <div class="nav-section nav-collapsible-toggle" id="nav-finance-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding-right:16px;user-select:none">
+      <span>Finance</span>
+      <svg id="nav-finance-arrow" viewBox="0 0 16 16" fill="none" stroke="rgba(201,168,76,.45)" stroke-width="2" style="width:11px;height:11px;transition:transform .2s;transform:rotate(-90deg)"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="nav-item" id="nav-pl" data-page="pl">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L6 7l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2"/></svg>P&amp;L
-    </div>
-    <div class="nav-item" id="nav-dues" data-page="dues">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Dues
-    </div>
-    <div class="nav-item" id="nav-gst" data-page="gst">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l2-2h8l2 2"/><path d="M6 8h4M8 6v4" stroke-linecap="round"/></svg>GST
+    <div id="nav-finance-group" style="display:none">
+      <div class="nav-item" id="nav-expenses" data-page="expenses">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
+      </div>
+      <div class="nav-item" id="nav-pl" data-page="pl">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L6 7l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2"/></svg>P&amp;L
+      </div>
+      <div class="nav-item" id="nav-dues" data-page="dues">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Dues
+      </div>
+      <div class="nav-item" id="nav-gst" data-page="gst">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l2-2h8l2 2"/><path d="M6 8h4M8 6v4" stroke-linecap="round"/></svg>GST
+      </div>
     </div>
 
-    <div class="nav-section">Operations</div>
-    <div class="nav-item" id="nav-embroidery" data-page="embroidery">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
+    <div class="nav-section nav-collapsible-toggle" id="nav-ops-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding-right:16px;user-select:none">
+      <span>Operations</span>
+      <svg id="nav-ops-arrow" viewBox="0 0 16 16" fill="none" stroke="rgba(201,168,76,.45)" stroke-width="2" style="width:11px;height:11px;transition:transform .2s;transform:rotate(-90deg)"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="nav-item" id="nav-tasks" data-page="tasks">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
-    </div>
-    <div class="nav-item" id="nav-collabs" data-page="collabs">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h8m0 0l-3-3m3 3l-3 3M14 4v8" stroke-linecap="round" stroke-linejoin="round"/></svg>Collabs
-    </div>
-    <div class="nav-item" id="nav-estimator" data-page="estimator">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
+    <div id="nav-ops-group" style="display:none">
+      <div class="nav-item" id="nav-embroidery" data-page="embroidery">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
+      </div>
+      <div class="nav-item" id="nav-tasks" data-page="tasks">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
+      </div>
+      <div class="nav-item" id="nav-collabs" data-page="collabs">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h8m0 0l-3-3m3 3l-3 3M14 4v8" stroke-linecap="round" stroke-linejoin="round"/></svg>Collabs
+      </div>
+      <div class="nav-item" id="nav-estimator" data-page="estimator">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
+      </div>
     </div>
 
     <div class="nav-section nav-settings-toggle" id="nav-settings-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding-right:16px;user-select:none">
@@ -261,18 +271,23 @@ textarea.form-input{resize:vertical}
       </div>
     </div>
 
-    <div class="nav-section">Trading</div>
-    <div class="nav-item" style="opacity:0.35;pointer-events:none">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V6l6-3 6 3v5"/><path d="M8 3v5M2 6l6 3 6-3"/><rect x="5" y="9" width="6" height="5" rx="1"/></svg>Products
+    <div class="nav-section nav-collapsible-toggle" id="nav-trading-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding-right:16px;user-select:none;opacity:0.5">
+      <span>Trading</span>
+      <svg id="nav-trading-arrow" viewBox="0 0 16 16" fill="none" stroke="rgba(201,168,76,.45)" stroke-width="2" style="width:11px;height:11px;transition:transform .2s;transform:rotate(-90deg)"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <div class="nav-item" style="opacity:0.35;pointer-events:none">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v1"/><path d="M8 8v3M6.5 9.5h3" stroke-linecap="round"/></svg>Billing
-    </div>
-    <div class="nav-item" style="opacity:0.35;pointer-events:none">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M4 6l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke-linecap="round"/></svg>Purchases
-    </div>
-    <div class="nav-item" style="opacity:0.35;pointer-events:none">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v6l-6 3-6-3V5z"/><path d="M8 2v12M2 5l6 3 6-3"/></svg>Stock
+    <div id="nav-trading-group" style="display:none">
+      <div class="nav-item" style="opacity:0.35;pointer-events:none">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V6l6-3 6 3v5"/><path d="M8 3v5M2 6l6 3 6-3"/><rect x="5" y="9" width="6" height="5" rx="1"/></svg>Products
+      </div>
+      <div class="nav-item" style="opacity:0.35;pointer-events:none">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v1"/><path d="M8 8v3M6.5 9.5h3" stroke-linecap="round"/></svg>Billing
+      </div>
+      <div class="nav-item" style="opacity:0.35;pointer-events:none">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M4 6l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke-linecap="round"/></svg>Purchases
+      </div>
+      <div class="nav-item" style="opacity:0.35;pointer-events:none">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v6l-6 3-6-3V5z"/><path d="M8 2v12M2 5l6 3 6-3"/></svg>Stock
+      </div>
     </div>
 
     <div style="flex:1"></div>
@@ -369,24 +384,53 @@ document.querySelectorAll('.nav-item').forEach(function(el){
   el.onclick=function(){nav(this.getAttribute('data-page'));};
 });
 
-// Settings collapsible toggle
-var settingsToggle=document.getElementById('nav-settings-toggle');
-var settingsGroup=document.getElementById('nav-settings-group');
-var settingsArrow=document.getElementById('nav-settings-arrow');
-if(settingsToggle){
-  settingsToggle.onclick=function(){
-    var isOpen=settingsGroup.style.display!=='none';
-    settingsGroup.style.display=isOpen?'none':'block';
-    settingsArrow.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+// Generic collapsible section toggle
+function initCollapsible(toggleId, groupId, arrowId){
+  var toggle=document.getElementById(toggleId);
+  var group=document.getElementById(groupId);
+  var arrow=document.getElementById(arrowId);
+  if(!toggle||!group)return;
+  toggle.onclick=function(){
+    var isOpen=group.style.display!=='none';
+    group.style.display=isOpen?'none':'block';
+    if(arrow)arrow.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
   };
 }
 
-// Auto-expand settings if a settings page is active
+initCollapsible('nav-settings-toggle','nav-settings-group','nav-settings-arrow');
+initCollapsible('nav-finance-toggle','nav-finance-group','nav-finance-arrow');
+initCollapsible('nav-ops-toggle','nav-ops-group','nav-ops-arrow');
+initCollapsible('nav-trading-toggle','nav-trading-group','nav-trading-arrow');
+
+// Auto-expand the right section when navigating to a page
 function expandSettingsIfNeeded(page){
-  var settingsPages=['services','staff','vendors','clothing','measitems','tctemplates','tasktemplates','questionnaire','inventory','estsettings'];
-  if(settingsPages.indexOf(page)>-1&&settingsGroup&&settingsGroup.style.display==='none'){
-    settingsGroup.style.display='block';
-    if(settingsArrow)settingsArrow.style.transform='rotate(0deg)';
+  var map={
+    // Settings pages
+    services:'settings',staff:'settings',vendors:'settings',clothing:'settings',
+    measitems:'settings',tctemplates:'settings',tasktemplates:'settings',
+    questionnaire:'settings',inventory:'settings',estsettings:'settings',appsettings:'settings',
+    // Finance pages
+    expenses:'finance',pl:'finance',dues:'finance',gst:'finance',
+    // Operations pages
+    embroidery:'ops',tasks:'ops',collabs:'ops',estimator:'ops',
+    // Trading pages
+    trProducts:'trading',trBilling:'trading',trPurchases:'trading',trStock:'trading'
+  };
+  var section=map[page];
+  if(!section)return;
+  var groups={
+    settings:{group:'nav-settings-group',arrow:'nav-settings-arrow'},
+    finance:{group:'nav-finance-group',arrow:'nav-finance-arrow'},
+    ops:{group:'nav-ops-group',arrow:'nav-ops-arrow'},
+    trading:{group:'nav-trading-group',arrow:'nav-trading-arrow'}
+  };
+  var g=groups[section];
+  if(!g)return;
+  var grp=document.getElementById(g.group);
+  var arr=document.getElementById(g.arrow);
+  if(grp&&grp.style.display==='none'){
+    grp.style.display='block';
+    if(arr)arr.style.transform='rotate(0deg)';
   }
 }
 
