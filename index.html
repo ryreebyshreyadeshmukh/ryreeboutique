@@ -863,7 +863,21 @@ function nav(p){
   var allowedForAssistant=['leads','appointments','clients','orders','dashboard','embroidery'];
   // appsettings requires canFull('settings') — handled in updateNavForUser
   var settingsNavIds=['nav-services','nav-staff','nav-vendors','nav-clothing','nav-measitems','nav-tctemplates','nav-tasktemplates','nav-questionnaire','nav-inventory','nav-estsettings'];
-  if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
+  // Old system: Sanika via assistantPassword
+  var _role=sessionStorage.getItem('ryree_role')||'admin';
+  if(_role==='assistant'&&allowedForAssistant.indexOf(p)===-1){p='dashboard';}
+  // New system: staff via PIN — check canView
+  if(_role==='staff'&&_currentUser){
+    var _modMap={expenses:'expenses',pl:'pl',dues:'dues',gst:'gst',
+      quotations:'quotations',invoices:'invoices',collabs:'collabs',
+      estimator:'estimator',inventory:'inventory',appsettings:'settings',
+      services:'settings',staff:'settings',vendors:'settings',clothing:'settings',
+      measitems:'settings',tctemplates:'settings',tasktemplates:'settings',
+      questionnaire:'settings',estsettings:'settings'};
+    var _modKey=_modMap[p]||p;
+    var _hasAccess=_modKey==='settings'?canFull('settings'):canView(_modKey);
+    if(!_hasAccess)p='dashboard';
+  }
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
   if(typeof expandSettingsIfNeeded==='function')expandSettingsIfNeeded(page);
@@ -4087,40 +4101,70 @@ function hidePinScreen(){
 }
 
 function updateNavForUser(){
-  // Show/hide nav items based on permissions
-  if(isAdmin()){
+  // DUAL SYSTEM: old (isAssistant) + new (RBAC via _currentUser)
+
+  // Case 1: Admin (Shreya) — show everything
+  var role=sessionStorage.getItem('ryree_role')||'admin';
+  if(role==='admin'){
     document.querySelectorAll('.nav-item[data-page]').forEach(function(el){el.style.display='';});
     document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='';});
-    var sg=document.getElementById('nav-settings-group');if(sg)sg.style.display='';
-    // Show settings toggle
+    var sg=document.getElementById('nav-settings-group');if(sg)sg.style.display='none'; // collapsed by default
     var st=document.getElementById('nav-settings-toggle');if(st)st.style.display='';
     return;
   }
 
-  // Staff — hide modules they can't access
-  var allModules={
-    dashboard:'dashboard',clients:'clients',orders:'orders',
-    appointments:'appointments',quotations:'quotations',invoices:'invoices',
-    leads:'leads',expenses:'expenses',pl:'pl',dues:'dues',gst:'gst',
-    embroidery:'embroidery',tasks:'tasks',collabs:'collabs',
-    estimator:'estimator',inventory:'inventory',
-    services:'settings',staff:'settings',vendors:'settings',
-    clothing:'settings',measitems:'settings',tctemplates:'settings',
-    tasktemplates:'settings',questionnaire:'settings',estsettings:'settings'
-  };
+  // Case 2: Old assistant system (Sanika via assistantPassword)
+  if(role==='assistant'){
+    var allowedOld=['dashboard','clients','orders','appointments','leads','embroidery','tasks'];
+    document.querySelectorAll('.nav-item[data-page]').forEach(function(el){
+      var page=el.getAttribute('data-page');
+      el.style.display=allowedOld.indexOf(page)>-1?'':'none';
+    });
+    // Hide settings sections
+    var st2=document.getElementById('nav-settings-toggle');if(st2)st2.style.display='none';
+    var sg2=document.getElementById('nav-settings-group');if(sg2)sg2.style.display='none';
+    // Hide finance and trading sections
+    document.querySelectorAll('.nav-section').forEach(function(el){
+      var txt=el.textContent.trim();
+      el.style.display=(txt==='Boutique'||txt==='Operations')?'':'none';
+    });
+    return;
+  }
 
-  document.querySelectorAll('.nav-item[data-page]').forEach(function(el){
-    var page=el.getAttribute('data-page');
-    var modKey=allModules[page]||page;
-    var hasAccess=modKey==='settings'?canFull('settings'):canView(modKey);
-    el.style.display=hasAccess?'':'none';
-  });
-
-  // Hide settings section entirely if no settings access
-  var settingsToggle=document.getElementById('nav-settings-toggle');
-  var settingsGroup=document.getElementById('nav-settings-group');
-  if(settingsToggle) settingsToggle.style.display=canFull('settings')?'':'none';
-  if(settingsGroup) settingsGroup.style.display='none'; // always collapsed for staff
+  // Case 3: New RBAC staff (PIN login, _currentUser set)
+  if(role==='staff'&&_currentUser){
+    var allModules={
+      dashboard:'dashboard',clients:'clients',orders:'orders',
+      appointments:'appointments',quotations:'quotations',invoices:'invoices',
+      leads:'leads',expenses:'expenses',pl:'pl',dues:'dues',gst:'gst',
+      embroidery:'embroidery',tasks:'tasks',collabs:'collabs',
+      estimator:'estimator',inventory:'inventory',appsettings:'settings',
+      services:'settings',staff:'settings',vendors:'settings',
+      clothing:'settings',measitems:'settings',tctemplates:'settings',
+      tasktemplates:'settings',questionnaire:'settings',estsettings:'settings'
+    };
+    document.querySelectorAll('.nav-item[data-page]').forEach(function(el){
+      var page=el.getAttribute('data-page');
+      var modKey=allModules[page]||page;
+      var hasAccess=modKey==='settings'?canFull('settings'):canView(modKey);
+      el.style.display=hasAccess?'':'none';
+    });
+    var settingsToggle=document.getElementById('nav-settings-toggle');
+    var settingsGroup=document.getElementById('nav-settings-group');
+    if(settingsToggle)settingsToggle.style.display=canFull('settings')?'':'none';
+    if(settingsGroup)settingsGroup.style.display='none';
+    // Hide nav sections with no visible items
+    document.querySelectorAll('.nav-section').forEach(function(sec){
+      if(sec.id==='nav-settings-toggle')return;
+      var next=sec.nextElementSibling;
+      var hasVisible=false;
+      while(next&&!next.classList.contains('nav-section')){
+        if(next.style.display!=='none'&&next.getAttribute('data-page'))hasVisible=true;
+        next=next.nextElementSibling;
+      }
+      sec.style.display=hasVisible?'':'none';
+    });
+  }
 }
 // ── END PIN SCREEN ────────────────────────────────────────────
 
@@ -8354,8 +8398,9 @@ function canView(mod){ return !!accessLevel(mod); }
 function canEdit(mod){ var l=accessLevel(mod); return l==='entry'||l==='full'; }
 function canFull(mod){ return accessLevel(mod)==='full'; }
 
-// Legacy compatibility — keep isAssistant() working
-function isAssistant(){ return !isAdmin(); }
+// isAssistant() is defined earlier via sessionStorage (old system)
+// New staff use canView/canEdit/canFull via _currentUser
+// Both systems coexist until full RBAC migration
 
 function resetSessionTimer(){
   if(_sessionTimer) clearTimeout(_sessionTimer);
@@ -8382,16 +8427,23 @@ function saveSession(user){
 }
 
 function restoreSession(){
+  // First check old sessionStorage system (Shreya + Sanika)
+  var oldRole=sessionStorage.getItem('ryree_auth');
+  if(oldRole==='1'){
+    var role=sessionStorage.getItem('ryree_role')||'admin';
+    if(role==='admin'){ _currentUser=null; return true; }
+    if(role==='assistant'){ _currentUser=null; return true; } // old system, isAssistant() handles
+    // role==='staff' — check localStorage session
+  }
+  // Check new PIN session
   try{
     var s=JSON.parse(localStorage.getItem('ryree_session')||'null');
     if(!s) return false;
-    // Check if session expired
-    if(Date.now()-s.timestamp > SESSION_TIMEOUT) {
+    if(Date.now()-s.timestamp > SESSION_TIMEOUT){
       localStorage.removeItem('ryree_session');
       return false;
     }
     if(s.userId==='admin'){ _currentUser=null; return true; }
-    // Find staff member
     var staff=DB.staff.find(function(x){return x.id===s.userId;});
     if(staff){ _currentUser=staff; resetSessionTimer(); return true; }
     return false;
