@@ -4539,7 +4539,7 @@ function pgEmbroidery(){
             var newSel=document.createElement('select');
             newSel.className='emb-comp-sel-'+w.id;
             newSel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff';
-            var optHtml='<option value="">— Select component —</option>';
+            var optHtml='<option value="">— Select piece —</option>';
             comps.forEach(function(c){
               var safe=c.replace(/"/g,'&quot;');
               optHtml+='<option value="'+safe+'"'+(c===existingComp?' selected':'')+'>'+c+'</option>';
@@ -4552,7 +4552,7 @@ function pgEmbroidery(){
             var inp=document.createElement('input');
             inp.type='text';
             inp.className='emb-comp-inp-'+w.id;
-            inp.placeholder='e.g. Blouse, Saree body...';
+            inp.placeholder='e.g. Blouse, Saree body, Veil...';
             inp.value=existingComp||'';
             inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
             d3Wrap.appendChild(inp);
@@ -4589,9 +4589,16 @@ function pgEmbroidery(){
             var preCl=DB.clients.find(function(c){return c.id===preOrd.clientId;});
             if(preCl)d1Inp.value=preCl.name;
             populateGarments(preOrd.clientId,assignment.orderId,assignment.itemIndex||0,assignment.component||'');
+            // Pre-select piece after showD3 renders the dropdown
+            if(assignment.component){
+              setTimeout(function(){
+                var pSel=d3Wrap.querySelector('select');
+                if(pSel){for(var _i=0;_i<pSel.options.length;_i++){if(pSel.options[_i].value===assignment.component){pSel.selectedIndex=_i;break;}}}
+                else{var pInp=d3Wrap.querySelector('input[type=text]');if(pInp)pInp.value=assignment.component;}
+              },200);
+            }
           }
         }
-
         // Client search
         function showDrop1(q){
           d1Drop.innerHTML='';
@@ -4643,7 +4650,7 @@ function pgEmbroidery(){
 
       var rowCounter=0;
       existingAssignments.forEach(function(a){splitWrap.appendChild(buildAssignmentRow(a,rowCounter++));});
-      var addSplitBtn=mk('button');addSplitBtn.textContent='+ Split day across another garment';
+      var addSplitBtn=mk('button');addSplitBtn.textContent='+ Split day across another piece';
       addSplitBtn.style.cssText='background:none;border:1px dashed #2D6B5E;color:#2D6B5E;font-size:10px;padding:3px 8px;border-radius:4px;cursor:pointer;width:100%;margin-top:4px';
       addSplitBtn.onclick=function(){splitWrap.insertBefore(buildAssignmentRow({},rowCounter++),addSplitBtn);};
       splitWrap.appendChild(addSplitBtn);
