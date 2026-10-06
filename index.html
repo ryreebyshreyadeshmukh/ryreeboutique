@@ -8391,6 +8391,39 @@ function pgEstSettings(){
   },'btn btn-sm');
   app(seedRow,[seedTxt,seedBtn]);wrap.appendChild(seedRow);
 
+
+  // ── SNAPSHOT REPAIR TOOL ────────────────────────────────────
+  var repairSec=mk('div');repairSec.style.cssText='margin-top:20px;padding:16px;background:#fffbeb;border-radius:8px;border:1px solid #fde68a';
+  var repairTitle=mk('div');repairTitle.style.cssText='font-size:13px;font-weight:700;color:#92400E;margin-bottom:4px';repairTitle.textContent='Snapshot Repair';
+  var repairSub=mk('div');repairSub.style.cssText='font-size:12px;color:#B45309;margin-bottom:12px';
+  repairSub.textContent='If pieces shown on orders look wrong, click this to sync all snapshots with their current ensemble type pieces.';
+  var repairLog=mk('div');repairLog.style.cssText='font-size:12px;color:#166534;min-height:18px;margin-top:8px';
+  var repairBtn=mkBtn('Sync All Snapshots',function(){
+    repairLog.textContent='Scanning...';
+    repairBtn.disabled=true;
+    var garments=getEstGarments();
+    var fixed=0;var checked=0;
+    DB.estSnapshots.forEach(function(snap){
+      checked++;
+      if(!snap.garmentId)return;
+      var gType=garments.find(function(g){return g.id===snap.garmentId;});
+      if(!gType||!gType.components||!gType.components.length)return;
+      var currentComps=gType.components;
+      var snapComps=snap.components||[];
+      var mismatch=currentComps.length!==snapComps.length||currentComps.some(function(c,i){return c!==snapComps[i];});
+      if(mismatch){
+        dbSave('estSnapshots',Object.assign({},snap,{components:currentComps,garmentName:gType.name,savedAt:Date.now()}));
+        fixed++;
+      }
+    });
+    repairBtn.disabled=false;
+    repairLog.style.color=fixed>0?'#166534':'#888';
+    repairLog.textContent='Done! Updated '+fixed+' snapshot'+(fixed!==1?'s':'')+' of '+checked+' checked.';
+  },'btn btn-sm');
+  repairBtn.style.cssText+='background:#B45309;border-color:#B45309;color:#fff';
+  app(repairSec,[repairTitle,repairSub,repairBtn,repairLog]);
+  wrap.appendChild(repairSec);
+
   return wrap;
 }
 
@@ -8723,11 +8756,12 @@ function saveClientEstimate(){
 
         dbSave('clientEstimates', estData);
 
-        // Also update linked quotation snapshot if editing
+        // Also update linked estSnapshot if editing — including components
         if(_estEditingId && existing && existing.linkedOrderId){
           DB.estSnapshots.filter(function(s){return s.orderId===existing.linkedOrderId;})
             .forEach(function(s){
               dbSave('estSnapshots',Object.assign({},s,{
+                components:estData.components||garmentObj.components||[],
                 data:estData.data,discount:estData.discount,markup:estData.markup,
                 totalCost:grand,mrp:mrp,sellingPrice:selling,savedAt:Date.now()
               }));
@@ -9205,10 +9239,12 @@ function saveEstimateEdit(originalSnap,quotId){
   var mrp=grand*markup;
   var selling=Math.round(mrp-(mrp*(_estDiscount/100)));
 
+  // Always use current garment type's components (not stale snapshot components)
+  var currentComponents=garmentObj.components||[];
   var newSnap={
     garmentId:_estGarment,
     garmentName:garmentObj.name,
-    components:garmentObj.components,
+    components:currentComponents,
     cols:cols.map(function(c){return {id:c.id,label:c.label};}),
     data:JSON.parse(JSON.stringify(_estData)),
     discount:_estDiscount,
