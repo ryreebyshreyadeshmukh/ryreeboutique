@@ -4398,7 +4398,7 @@ function pgEmbroidery(){
     var entries={};
     workers.forEach(function(w){
       var att=existing.find(function(a){return a.workerId===w.id;});
-      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',hours:att.hours||0}:{}]};
+      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',component:att?att.component||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',component:att.component||'',hours:att.hours||0}:{}]};
     });
 
 
@@ -4534,6 +4534,18 @@ function pgEmbroidery(){
           if(!orderId){d3Lbl.style.display='none';return;}
           var comps=getEstComponents(orderId,itemIdx);
           d3Lbl.style.display='block';
+          // If existing component is saved but no snapshot, show as pre-filled text
+          if((!comps||!comps.length)&&existingComp&&existingComp!=='(unspecified)'){
+            var inp=document.createElement('input');
+            inp.type='text';
+            inp.className='emb-comp-inp-'+w.id;
+            inp.value=existingComp;
+            inp.placeholder='e.g. Blouse, Saree body...';
+            inp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;box-sizing:border-box';
+            d3Wrap.appendChild(inp);
+            d3Inp=inp;
+            return;
+          }
           if(comps&&comps.length){
             // Build fresh select with innerHTML
             var newSel=document.createElement('select');
@@ -4589,14 +4601,7 @@ function pgEmbroidery(){
             var preCl=DB.clients.find(function(c){return c.id===preOrd.clientId;});
             if(preCl)d1Inp.value=preCl.name;
             populateGarments(preOrd.clientId,assignment.orderId,assignment.itemIndex||0,assignment.component||'');
-            // Pre-select piece after showD3 renders the dropdown
-            if(assignment.component){
-              setTimeout(function(){
-                var pSel=d3Wrap.querySelector('select');
-                if(pSel){for(var _i=0;_i<pSel.options.length;_i++){if(pSel.options[_i].value===assignment.component){pSel.selectedIndex=_i;break;}}}
-                else{var pInp=d3Wrap.querySelector('input[type=text]');if(pInp)pInp.value=assignment.component;}
-              },200);
-            }
+            // showD3 already handles pre-filling via existingComp param
           }
         }
         // Client search
