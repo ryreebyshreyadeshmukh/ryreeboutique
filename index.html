@@ -4909,10 +4909,34 @@ function pgEmbroidery(){
     d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select order —';return o;})());
     app(d2Wrap,[d2Lbl,d2Sel]);
 
+    // Dropdown 3: Piece filter
+    var d3Wrap=mk('div');d3Wrap.style.cssText='flex:1;min-width:160px;max-width:220px';
+    var d3Lbl2=mk('div');d3Lbl2.style.cssText='font-size:11px;font-weight:600;color:#888;margin-bottom:4px';d3Lbl2.textContent='PIECE';
+    var d3Sel2=mk('select');d3Sel2.id='emb-report-piece';
+    d3Sel2.style.cssText='width:100%;padding:7px 8px;font-size:13px;border:1px solid #e0e0e0;border-radius:6px;color:#555;background:#fff';
+    d3Sel2.appendChild((function(){var o=mk('option');o.value='';o.textContent='All Pieces';return o;})());
+    app(d3Wrap,[d3Lbl2,d3Sel2]);
+
+    // Populate piece dropdown when order changes
+    d2Sel.addEventListener('change',function(){
+      while(d3Sel2.options.length>0)d3Sel2.remove(0);
+      d3Sel2.appendChild((function(){var o=mk('option');o.value='';o.textContent='All Pieces';return o;})());
+      var oid=d2Sel.value;
+      if(!oid)return;
+      // Get pieces from attendance records for this order
+      var orderAtt=DB.embAttendance.filter(function(a){return a.orderId===oid;});
+      var pieces={};
+      orderAtt.forEach(function(a){var p=a.component||'(unspecified)';pieces[p]=true;});
+      Object.keys(pieces).sort().forEach(function(p){
+        var opt=mk('option');opt.value=p;opt.textContent=p;d3Sel2.appendChild(opt);
+      });
+    });
+
     var viewBtn=mkBtn('View Report',function(){
       var oid=d2Sel.value;
-      if(oid)renderGarmentReport(oid,reportWrap);
-      else alert('Please select an order.');
+      if(!oid){alert('Please select an order.');return;}
+      var pieceFilter=(document.getElementById('emb-report-piece')||{}).value||'';
+      renderGarmentReport(oid,reportWrap,pieceFilter);
     },'btn btn-primary btn-sm');
     viewBtn.style.alignSelf='flex-end';
 
@@ -4935,7 +4959,7 @@ function pgEmbroidery(){
         d2Sel.appendChild(opt);
       });
       // Auto-select if only one order
-      if(cOrds.length===1){d2Sel.selectedIndex=1;renderGarmentReport(cOrds[0].id,reportWrap);}
+      if(cOrds.length===1){d2Sel.selectedIndex=1;renderGarmentReport(cOrds[0].id,reportWrap,'');}
     }
 
     function showClientDrop(q){
@@ -4961,13 +4985,13 @@ function pgEmbroidery(){
     d1Inp.onfocus=function(){showClientDrop(this.value);};
     d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
 
-    app(selRow,[d1Wrap,d2Wrap,viewBtn]);
+    app(selRow,[d1Wrap,d2Wrap,d3Wrap,viewBtn]);
     cw.appendChild(selRow);
 
     var reportWrap=mk('div');cw.appendChild(reportWrap);
   }
 
-  function renderGarmentReport(orderId,reportWrap){
+  function renderGarmentReport(orderId,reportWrap,pieceFilter){
     reportWrap.innerHTML='';
     var order=DB.orders.find(function(o){return o.id===orderId;});
     if(!order){reportWrap.appendChild(mk('div','empty','Order not found.'));return;}
@@ -4978,7 +5002,7 @@ function pgEmbroidery(){
     var oh1=mk('div');oh1.style.cssText='font-size:14px;font-weight:700;color:#1a1a1a';
     oh1.textContent=(cl?cl.name+' — ':'')+order.item+(order.orderNo?' · '+order.orderNo:'');
     var oh2=mk('div');oh2.style.cssText='font-size:12px;color:#888;margin-top:3px';
-    oh2.textContent='Status: '+order.status+(order.delivery?' · Delivery: '+fmtDate(order.delivery):'');
+    oh2.textContent='Status: '+order.status+(order.delivery?' · Delivery: '+fmtDate(order.delivery):'')+(pieceFilter?' · Piece: '+pieceFilter:'');
     app(orderHdr,[oh1,oh2]);
     reportWrap.appendChild(orderHdr);
 
@@ -4992,6 +5016,13 @@ function pgEmbroidery(){
     });
     var attRecords=splitRecords.concat(mainRecords)
       .sort(function(a,b){return a.date.localeCompare(b.date);});
+
+    // Apply piece filter if selected
+    if(pieceFilter){
+      attRecords=attRecords.filter(function(a){
+        return (a.component||'(unspecified)')===pieceFilter;
+      });
+    }
 
     if(!attRecords.length){
       reportWrap.appendChild(mk('div','card-p0')).appendChild(mk('div','empty','No embroidery time logged for this order yet.'));
