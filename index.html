@@ -150,8 +150,8 @@ textarea.form-input{resize:vertical}
   <img src="https://raw.githubusercontent.com/ryreebyshreyadeshmukh/ryreeboutique/main/Ryree_logo.PNG" style="width:260px;max-width:80vw;margin-bottom:20px">
   <div class="login-box">
     <div class="login-title">Welcome back</div>
-    <div class="login-sub">Enter your password to continue</div>
-    <input class="login-input" id="login-pw" type="password" placeholder="Enter password">
+    <div class="login-sub">Enter your PIN to continue</div>
+    <input class="login-input" id="login-pw" type="password" placeholder="Enter PIN" maxlength="4" pattern="[0-9]*" inputmode="numeric">
     <div class="login-err" id="login-err"></div>
     <button class="login-btn" id="login-btn">Sign in</button>
     <div class="login-footer">Ryree Boutique &middot; Private access only</div>
@@ -170,25 +170,12 @@ textarea.form-input{resize:vertical}
       <div class="logo-sub" style="margin-top:2px;margin-bottom:2px">Boutique Management Software</div>
       <div id="sidebar-date" style="font-size:11px;color:rgba(201,168,76,.6);text-align:center;padding-bottom:4px"></div>
     </div>
-    <div class="nav-section">View</div>
+    <div class="nav-section">Boutique</div>
     <div class="nav-item active" id="nav-dashboard" data-page="dashboard">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>Dashboard
     </div>
-    <div class="nav-item" id="nav-pl" data-page="pl">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L6 7l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2"/></svg>P&amp;L Report
-    </div>
-    <div class="nav-item" id="nav-dues" data-page="dues">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Outstanding Dues
-    </div>
-    <div class="nav-section">Entry</div>
-    <div class="nav-item" id="nav-tasks" data-page="tasks">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
-    </div>
-    <div class="nav-item" id="nav-quotations" data-page="quotations">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none"/><path d="M11.5 10.5l1 1 1.5-1.5" stroke="#2D6B5E" stroke-width="1" fill="none" stroke-linecap="round"/></svg>Quotations
-    </div>
-    <div class="nav-item" id="nav-invoices" data-page="invoices">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/></svg>Invoices
+    <div class="nav-item" id="nav-clients" data-page="clients">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients
     </div>
     <div class="nav-item" id="nav-orders" data-page="orders">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4" stroke-linecap="round"/></svg>Orders
@@ -196,57 +183,96 @@ textarea.form-input{resize:vertical}
     <div class="nav-item" id="nav-appointments" data-page="appointments">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 1v4M11 1v4M2 8h12" stroke-linecap="round"/></svg>Appointments
     </div>
+    <div class="nav-item" id="nav-quotations" data-page="quotations">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/></svg>Quotations
+    </div>
+    <div class="nav-item" id="nav-invoices" data-page="invoices">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h6M5 11h3" stroke-linecap="round"/></svg>Invoices
+    </div>
     <div class="nav-item" id="nav-leads" data-page="leads">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.5-5 6-5s6 2 6 5" stroke-linecap="round"/></svg>Lead Bank
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke-linecap="round"/></svg>Lead Bank
     </div>
-    <div class="nav-item" id="nav-collabs" data-page="collabs">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h8m0 0l-3-3m3 3l-3 3M14 4v8" stroke-linecap="round" stroke-linejoin="round"/></svg>Collaborations
-    </div>
+
+    <div class="nav-section">Finance</div>
     <div class="nav-item" id="nav-expenses" data-page="expenses">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 0 1 0 3H6" stroke-linecap="round"/></svg>Cash Book
     </div>
-    <div class="nav-item" id="nav-inventory" data-page="inventory">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke-linecap="round"/></svg>Inventory
+    <div class="nav-item" id="nav-pl" data-page="pl">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L6 7l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/><rect x="1" y="1" width="14" height="14" rx="2"/></svg>P&amp;L
     </div>
-    <div class="nav-item" id="nav-estimator" data-page="estimator">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
-    </div>
-    <div class="nav-section">Master</div>
-    <div class="nav-item" id="nav-clients" data-page="clients">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients
-    </div>
-    <div class="nav-item" id="nav-services" data-page="services">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2" stroke-linecap="round"/></svg>Services
-    </div>
-    <div class="nav-item" id="nav-vendors" data-page="vendors">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-1.5 7H3.5L2 3z"/><circle cx="6" cy="13" r="1"/><circle cx="11" cy="13" r="1"/><path d="M2 3L1 1" stroke-linecap="round"/></svg>Vendors
-    </div>
-    <div class="nav-item" id="nav-staff" data-page="staff">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><circle cx="11" cy="5" r="2"/><path d="M1 13c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12 8c1.7.4 3 1.9 3 4"/></svg>Staff
-    </div>
-    <div class="nav-item" id="nav-clothing" data-page="clothing">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
-    </div>
-    <div class="nav-item" id="nav-measitems" data-page="measitems">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M2 4h4M2 12h4M10 4h4M10 12h4" stroke-linecap="round"/></svg>Measurement Items
-    </div>
-    <div class="nav-item" id="nav-tctemplates" data-page="tctemplates">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4" stroke-linecap="round"/><path d="M9 11l1 1 2-2" stroke-linecap="round" stroke-linejoin="round"/></svg>T&amp;C Templates
-    </div>
-    <div class="nav-item" id="nav-tasktemplates" data-page="tasktemplates">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/><circle cx="13" cy="12" r="2.5"/><path d="M12 12h2M13 11v2" stroke-linecap="round"/></svg>Task Templates
-    </div>
-    <div class="nav-item" id="nav-questionnaire" data-page="questionnaire">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4M5 11h3" stroke-linecap="round"/><circle cx="12" cy="11" r="2"/><path d="M11.3 10.3l1 1" stroke-linecap="round"/></svg>Questionnaire
-    </div>
-    <div class="nav-item" id="nav-embroidery" data-page="embroidery">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
+    <div class="nav-item" id="nav-dues" data-page="dues">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2.5 2.5" stroke-linecap="round"/></svg>Dues
     </div>
     <div class="nav-item" id="nav-gst" data-page="gst">
       <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v8a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/><path d="M2 4l2-2h8l2 2"/><path d="M6 8h4M8 6v4" stroke-linecap="round"/></svg>GST
     </div>
-    <div class="nav-item" id="nav-estsettings" data-page="estsettings">
-      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
+
+    <div class="nav-section">Operations</div>
+    <div class="nav-item" id="nav-embroidery" data-page="embroidery">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
+    </div>
+    <div class="nav-item" id="nav-tasks" data-page="tasks">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
+    </div>
+    <div class="nav-item" id="nav-collabs" data-page="collabs">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h8m0 0l-3-3m3 3l-3 3M14 4v8" stroke-linecap="round" stroke-linejoin="round"/></svg>Collabs
+    </div>
+    <div class="nav-item" id="nav-estimator" data-page="estimator">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6" stroke-linecap="round"/></svg>Price Estimator
+    </div>
+
+    <div class="nav-section nav-settings-toggle" id="nav-settings-toggle" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding-right:16px;user-select:none">
+      <span>Settings</span>
+      <svg id="nav-settings-arrow" viewBox="0 0 16 16" fill="none" stroke="rgba(201,168,76,.45)" stroke-width="2" style="width:11px;height:11px;transition:transform .2s;transform:rotate(-90deg)"><path d="M4 6l4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div id="nav-settings-group" style="display:none">
+      <div class="nav-item" id="nav-appsettings" data-page="appsettings">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>App Settings
+      </div>
+      <div class="nav-item" id="nav-services" data-page="services">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.5 1.5M11.4 11.4l1.5 1.5M3.1 12.9l1.5-1.5M11.4 4.6l1.5-1.5"/></svg>Services & HSN
+      </div>
+      <div class="nav-item" id="nav-staff" data-page="staff">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2.5"/><circle cx="11" cy="5" r="2"/><path d="M1 13c0-2.8 2.2-5 5-5s5 2.2 5 5"/><path d="M12 8c1.7.4 3 1.9 3 4"/></svg>Staff
+      </div>
+      <div class="nav-item" id="nav-vendors" data-page="vendors">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h12l-1.5 7H3.5L2 3z"/><circle cx="6" cy="13" r="1"/><circle cx="11" cy="13" r="1"/></svg>Vendors
+      </div>
+      <div class="nav-item" id="nav-clothing" data-page="clothing">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3-2h2v2l1 1 1-1V2h2l3 2-2 3H9v7H7V5H4L2 4z"/></svg>Clothing Items
+      </div>
+      <div class="nav-item" id="nav-measitems" data-page="measitems">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12M2 4h4M2 12h4M10 4h4M10 12h4" stroke-linecap="round"/></svg>Measurement Items
+      </div>
+      <div class="nav-item" id="nav-tctemplates" data-page="tctemplates">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4" stroke-linecap="round"/></svg>T&amp;C Templates
+      </div>
+      <div class="nav-item" id="nav-tasktemplates" data-page="tasktemplates">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M3 8h10M3 12h6" stroke-linecap="round"/></svg>Task Templates
+      </div>
+      <div class="nav-item" id="nav-questionnaire" data-page="questionnaire">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4M5 11h3" stroke-linecap="round"/></svg>Questionnaire
+      </div>
+      <div class="nav-item" id="nav-inventory" data-page="inventory">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="6" width="12" height="8" rx="1"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke-linecap="round"/></svg>Inventory
+      </div>
+      <div class="nav-item" id="nav-estsettings" data-page="estsettings">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.42 1.42M11.53 11.53l1.42 1.42M3.05 12.95l1.42-1.42M11.53 4.47l1.42-1.42" stroke-linecap="round"/></svg>Estimator Settings
+      </div>
+    </div>
+
+    <div class="nav-section">Trading</div>
+    <div class="nav-item" style="opacity:0.35;pointer-events:none">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 11V6l6-3 6 3v5"/><path d="M8 3v5M2 6l6 3 6-3"/><rect x="5" y="9" width="6" height="5" rx="1"/></svg>Products
+    </div>
+    <div class="nav-item" style="opacity:0.35;pointer-events:none">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="14" height="9" rx="1"/><path d="M4 4V3a1 1 0 011-1h6a1 1 0 011 1v1"/><path d="M8 8v3M6.5 9.5h3" stroke-linecap="round"/></svg>Billing
+    </div>
+    <div class="nav-item" style="opacity:0.35;pointer-events:none">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v12M4 6l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke-linecap="round"/></svg>Purchases
+    </div>
+    <div class="nav-item" style="opacity:0.35;pointer-events:none">
+      <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 5l6-3 6 3v6l-6 3-6-3V5z"/><path d="M8 2v12M2 5l6 3 6-3"/></svg>Stock
     </div>
 
     <div style="flex:1"></div>
@@ -343,44 +369,78 @@ document.querySelectorAll('.nav-item').forEach(function(el){
   el.onclick=function(){nav(this.getAttribute('data-page'));};
 });
 
+// Settings collapsible toggle
+var settingsToggle=document.getElementById('nav-settings-toggle');
+var settingsGroup=document.getElementById('nav-settings-group');
+var settingsArrow=document.getElementById('nav-settings-arrow');
+if(settingsToggle){
+  settingsToggle.onclick=function(){
+    var isOpen=settingsGroup.style.display!=='none';
+    settingsGroup.style.display=isOpen?'none':'block';
+    settingsArrow.style.transform=isOpen?'rotate(-90deg)':'rotate(0deg)';
+  };
+}
+
+// Auto-expand settings if a settings page is active
+function expandSettingsIfNeeded(page){
+  var settingsPages=['services','staff','vendors','clothing','measitems','tctemplates','tasktemplates','questionnaire','inventory','estsettings'];
+  if(settingsPages.indexOf(page)>-1&&settingsGroup&&settingsGroup.style.display==='none'){
+    settingsGroup.style.display='block';
+    if(settingsArrow)settingsArrow.style.transform='rotate(0deg)';
+  }
+}
+
 function doLogin(){
+  // Legacy login kept for fallback — PIN screen is now primary
   var pw=document.getElementById('login-pw').value;
   var loginBtn=document.getElementById('login-btn');
   loginBtn.disabled=true;loginBtn.textContent='Checking...';
   loadPasswordFromFirebase(function(){
     loginBtn.disabled=false;loginBtn.textContent='Sign in';
-    if(pw===getPw()){
+    var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
+    var adminPw=cfg.adminPin||cfg.password||getPw();
+    if(pw===adminPw||pw===getPw()){
+      _currentUser=null;
       sessionStorage.setItem('ryree_auth','1');
       sessionStorage.setItem('ryree_role','admin');
-      document.getElementById('login-pw').classList.remove('error');
-      document.getElementById('login-err').textContent='';
-      showApp();
-    }else if(pw===getAsstPw()){
-      sessionStorage.setItem('ryree_auth','1');
-      sessionStorage.setItem('ryree_role','assistant');
-      document.getElementById('login-pw').classList.remove('error');
-      document.getElementById('login-err').textContent='';
-      showApp();
+      document.getElementById('login-wrap').style.display='none';
+      document.getElementById('app-wrap').style.display='';
+      updateNavForUser();
+      nav('dashboard');
     }else{
-      document.getElementById('login-pw').classList.add('error');
-      document.getElementById('login-err').textContent='Incorrect password. Try again.';
-      document.getElementById('login-pw').value='';
+      // Check staff PINs
+      var staffMatch=DB.staff.find(function(s){return s.pin===pw&&s.active!==false;});
+      if(staffMatch){
+        _currentUser=staffMatch;
+        sessionStorage.setItem('ryree_auth','1');
+        sessionStorage.setItem('ryree_role','staff');
+        document.getElementById('login-wrap').style.display='none';
+        document.getElementById('app-wrap').style.display='';
+        resetSessionTimer();
+        updateNavForUser();
+        nav('dashboard');
+      } else {
+        document.getElementById('login-pw').classList.add('error');
+        document.getElementById('login-err').textContent='Incorrect PIN. Try again.';
+        document.getElementById('login-pw').value='';
+      }
     }
   });
 }
 function doLogout(){
   if(!confirm('Sign out?'))return;
-  // Auto-save backup before signing out
   autoSaveToLocalStorage();
-  var t=getLastBackupTime();
+  _currentUser=null;
+  if(_sessionTimer){clearTimeout(_sessionTimer);_sessionTimer=null;}
   sessionStorage.removeItem('ryree_auth');
   sessionStorage.removeItem('ryree_role');
-  document.getElementById('login-wrap').style.display='flex';
-  document.getElementById('app-wrap').style.display='none';
+  localStorage.removeItem('ryree_session');
   document.getElementById('login-pw').value='';
-  // Brief confirmation so Shreya knows it saved
   var syncTxt=document.getElementById('sync-text');
   if(syncTxt)syncTxt.textContent='Backed up at sign out ✓';
+  // Show login screen
+  document.getElementById('login-wrap').style.display='flex';
+  document.getElementById('app-wrap').style.display='none';
 }
 function showChangePw(){
   var wrap=mk('div');
@@ -414,6 +474,7 @@ function saveNewPw(){
     .catch(function(){closeModal();alert('Saved locally. Will sync when online.');});
 }
 function showApp(){
+  updateNavForUser();
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('app-wrap').style.display='flex';
   document.getElementById('export-btn').addEventListener('click',exportAllData);
@@ -800,9 +861,12 @@ var page='dashboard',selClient=null,selCloth=null;
 function nav(p){
   // Role guard — assistant can only view leads and appointments
   var allowedForAssistant=['leads','appointments','clients','orders','dashboard','embroidery'];
+  // appsettings requires canFull('settings') — handled in updateNavForUser
+  var settingsNavIds=['nav-services','nav-staff','nav-vendors','nav-clothing','nav-measitems','nav-tctemplates','nav-tasktemplates','nav-questionnaire','nav-inventory','nav-estsettings'];
   if(isAssistant()&&allowedForAssistant.indexOf(p)===-1){p='leads';}
   page=p;selClient=null;selCloth=null;
   document.querySelectorAll('.nav-item').forEach(function(e){e.classList.remove('active');});
+  if(typeof expandSettingsIfNeeded==='function')expandSettingsIfNeeded(page);
   var el=document.getElementById('nav-'+p);if(el)el.classList.add('active');
   updateBottomNav(p);
   // Close sidebar on mobile after navigation
@@ -1076,7 +1140,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,gst:pgGST,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,gst:pgGST,appsettings:pgAppSettings,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -3251,6 +3315,259 @@ function getNewBriefs(){
 
 
 
+
+// ══════════════════════════════════════════════════════════════
+// APP SETTINGS MODULE
+// ══════════════════════════════════════════════════════════════
+function pgAppSettings(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Settings','App configuration and preferences',null));
+
+  var tabs={};
+  var activeTab='business';
+  var tabDefs=[
+    {key:'business',label:'Business Profile'},
+    {key:'security',label:'Security'},
+    {key:'gstconfig',label:'GST Configuration'},
+    {key:'preferences',label:'Preferences'}
+  ];
+
+  var tabRow=mk('div');tabRow.style.cssText='display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid #f0f0f0';
+  var contentWrap=mk('div');contentWrap.id='appsettings-content';
+
+  function setTab(key){
+    activeTab=key;
+    Object.keys(tabs).forEach(function(k){
+      tabs[k].style.cssText='padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;'+(k===key?'font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px':'color:#aaa');
+    });
+    renderSettingsContent(key);
+  }
+
+  tabDefs.forEach(function(td){
+    var tb=mk('button');tb.textContent=td.label;
+    tb.style.cssText='padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';
+    tb.onclick=function(){setTab(td.key);};
+    tabs[td.key]=tb;tabRow.appendChild(tb);
+  });
+  wrap.appendChild(tabRow);
+  wrap.appendChild(contentWrap);
+
+  // ── BUSINESS PROFILE ────────────────────────────────────────
+  function renderBusinessTab(cw){
+    var cfg=getGSTConfig();
+    var card=mk('div','card');card.style.maxWidth='560px';
+
+    var fields=[
+      {id:'legalName',label:'Business Name *',val:cfg.legalName||'Ryree by Shreya Deshmukh',ph:'Legal business name'},
+      {id:'addr1',label:'Address Line 1',val:cfg.addr1||'Magarpatta Road',ph:'Street / Building'},
+      {id:'addr2',label:'Address Line 2',val:cfg.addr2||'',ph:'Area / Locality (optional)'},
+      {id:'city',label:'City',val:cfg.city||'Pune',ph:'City'},
+      {id:'state',label:'State',val:cfg.state||'Maharashtra',ph:'State'},
+      {id:'pin',label:'PIN Code',val:cfg.pin||'',ph:'6-digit PIN'},
+      {id:'phone',label:'Business Phone',val:cfg.businessPhone||'',ph:'Contact number'},
+      {id:'email',label:'Business Email',val:cfg.businessEmail||'',ph:'Contact email'},
+    ];
+
+    fields.forEach(function(f){
+      card.appendChild(mkFg(f.label,mkInput('bs-'+f.id,'text',f.ph,f.val)));
+    });
+
+    var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+    var saveBtn=mkBtn('Save Business Profile',function(){
+      var name=(document.getElementById('bs-legalName')||{}).value.trim();
+      if(!name){err.textContent='Business name is required.';return;}
+      var updated=Object.assign({},cfg,{
+        id:'config',
+        legalName:name,
+        addr1:(document.getElementById('bs-addr1')||{}).value.trim(),
+        addr2:(document.getElementById('bs-addr2')||{}).value.trim(),
+        city:(document.getElementById('bs-city')||{}).value.trim(),
+        state:(document.getElementById('bs-state')||{}).value.trim(),
+        pin:(document.getElementById('bs-pin')||{}).value.trim(),
+        businessPhone:(document.getElementById('bs-phone')||{}).value.trim(),
+        businessEmail:(document.getElementById('bs-email')||{}).value.trim(),
+      });
+      dbSave('settings',updated);
+      err.style.color='#166534';err.textContent='Business profile saved!';
+      setTimeout(function(){err.textContent='';err.style.color='#E24B4A';},3000);
+    },'btn btn-primary');
+
+    app(card,[err,saveBtn]);
+    cw.appendChild(card);
+  }
+
+  // ── SECURITY ────────────────────────────────────────────────
+  function renderSecurityTab(cw){
+    var cfg=getGSTConfig();
+    var card=mk('div','card');card.style.maxWidth='480px';
+
+    // Admin PIN section
+    var pinTitle=mk('div');pinTitle.style.cssText='font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px';pinTitle.textContent='Admin PIN';
+    var pinSub=mk('div');pinSub.style.cssText='font-size:12px;color:#888;margin-bottom:16px';pinSub.textContent='4-digit PIN for Shreya. Required to log in as admin.';
+
+    var currentPinInp=mkInput('sec-current-pin','password','Current PIN (leave blank if not set)','');
+    currentPinInp.maxLength=4;currentPinInp.inputMode='numeric';currentPinInp.pattern='[0-9]*';
+    var newPinInp=mkInput('sec-new-pin','password','New 4-digit PIN','');
+    newPinInp.maxLength=4;newPinInp.inputMode='numeric';newPinInp.pattern='[0-9]*';
+    var confirmPinInp=mkInput('sec-confirm-pin','password','Confirm new PIN','');
+    confirmPinInp.maxLength=4;confirmPinInp.inputMode='numeric';confirmPinInp.pattern='[0-9]*';
+
+    var pinErr=mk('div');pinErr.style.cssText='font-size:12px;min-height:16px;margin-top:4px';
+
+    var savePinBtn=mkBtn('Update Admin PIN',function(){
+      var current=(document.getElementById('sec-current-pin')||{}).value.trim();
+      var newPin=(document.getElementById('sec-new-pin')||{}).value.trim();
+      var confirmPin=(document.getElementById('sec-confirm-pin')||{}).value.trim();
+      var existingPin=cfg.adminPin||cfg.password||'';
+
+      if(existingPin&&current!==existingPin){pinErr.style.color='#E24B4A';pinErr.textContent='Current PIN is incorrect.';return;}
+      if(!newPin||newPin.length!==4||!/^[0-9]{4}$/.test(newPin)){pinErr.style.color='#E24B4A';pinErr.textContent='New PIN must be exactly 4 digits.';return;}
+      if(newPin!==confirmPin){pinErr.style.color='#E24B4A';pinErr.textContent='PINs do not match.';return;}
+
+      dbSave('settings',Object.assign({},cfg,{id:'config',adminPin:newPin,password:newPin}));
+      pinErr.style.color='#166534';pinErr.textContent='Admin PIN updated successfully!';
+      document.getElementById('sec-current-pin').value='';
+      document.getElementById('sec-new-pin').value='';
+      document.getElementById('sec-confirm-pin').value='';
+      setTimeout(function(){pinErr.textContent='';},3000);
+    },'btn btn-primary btn-sm');
+
+    // Auto-logout section
+    var sep=mk('div');sep.style.cssText='border-top:1px solid #f0f0f0;margin:20px 0';
+    var autoTitle=mk('div');autoTitle.style.cssText='font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px';autoTitle.textContent='Auto-logout';
+    var autoSub=mk('div');autoSub.style.cssText='font-size:12px;color:#888;margin-bottom:16px';autoSub.textContent='Staff sessions automatically end after inactivity. Admin sessions do not expire.';
+
+    var timeoutOpts=[
+      {value:'30',label:'30 minutes'},
+      {value:'60',label:'60 minutes (default)'},
+      {value:'120',label:'2 hours'},
+      {value:'480',label:'8 hours (full shift)'},
+    ];
+    var timeoutSel=mkSelect('sec-timeout',timeoutOpts,String(Math.round((cfg.sessionTimeout||3600000)/60000)));
+    var saveTimeoutBtn=mkBtn('Save',function(){
+      var mins=Number((document.getElementById('sec-timeout')||{}).value||60);
+      SESSION_TIMEOUT=mins*60000;
+      dbSave('settings',Object.assign({},cfg,{id:'config',sessionTimeout:SESSION_TIMEOUT}));
+      var tb=mk('span');tb.style.cssText='font-size:12px;color:#166534;margin-left:8px';tb.textContent='Saved!';
+      saveTimeoutBtn.parentNode.appendChild(tb);
+      setTimeout(function(){if(tb.parentNode)tb.remove();},2000);
+    },'btn btn-sm');
+
+    var timeoutRow=mk('div');timeoutRow.style.cssText='display:flex;align-items:center;gap:10px';
+    app(timeoutRow,[timeoutSel,saveTimeoutBtn]);
+
+    app(card,[
+      pinTitle,pinSub,
+      mkFg('Current PIN',currentPinInp),
+      mkFg('New PIN',newPinInp),
+      mkFg('Confirm PIN',confirmPinInp),
+      pinErr,savePinBtn,
+      sep,
+      autoTitle,autoSub,
+      mkFg('Staff session timeout',timeoutRow)
+    ]);
+    cw.appendChild(card);
+  }
+
+  // ── GST CONFIGURATION ────────────────────────────────────────
+  function renderGSTConfigTab(cw){
+    var cfg=getGSTConfig();
+    var card=mk('div','card');card.style.maxWidth='480px';
+
+    var fields=[
+      {id:'gstin',label:'GSTIN *',val:cfg.gstin||'27CFNPD4493L1ZV',ph:'e.g. 27ABCDE1234F1Z5'},
+      {id:'stateCode',label:'State Code',val:cfg.stateCode||'27',ph:'e.g. 27 for Maharashtra'},
+      {id:'invoicePrefix',label:'Invoice Number Prefix',val:cfg.invoicePrefix||'RYREE',ph:'e.g. RYREE'},
+      {id:'invoiceCounter',label:'Last Invoice Number (counter)',val:String(cfg.invoiceCounter||0),ph:'0 = starts from 001'},
+    ];
+
+    fields.forEach(function(f){
+      card.appendChild(mkFg(f.label,mkInput('gc-'+f.id,'text',f.ph,f.val)));
+    });
+
+    // GST enabled toggle
+    var toggleRow=mk('div');toggleRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #f0f0f0;margin-top:8px';
+    var tLeft=mk('div');
+    var tTitle=mk('div');tTitle.style.cssText='font-size:13px;font-weight:600';tTitle.textContent='GST Enabled on Invoices';
+    var tSub=mk('div');tSub.style.cssText='font-size:11px;color:#aaa;margin-top:2px';tSub.textContent='New invoices will include GST breakdown and use sequential invoice numbers';
+    app(tLeft,[tTitle,tSub]);
+    var chk=mk('input');chk.type='checkbox';chk.id='gc-gstEnabled';chk.checked=!!cfg.gstEnabled;
+    chk.style.cssText='width:20px;height:20px;cursor:pointer;accent-color:#2D6B5E';
+    app(toggleRow,[tLeft,chk]);
+    card.appendChild(toggleRow);
+
+    var err=mk('div');err.style.cssText='font-size:12px;min-height:16px;margin-top:4px';
+    var saveBtn=mkBtn('Save GST Configuration',function(){
+      var gstin=(document.getElementById('gc-gstin')||{}).value.trim().toUpperCase();
+      if(!gstin){err.style.color='#E24B4A';err.textContent='GSTIN is required.';return;}
+      dbSave('settings',Object.assign({},cfg,{
+        id:'config',
+        gstin:gstin,
+        stateCode:(document.getElementById('gc-stateCode')||{}).value.trim()||'27',
+        invoicePrefix:(document.getElementById('gc-invoicePrefix')||{}).value.trim()||'RYREE',
+        invoiceCounter:Number((document.getElementById('gc-invoiceCounter')||{}).value||0),
+        gstEnabled:(document.getElementById('gc-gstEnabled')||{}).checked
+      }));
+      err.style.color='#166534';err.textContent='GST configuration saved!';
+      setTimeout(function(){err.textContent='';},3000);
+    },'btn btn-primary');
+
+    app(card,[err,saveBtn]);
+    cw.appendChild(card);
+
+    // Next invoice preview
+    var preview=mk('div');preview.style.cssText='margin-top:12px;font-size:12px;color:#888';
+    var nextNo=getNextInvoiceNo();
+    preview.textContent='Next invoice number: '+nextNo;
+    cw.appendChild(preview);
+  }
+
+  // ── PREFERENCES ─────────────────────────────────────────────
+  function renderPreferencesTab(cw){
+    var cfg=getGSTConfig();
+    var card=mk('div','card');card.style.maxWidth='480px';
+
+    var fyOpts=[{value:'4',label:'April (India standard)'},{value:'1',label:'January'},{value:'7',label:'July'}];
+    var fySel=mkSelect('pref-fy',fyOpts,String(cfg.fyStartMonth||4));
+
+    var currOpts=[{value:'INR',label:'₹ Indian Rupee (INR)'},{value:'GBP',label:'£ British Pound (GBP)'},{value:'USD',label:'$ US Dollar (USD)'},{value:'AED',label:'AED UAE Dirham'},{value:'CAD',label:'CAD Canadian Dollar'}];
+    var currSel=mkSelect('pref-currency',currOpts,cfg.currency||'INR');
+
+    var err=mk('div');err.style.cssText='font-size:12px;min-height:16px;margin-top:4px';
+    var saveBtn=mkBtn('Save Preferences',function(){
+      dbSave('settings',Object.assign({},cfg,{
+        id:'config',
+        fyStartMonth:Number((document.getElementById('pref-fy')||{}).value||4),
+        currency:(document.getElementById('pref-currency')||{}).value||'INR',
+      }));
+      err.style.color='#166534';err.textContent='Preferences saved!';
+      setTimeout(function(){err.textContent='';},3000);
+    },'btn btn-primary');
+
+    app(card,[
+      mkFg('Financial year starts',fySel),
+      mkFg('Currency',currSel),
+      err,saveBtn
+    ]);
+    cw.appendChild(card);
+  }
+
+  function renderSettingsContent(tab){
+    var cw=document.getElementById('appsettings-content');if(!cw)return;
+    cw.innerHTML='';
+    if(tab==='business')renderBusinessTab(cw);
+    else if(tab==='security')renderSecurityTab(cw);
+    else if(tab==='gstconfig')renderGSTConfigTab(cw);
+    else if(tab==='preferences')renderPreferencesTab(cw);
+  }
+
+  setTimeout(function(){setTab('business');},0);
+  return wrap;
+}
+// ══════════════════════════════════════════════════════════════
+// END APP SETTINGS MODULE
+// ══════════════════════════════════════════════════════════════
+
 // ══════════════════════════════════════════════════════════════
 // GST MODULE
 // ══════════════════════════════════════════════════════════════
@@ -3333,18 +3650,14 @@ function pgGST(){
     var card=mk('div','card');
     card.style.maxWidth='600px';
 
-    var fields=[
-      {id:'gstin',label:'GSTIN *',val:cfg2.gstin||'27CFNPD4493L1ZV',ph:'e.g. 27ABCDE1234F1Z5'},
-      {id:'legalName',label:'Legal Business Name *',val:cfg2.legalName||'Ryree by Shreya Deshmukh',ph:'As per GST registration'},
-      {id:'addr1',label:'Address Line 1',val:cfg2.addr1||'Magarpatta Road',ph:'Street / Building'},
-      {id:'addr2',label:'Address Line 2',val:cfg2.addr2||'',ph:'Area / Locality (optional)'},
-      {id:'city',label:'City',val:cfg2.city||'Pune',ph:'City'},
-      {id:'state',label:'State',val:cfg2.state||'Maharashtra',ph:'State'},
-      {id:'pin',label:'PIN Code',val:cfg2.pin||'',ph:'6-digit PIN'},
-      {id:'stateCode',label:'State Code',val:cfg2.stateCode||'27',ph:'e.g. 27 for Maharashtra'},
-      {id:'invoicePrefix',label:'Invoice Number Prefix',val:cfg2.invoicePrefix||'RYREE',ph:'e.g. RYREE'},
-      {id:'invoiceCounter',label:'Last Invoice Number',val:String(cfg2.invoiceCounter||0),ph:'0 = starts from 001'},
-    ];
+    // GST Settings tab now shows a redirect notice
+    // Full config is in App Settings → GST Configuration
+    var notice=mk('div');notice.style.cssText='background:#FEF3CD;border:1px solid #F59E0B;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#92400E';
+    notice.innerHTML='GST configuration has moved to <strong>App Settings → GST Configuration</strong>. Click below to go there.';
+    var goBtn=mkBtn('Go to App Settings',function(){nav('appsettings');},'btn btn-primary btn-sm');
+    goBtn.style.marginTop='10px';
+    cw.appendChild(notice);cw.appendChild(goBtn);return;
+    var fields=[];
 
     fields.forEach(function(f){
       var inp=mkInput('gst-'+f.id,'text',f.ph,f.val);
@@ -3626,6 +3939,190 @@ function openServiceModal(id){
 // ══════════════════════════════════════════════════════════════
 // END GST MODULE
 // ══════════════════════════════════════════════════════════════
+
+
+// ── PIN SCREEN ───────────────────────────────────────────────
+function showPinScreen(){
+  var app=document.getElementById('app');
+  if(app) app.style.display='none';
+  var existing=document.getElementById('pin-screen');
+  if(existing) existing.remove();
+
+  var screen=document.createElement('div');
+  screen.id='pin-screen';
+  screen.style.cssText='position:fixed;inset:0;background:#1e514c;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:inherit';
+
+  var logo=document.createElement('div');
+  logo.style.cssText='color:#C9A84C;font-size:28px;font-weight:800;letter-spacing:.05em;margin-bottom:6px';
+  logo.textContent='InBoutiq';
+  var tagline=document.createElement('div');
+  tagline.style.cssText='color:rgba(201,168,76,.6);font-size:12px;letter-spacing:.1em;margin-bottom:40px';
+  tagline.textContent='OS TO YOUR BOUTIQ';
+
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:16px;padding:32px 28px;width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)';
+
+  var title=document.createElement('div');
+  title.style.cssText='font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:6px';
+  title.textContent='Enter PIN';
+  var sub=document.createElement('div');
+  sub.style.cssText='font-size:12px;color:#aaa;margin-bottom:24px';
+  sub.textContent='4-digit PIN to continue';
+
+  // PIN dots display
+  var dotsRow=document.createElement('div');
+  dotsRow.style.cssText='display:flex;gap:12px;justify-content:center;margin-bottom:24px';
+  var dots=[];
+  for(var i=0;i<4;i++){
+    var dot=document.createElement('div');
+    dot.style.cssText='width:14px;height:14px;border-radius:50%;border:2px solid #ddd;background:#fff;transition:all .15s';
+    dots.push(dot);
+    dotsRow.appendChild(dot);
+  }
+
+  // Numpad
+  var pad=document.createElement('div');
+  pad.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px';
+  var pin='';
+
+  var errDiv=document.createElement('div');
+  errDiv.style.cssText='font-size:12px;color:#E24B4A;min-height:18px;margin-bottom:8px;text-align:center';
+
+  function updateDots(){
+    dots.forEach(function(d,i){
+      d.style.background=i<pin.length?'#2D6B5E':'#fff';
+      d.style.borderColor=i<pin.length?'#2D6B5E':'#ddd';
+    });
+  }
+
+  function submitPin(){
+    errDiv.textContent='';
+    var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
+    var adminPin=cfg.adminPin||cfg.password||'';
+
+    // Check admin PIN
+    if(pin===adminPin){
+      _currentUser=null;
+      saveSession(null);
+      hidePinScreen();
+      return;
+    }
+
+    // Check staff PINs
+    var staffMatch=DB.staff.find(function(s){return s.pin===pin&&s.active!==false;});
+    if(staffMatch){
+      _currentUser=staffMatch;
+      saveSession(staffMatch);
+      resetSessionTimer();
+      hidePinScreen();
+      // Re-render nav for this user
+      updateNavForUser();
+      nav('dashboard');
+      return;
+    }
+
+    errDiv.textContent='Incorrect PIN. Try again.';
+    pin='';
+    updateDots();
+    // Shake animation
+    card.style.transform='translateX(-8px)';
+    setTimeout(function(){card.style.transform='translateX(8px)';},80);
+    setTimeout(function(){card.style.transform='';},160);
+  }
+
+  function addDigit(d){
+    if(pin.length>=4) return;
+    pin+=d;
+    updateDots();
+    if(pin.length===4) setTimeout(submitPin,100);
+  }
+
+  function delDigit(){
+    pin=pin.slice(0,-1);
+    updateDots();
+    errDiv.textContent='';
+  }
+
+  var nums=[1,2,3,4,5,6,7,8,9,'',0,'⌫'];
+  nums.forEach(function(n){
+    var btn=document.createElement('button');
+    btn.style.cssText='padding:16px;font-size:20px;font-weight:600;border:none;border-radius:10px;cursor:pointer;background:#f5f5f5;color:#1a1a1a;transition:background .1s';
+    btn.textContent=n===''?'':String(n);
+    btn.style.visibility=n===''?'hidden':'visible';
+    btn.onmousedown=function(e){e.preventDefault();};
+    btn.onclick=function(){
+      if(n==='⌫') delDigit();
+      else if(n!=='') addDigit(String(n));
+    };
+    btn.onmouseenter=function(){if(n!=='')this.style.background='#e8e8e8';};
+    btn.onmouseleave=function(){this.style.background='#f5f5f5';};
+    pad.appendChild(btn);
+  });
+
+  // Keyboard support
+  function onKeyDown(e){
+    if(e.key>='0'&&e.key<='9') addDigit(e.key);
+    else if(e.key==='Backspace') delDigit();
+    else if(e.key==='Enter'&&pin.length===4) submitPin();
+  }
+  document.addEventListener('keydown',onKeyDown);
+  screen._onKeyDown=onKeyDown;
+
+  card.appendChild(title);card.appendChild(sub);card.appendChild(dotsRow);
+  card.appendChild(errDiv);card.appendChild(pad);
+  screen.appendChild(logo);screen.appendChild(tagline);screen.appendChild(card);
+  document.body.appendChild(screen);
+}
+
+function hidePinScreen(){
+  var screen=document.getElementById('pin-screen');
+  if(screen){
+    if(screen._onKeyDown) document.removeEventListener('keydown',screen._onKeyDown);
+    screen.remove();
+  }
+  var app=document.getElementById('app');
+  if(app) app.style.display='';
+  updateNavForUser();
+  render();
+}
+
+function updateNavForUser(){
+  // Show/hide nav items based on permissions
+  if(isAdmin()){
+    document.querySelectorAll('.nav-item[data-page]').forEach(function(el){el.style.display='';});
+    document.querySelectorAll('.nav-section').forEach(function(el){el.style.display='';});
+    var sg=document.getElementById('nav-settings-group');if(sg)sg.style.display='';
+    // Show settings toggle
+    var st=document.getElementById('nav-settings-toggle');if(st)st.style.display='';
+    return;
+  }
+
+  // Staff — hide modules they can't access
+  var allModules={
+    dashboard:'dashboard',clients:'clients',orders:'orders',
+    appointments:'appointments',quotations:'quotations',invoices:'invoices',
+    leads:'leads',expenses:'expenses',pl:'pl',dues:'dues',gst:'gst',
+    embroidery:'embroidery',tasks:'tasks',collabs:'collabs',
+    estimator:'estimator',inventory:'inventory',
+    services:'settings',staff:'settings',vendors:'settings',
+    clothing:'settings',measitems:'settings',tctemplates:'settings',
+    tasktemplates:'settings',questionnaire:'settings',estsettings:'settings'
+  };
+
+  document.querySelectorAll('.nav-item[data-page]').forEach(function(el){
+    var page=el.getAttribute('data-page');
+    var modKey=allModules[page]||page;
+    var hasAccess=modKey==='settings'?canFull('settings'):canView(modKey);
+    el.style.display=hasAccess?'':'none';
+  });
+
+  // Hide settings section entirely if no settings access
+  var settingsToggle=document.getElementById('nav-settings-toggle');
+  var settingsGroup=document.getElementById('nav-settings-group');
+  if(settingsToggle) settingsToggle.style.display=canFull('settings')?'':'none';
+  if(settingsGroup) settingsGroup.style.display='none'; // always collapsed for staff
+}
+// ── END PIN SCREEN ────────────────────────────────────────────
 
 // ══════════════════════════════════════════════════════════════
 // EMBROIDERY ATTENDANCE MODULE
@@ -5180,26 +5677,132 @@ function pgStaff(){
 }
 function openStaffModal(id){
   var s=id?DB.staff.find(function(x){return x.id===id;}):null;
-  var roles=[{value:'Tailor',label:'Tailor'},{value:'Helper',label:'Helper'},{value:'Embroidery',label:'Embroidery specialist'},{value:'Cutting master',label:'Cutting master'},{value:'Other',label:'Other'}];
+  var roles=[{value:'Tailor',label:'Tailor'},{value:'Helper',label:'Helper'},{value:'Embroidery',label:'Embroidery specialist'},{value:'Cutting master',label:'Cutting master'},{value:'Billing Staff',label:'Billing Staff'},{value:'Other',label:'Other'}];
   var nm=mkInput('s-name','text','Full name',s?s.name:'');
   var ph=mkInput('s-phone','text','Phone',s?(s.phone||''):'');
   var roleSel=mkSelect('s-role',roles,s?(s.role||'Tailor'):'Tailor');
+  var pinInp=mkInput('s-pin','text','4-digit PIN',s?(s.pin||''):'');
+  pinInp.maxLength=4;pinInp.pattern='[0-9]*';pinInp.inputMode='numeric';
+
+  // Permission matrix
+  var MODULES=[
+    {section:'Boutique',items:[
+      {key:'dashboard',label:'Dashboard'},
+      {key:'clients',label:'Clients'},
+      {key:'orders',label:'Orders'},
+      {key:'appointments',label:'Appointments'},
+      {key:'quotations',label:'Quotations'},
+      {key:'invoices',label:'Invoices'},
+      {key:'leads',label:'Lead Bank'},
+    ]},
+    {section:'Finance',items:[
+      {key:'expenses',label:'Cash Book'},
+      {key:'pl',label:'P&L'},
+      {key:'dues',label:'Dues'},
+      {key:'gst',label:'GST'},
+    ]},
+    {section:'Operations',items:[
+      {key:'embroidery',label:'Embroidery'},
+      {key:'tasks',label:'Tasks'},
+      {key:'collabs',label:'Collabs'},
+      {key:'estimator',label:'Price Estimator'},
+    ]},
+    {section:'Trading',items:[
+      {key:'trProducts',label:'Products'},
+      {key:'trBilling',label:'Billing'},
+      {key:'trPurchases',label:'Purchases'},
+      {key:'trStock',label:'Stock'},
+    ]},
+    {section:'Admin',items:[
+      {key:'settings',label:'Settings (full)'},
+      {key:'viewFinancials',label:'View financial data'},
+    ]},
+  ];
+  var LEVELS=['false','view','entry','full'];
+  var LEVEL_LABELS={'false':'No Access','view':'View','entry':'Entry','full':'Full'};
+  var existingPerms=s?s.permissions||{}:{};
+
+  var permWrap=mk('div');permWrap.style.cssText='max-height:340px;overflow-y:auto;border:1px solid #e8e8e8;border-radius:8px;margin-top:4px';
+
+  MODULES.forEach(function(section){
+    var secHdr=mk('div');secHdr.style.cssText='padding:8px 12px;background:#f5f5f5;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #e8e8e8;sticky;top:0';
+    secHdr.textContent=section.section;
+    permWrap.appendChild(secHdr);
+
+    section.items.forEach(function(mod){
+      var row=mk('div');row.style.cssText='display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #f5f5f5;gap:12px';
+      var lbl=mk('div');lbl.style.cssText='font-size:12px;flex:1;color:#333';lbl.textContent=mod.label;
+
+      // Radio buttons for levels
+      var radioGroup=mk('div');radioGroup.style.cssText='display:flex;gap:6px';
+      var currentLevel=String(existingPerms[mod.key]||'false');
+
+      LEVELS.forEach(function(level){
+        var radioWrap=mk('label');radioWrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer';
+        var radio=mk('input');radio.type='radio';
+        radio.name='perm-'+mod.key;
+        radio.value=level;
+        radio.style.cssText='accent-color:#2D6B5E;cursor:pointer;width:14px;height:14px';
+        radio.checked=(currentLevel===level)||(level==='false'&&currentLevel==='false');
+        var lvlLbl=mk('div');lvlLbl.style.cssText='font-size:9px;color:#aaa;white-space:nowrap';
+        lvlLbl.textContent=LEVEL_LABELS[level];
+        app(radioWrap,[radio,lvlLbl]);
+        radioGroup.appendChild(radioWrap);
+      });
+
+      app(row,[lbl,radioGroup]);
+      permWrap.appendChild(row);
+    });
+  });
+
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
   var wrap=mk('div');
-  app(wrap,[mk('div','modal-title',(id?'Edit':'Add')+' staff member'),
+
+  app(wrap,[
+    mk('div','modal-title',(id?'Edit':'Add')+' staff member'),
     mkFg('Full name *',nm),
     app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Role',roleSel)]),
-    mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
-      var name=document.getElementById('s-name').value.trim();if(!name)return;
-      clearModalDraft('staff');
-      dbSave('staff',{id:id||uid(),name:name,
-        phone:document.getElementById('s-phone').value.trim(),
-        role:document.getElementById('s-role').value});
-      closeModal();
-    },'btn btn-primary')])
+    mkFg('4-digit PIN *',pinInp),
+    mk('div','form-label','Permissions'),
+    permWrap,
+    err,
+    mkActions([
+      mkBtn('Cancel',closeModal),
+      mkBtn(id?'Save':'Add',function(){
+        var name=document.getElementById('s-name').value.trim();
+        var pin=document.getElementById('s-pin').value.trim();
+        if(!name){err.textContent='Name is required.';return;}
+        if(!pin||pin.length!==4||!/^\d{4}$/.test(pin)){err.textContent='PIN must be exactly 4 digits.';return;}
+        // Check PIN uniqueness (not same as another staff or admin)
+        var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
+        if(pin===(cfg.adminPin||cfg.password)){err.textContent='PIN cannot be same as admin PIN.';return;}
+        var duplicate=DB.staff.find(function(st){return st.pin===pin&&st.id!==id&&st.active!==false;});
+        if(duplicate){err.textContent='This PIN is already used by '+duplicate.name+'.';return;}
+        // Collect permissions
+        var perms={};
+        MODULES.forEach(function(section){
+          section.items.forEach(function(mod){
+            var radios=document.querySelectorAll('input[name="perm-'+mod.key+'"]');
+            radios.forEach(function(r){if(r.checked)perms[mod.key]=r.value==='false'?false:r.value;});
+          });
+        });
+        clearModalDraft('staff');
+        dbSave('staff',Object.assign({},s||{},{
+          id:id||uid(),
+          name:name,
+          phone:document.getElementById('s-phone').value.trim(),
+          role:document.getElementById('s-role').value,
+          pin:pin,
+          permissions:perms,
+          active:s?s.active!==false:true,
+          created:s?s.created:Date.now()
+        }));
+        closeModal();
+      },'btn btn-primary')
+    ])
   ]);
   showM(wrap,true);
-  setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();
-    setTimeout(function(){restoreModalDraft('staff');},100);},50);
+  setTimeout(function(){var e=document.getElementById('s-name');if(e)e.focus();},50);
 }
 
 
@@ -7734,6 +8337,71 @@ function openEstGarmentModal(id){
 
 
 // ── PRICE ESTIMATOR ───────────────────────────────────────────────────────
+// ── SESSION & RBAC ───────────────────────────────────────────
+var _currentUser = null; // null = admin (Shreya), otherwise staff record
+var _sessionTimer = null;
+var SESSION_TIMEOUT = 60 * 60 * 1000; // 60 minutes
+
+function isAdmin(){ return _currentUser === null; }
+
+function accessLevel(mod){
+  if(isAdmin()) return 'full';
+  if(!_currentUser || !_currentUser.permissions) return false;
+  return _currentUser.permissions[mod] || false;
+}
+
+function canView(mod){ return !!accessLevel(mod); }
+function canEdit(mod){ var l=accessLevel(mod); return l==='entry'||l==='full'; }
+function canFull(mod){ return accessLevel(mod)==='full'; }
+
+// Legacy compatibility — keep isAssistant() working
+function isAssistant(){ return !isAdmin(); }
+
+function resetSessionTimer(){
+  if(_sessionTimer) clearTimeout(_sessionTimer);
+  if(!isAdmin()){
+    _sessionTimer=setTimeout(function(){
+      doLogout();
+      alert('Session expired after 60 minutes of inactivity. Please log in again.');
+    }, SESSION_TIMEOUT);
+  }
+}
+
+function doLogout(){
+  _currentUser=null;
+  if(_sessionTimer){clearTimeout(_sessionTimer);_sessionTimer=null;}
+  localStorage.removeItem('ryree_session');
+  showPinScreen();
+}
+
+function saveSession(user){
+  localStorage.setItem('ryree_session', JSON.stringify({
+    userId: user ? user.id : 'admin',
+    timestamp: Date.now()
+  }));
+}
+
+function restoreSession(){
+  try{
+    var s=JSON.parse(localStorage.getItem('ryree_session')||'null');
+    if(!s) return false;
+    // Check if session expired
+    if(Date.now()-s.timestamp > SESSION_TIMEOUT) {
+      localStorage.removeItem('ryree_session');
+      return false;
+    }
+    if(s.userId==='admin'){ _currentUser=null; return true; }
+    // Find staff member
+    var staff=DB.staff.find(function(x){return x.id===s.userId;});
+    if(staff){ _currentUser=staff; resetSessionTimer(); return true; }
+    return false;
+  } catch(e){ return false; }
+}
+
+// Track activity to reset timer
+document.addEventListener('click', function(){ if(!isAdmin()) resetSessionTimer(); });
+document.addEventListener('keydown', function(){ if(!isAdmin()) resetSessionTimer(); });
+// ── END SESSION & RBAC ──────────────────────────────────────
 var _estGarment = null;
 var _estDiscount = 20;
 var _estData = {};
