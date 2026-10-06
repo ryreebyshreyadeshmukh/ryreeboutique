@@ -2067,7 +2067,7 @@ function pgOrders(){
     var itemsWithDetail=itemsDisplay.filter(function(it){return it.refImage||it.itemNotes||it.amount;});
     if(itemsWithDetail.length>0){
       var detailSec=mk('div');detailSec.style.cssText='background:#f9fffe;border-top:1px solid #e6f0ee;padding:10px 16px';
-      var dtitle=mk('div');dtitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';dtitle.textContent='Item details';
+      var dtitle=mk('div');dtitle.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';dtitle.textContent='Ensembles';
       detailSec.appendChild(dtitle);
       itemsWithDetail.forEach(function(it,idx2){
         var itRow=mk('div');itRow.style.cssText='display:flex;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;align-items:flex-start';
@@ -2100,6 +2100,29 @@ function pgOrders(){
         detailSec.appendChild(itRow);
       });
       card.appendChild(detailSec);
+    }
+
+    // Embroidery summary (admin only)
+    if(!isAssistant()){
+      var embAtt=DB.embAttendance.filter(function(a){return a.orderId===o.id;});
+      if(embAtt.length){
+        var embHours=Math.round(embAtt.reduce(function(s,a){return s+Number(a.hours||0);},0)*100)/100;
+        var embCost=embAtt.reduce(function(s,a){
+          var w=DB.embWorkers.find(function(x){return x.id===a.workerId;});
+          return s+Math.round(Number(a.hours||0)*Number(w?w.ratePerHour||0:0)*100)/100;
+        },0);
+        var embSummary=mk('div');embSummary.style.cssText='border-top:1px solid #e6f0ee;padding:8px 16px;background:#fafffe;display:flex;align-items:center;justify-content:space-between';
+        var embLabel=mk('div');embLabel.style.cssText='font-size:11px;color:#2D6B5E;font-weight:600';
+        embLabel.textContent='🪡 Embroidery: '+embHours+'h total';
+        var embCostDiv=mk('div');embCostDiv.style.cssText='font-size:11px;font-weight:700;color:#166534';
+        embCostDiv.textContent=rupee(embCost)+' cost';
+        var embLink=mkBtn('View Report',function(){nav('embroidery');},'btn btn-xs');
+        embLink.style.cssText+='font-size:10px';
+        var embRight=mk('div');embRight.style.cssText='display:flex;align-items:center;gap:10px';
+        app(embRight,[embCostDiv,embLink]);
+        app(embSummary,[embLabel,embRight]);
+        card.appendChild(embSummary);
+      }
     }
 
     // Payment info shown in Invoice module now
@@ -2273,12 +2296,22 @@ function openOrderModal(id){
 
     // Row 1: name + qty + amount + delete
     var topRow=mk('div');topRow.style.cssText='display:grid;grid-template-columns:1fr 55px 85px auto;gap:8px;align-items:center;margin-bottom:8px';
+    // Ensemble type dropdown — links to estgarments for piece lookup
     var nameInp=mk('input','form-input');
-    nameInp.placeholder='Select or type item...';
+    nameInp.placeholder='Select ensemble type...';
     nameInp.value=name||'';
     nameInp.className='order-item-name form-input';
-    nameInp.setAttribute('list','order-item-list');
     nameInp.style.background='#fff';
+    // Add datalist with estgarments options
+    var dlId='order-ens-list-'+Math.random().toString(36).slice(2);
+    nameInp.setAttribute('list',dlId);
+    var dl=mk('datalist');dl.id=dlId;
+    var garments=getEstGarments();
+    garments.forEach(function(g){
+      var opt=mk('option');opt.value=g.name;dl.appendChild(opt);
+    });
+    // Add garments after nameInp is added to DOM
+    nameInp._datalist=dl;
 
     var qtyInp=mk('input','form-input');
     qtyInp.type='number';qtyInp.min='1';qtyInp.value=qty||1;
@@ -2315,6 +2348,7 @@ function openOrderModal(id){
       else{nameInp.value='';qtyInp.value=1;amtInp.value='';deliveryInp.value='';}
     };
     app(topRow,[nameInp,qtyInp,amtInp,delBtn]);
+    if(nameInp._datalist)row.appendChild(nameInp._datalist);
 
     // Row 2: delivery date
     var bottomRow=mk('div');bottomRow.style.cssText='display:flex;align-items:center;gap:8px';
@@ -2440,7 +2474,7 @@ function openOrderModal(id){
   DB.clothing.forEach(function(c){var op=mk('option');op.value=c.name;datalist.appendChild(op);});
   DB.services.forEach(function(s){var op=mk('option');op.value=s.name;datalist.appendChild(op);});
 
-  var addItemBtn=mkBtn('+ Add another item',function(){addItemRow('',1,'','','','');saveDraft();},'btn btn-xs');
+  var addItemBtn=mkBtn('+ Add another ensemble',function(){addItemRow('',1,'','','','');saveDraft();},'btn btn-xs');
   addItemBtn.style.marginTop='4px';
 
   // Draft auto-save to localStorage
@@ -2502,7 +2536,7 @@ function openOrderModal(id){
     mkFg('Client *',clSel),
     (function(){
       var fg=mk('div','form-group');
-      var l=mk('label','form-label','Items *');
+      var l=mk('label','form-label','Ensembles *');
       app(fg,[l,colHdr,datalist,itemsWrap,addItemBtn]);
       return fg;
     })(),
@@ -4250,7 +4284,7 @@ function pgEmbroidery(){
   var activeTab='attendance';
   var tabRow=mk('div');tabRow.style.cssText='display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid #f0f0f0';
   var tabs={};
-  var tabDefs=[{key:'attendance',label:'Daily Attendance'},{key:'summary',label:'Hours Summary'},{key:'garment',label:'Garment Report'}];
+  var tabDefs=[{key:'attendance',label:'Daily Attendance'},{key:'summary',label:'Hours Summary'},{key:'garment',label:'Ensemble Report'}];
   if(!isAssistant())tabDefs.push({key:'workers',label:'Workers'});
 
   var contentWrap=mk('div');contentWrap.id='emb-content';
@@ -4400,6 +4434,17 @@ function pgEmbroidery(){
         if(linkedEsts[idx])return linkedEsts[idx].components;
         if(linkedEsts[0]&&idx===0)return linkedEsts[0].components;
 
+
+        // Path 4: Fall back to estgarments pieces for this ensemble type
+        var order2=DB.orders.find(function(o){return o.id===orderId;});
+        if(order2){
+          var ensName=(order2.items&&order2.items[idx]?order2.items[idx].name:null)||order2.item;
+          if(ensName){
+            var gType=DB.estgarments.find(function(g){return g.name&&g.name.toLowerCase()===ensName.toLowerCase();});
+            if(gType&&gType.components&&gType.components.length)return gType.components;
+          }
+        }
+
         // No data found — free text input will show
         return null;
       }
@@ -4420,14 +4465,14 @@ function pgEmbroidery(){
         app(d1Wrap,[d1Inp,d1Drop]);
 
         // DD2: Garment
-        var d2Lbl=mk('div');d2Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d2Lbl.textContent='GARMENT';
+        var d2Lbl=mk('div');d2Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em';d2Lbl.textContent='ENSEMBLE';
         var d2Sel=mk('select');d2Sel.className='emb-item-sel-'+w.id;
         d2Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff';
         d2Sel.appendChild((function(){var o=mk('option');o.value='';o.textContent='— Select garment —';return o;})());
         d2Sel.disabled=true;
 
         // DD3: Component (dropdown or text)
-        var d3Lbl=mk('div');d3Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em;display:none';d3Lbl.textContent='COMPONENT';
+        var d3Lbl=mk('div');d3Lbl.style.cssText='font-size:10px;font-weight:700;color:#888;letter-spacing:.04em;display:none';d3Lbl.textContent='PIECE';
         var d3Sel=mk('select');d3Sel.className='emb-comp-sel-'+w.id;
         d3Sel.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:4px;color:#555;background:#fff;display:none';
         var d3Inp=mk('input');d3Inp.type='text';d3Inp.placeholder='e.g. Blouse, Saree body...';
@@ -4478,8 +4523,9 @@ function pgEmbroidery(){
             var items=o.items&&o.items.length?o.items:[{name:o.item||'Item'}];
             var oNo=o.orderNo?' ('+o.orderNo+')':'';
             items.forEach(function(it,idx){
+              var desc=it.itemNotes?(' — '+it.itemNotes.substring(0,35)+(it.itemNotes.length>35?'...':'')):'';
               var opt=mk('option');opt.value=o.id+'|'+idx+'|'+(it.name||o.item||'');
-              opt.textContent=(it.name||o.item||'Item')+oNo;
+              opt.textContent=(it.name||o.item||'Ensemble')+oNo+desc;
               if(preOrdId&&o.id===preOrdId&&idx===parseInt(preItemIdx||0))opt.selected=true;
               d2Sel.appendChild(opt);
             });
@@ -4879,7 +4925,7 @@ function pgEmbroidery(){
     if(!order){reportWrap.appendChild(mk('div','empty','Order not found.'));return;}
     var cl=DB.clients.find(function(c){return c.id===order.clientId;});
 
-    // Order info header
+    // Order header
     var orderHdr=mk('div');orderHdr.style.cssText='background:#fafafa;border-radius:8px;padding:12px 16px;margin-bottom:16px;border:1px solid #e8e8e8';
     var oh1=mk('div');oh1.style.cssText='font-size:14px;font-weight:700;color:#1a1a1a';
     oh1.textContent=(cl?cl.name+' — ':'')+order.item+(order.orderNo?' · '+order.orderNo:'');
@@ -4888,13 +4934,9 @@ function pgEmbroidery(){
     app(orderHdr,[oh1,oh2]);
     reportWrap.appendChild(orderHdr);
 
-    // Get all attendance records for this order
-    // Logic: for each day+worker combination:
-    //   - If split records exist for that day+worker → use split records (they have per-item hours)
-    //   - If no split records → use main record (full hours assigned to this order)
+    // Get attendance records
     var allForOrder=DB.embAttendance.filter(function(a){return a.orderId===orderId;});
     var splitRecords=allForOrder.filter(function(a){return a.isSplit;});
-    // Get main records only for workers/days that have NO split records
     var splitKeys={};
     splitRecords.forEach(function(a){splitKeys[a.date+'_'+a.workerId]=true;});
     var mainRecords=allForOrder.filter(function(a){
@@ -4902,123 +4944,146 @@ function pgEmbroidery(){
     });
     var attRecords=splitRecords.concat(mainRecords)
       .sort(function(a,b){return a.date.localeCompare(b.date);});
+
     if(!attRecords.length){
-      var noAtt=mk('div','card-p0');noAtt.appendChild(mk('div','empty','No embroidery time logged for this order yet.'));
-      reportWrap.appendChild(noAtt);return;
+      reportWrap.appendChild(mk('div','card-p0')).appendChild(mk('div','empty','No embroidery time logged for this order yet.'));
+      return;
     }
 
-    // Group by item for item-level summary
-    var byItem={};
+    // Build hierarchy: Ensemble → Piece → Worker
+    // ensembleKey = itemLabel (ensemble name)
+    // pieceKey = component (piece name)
+    var ensembles={};
     attRecords.forEach(function(a){
-      var ikey=a.itemLabel||a.orderLabel||'General';
-      if(!byItem[ikey])byItem[ikey]={label:ikey,hours:0};
-      byItem[ikey].hours=Math.round((byItem[ikey].hours+Number(a.hours||0))*100)/100;
-    });
-    var itemKeys=Object.keys(byItem);
-    if(itemKeys.length>1){
-      var itemSumCard=mk('div','card-p0');itemSumCard.style.marginBottom='16px';
-      var ish=mk('div');ish.style.cssText='padding:8px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';ish.textContent='Hours by Garment';
-      itemSumCard.appendChild(ish);
-      itemKeys.forEach(function(ik){
-        var ir=mk('div');ir.style.cssText='display:flex;justify-content:space-between;padding:9px 16px;border-bottom:1px solid #f5f5f5;font-size:12px';
-        var il=mk('span');il.style.fontWeight='600';il.textContent=ik;
-        var ih2=mk('span');ih2.style.cssText='font-weight:700;color:#2D6B5E';ih2.textContent=byItem[ik].hours+'h';
-        app(ir,[il,ih2]);itemSumCard.appendChild(ir);
-      });
-      reportWrap.appendChild(itemSumCard);
-    }
-
-    // Group by worker
-    var byWorker={};
-    attRecords.forEach(function(a){
-      if(!byWorker[a.workerId])byWorker[a.workerId]={name:a.workerName,records:[],totalHours:0};
-      byWorker[a.workerId].records.push(a);
-      byWorker[a.workerId].totalHours+=Number(a.hours||0);
+      var ensKey=a.itemLabel||a.orderLabel||'General';
+      var pieceKey=a.component||'(unspecified)';
+      if(!ensembles[ensKey])ensembles[ensKey]={label:ensKey,pieces:{},totalHours:0,totalCost:0};
+      if(!ensembles[ensKey].pieces[pieceKey])ensembles[ensKey].pieces[pieceKey]={label:pieceKey,workers:{},totalHours:0,totalCost:0};
+      var wid=a.workerId;
+      var worker=DB.embWorkers.find(function(x){return x.id===wid;});
+      var rate=worker?Number(worker.ratePerHour||0):0;
+      var hrs=Number(a.hours||0);
+      var cost=Math.round(hrs*rate*100)/100;
+      if(!ensembles[ensKey].pieces[pieceKey].workers[wid]){
+        ensembles[ensKey].pieces[pieceKey].workers[wid]={name:a.workerName,hours:0,cost:0,records:[]};
+      }
+      ensembles[ensKey].pieces[pieceKey].workers[wid].hours=Math.round((ensembles[ensKey].pieces[pieceKey].workers[wid].hours+hrs)*100)/100;
+      ensembles[ensKey].pieces[pieceKey].workers[wid].cost=Math.round((ensembles[ensKey].pieces[pieceKey].workers[wid].cost+cost)*100)/100;
+      ensembles[ensKey].pieces[pieceKey].workers[wid].records.push(a);
+      ensembles[ensKey].pieces[pieceKey].totalHours=Math.round((ensembles[ensKey].pieces[pieceKey].totalHours+hrs)*100)/100;
+      ensembles[ensKey].pieces[pieceKey].totalCost=Math.round((ensembles[ensKey].pieces[pieceKey].totalCost+cost)*100)/100;
+      ensembles[ensKey].totalHours=Math.round((ensembles[ensKey].totalHours+hrs)*100)/100;
+      ensembles[ensKey].totalCost=Math.round((ensembles[ensKey].totalCost+cost)*100)/100;
     });
 
-    var totalHoursAll=attRecords.reduce(function(s,a){return s+Number(a.hours||0);},0);
-    totalHoursAll=Math.round(totalHoursAll*100)/100;
+    var grandHours=attRecords.reduce(function(s,a){return s+Number(a.hours||0);},0);
+    grandHours=Math.round(grandHours*100)/100;
+    var grandCost=Object.values(ensembles).reduce(function(s,e){return s+e.totalCost;},0);
+    grandCost=Math.round(grandCost*100)/100;
 
     // Summary cards
-    var sumCards=mk('div');sumCards.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px';
+    var workerIds={};
+    attRecords.forEach(function(a){workerIds[a.workerId]=true;});
+    var sumCards=mk('div');sumCards.style.cssText='display:grid;grid-template-columns:repeat('+(isAssistant()?'2':'3')+',1fr);gap:12px;margin-bottom:20px';
     function sCard2(label,val,color){
       var c=mk('div');c.style.cssText='background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px;text-align:center';
       var l=mk('div');l.style.cssText='font-size:11px;color:#888;text-transform:uppercase;font-weight:700;margin-bottom:6px';l.textContent=label;
       var v=mk('div');v.style.cssText='font-size:18px;font-weight:800;color:'+(color||'#1a1a1a');v.textContent=val;
       app(c,[l,v]);return c;
     }
-    app(sumCards,[
-      sCard2('Total Hours',totalHoursAll+'h','#2D6B5E'),
-      sCard2('Workers',Object.keys(byWorker).length,'#6D28D9'),
-      sCard2('Days Worked',attRecords.length,'#B45309')
-    ]);
+    var cards=[sCard2('Total Hours',grandHours+'h','#2D6B5E'),sCard2('Workers',Object.keys(workerIds).length,'#6D28D9')];
+    if(!isAssistant())cards.push(sCard2('Total Cost',rupee(grandCost),'#166534'));
+    cards.forEach(function(c){sumCards.appendChild(c);});
     reportWrap.appendChild(sumCards);
 
-    // Per worker breakdown
-    var card=mk('div','card-p0');
-    var hdr2=mk('div');hdr2.style.cssText='display:grid;grid-template-columns:2fr 1fr'+(isAssistant()?'':' 1fr')+';gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
-    var hCols=['Worker','Hours'];
-    if(!isAssistant())hCols.push('Cost');
-    hCols.forEach(function(h){var th=mk('div');th.textContent=h;hdr2.appendChild(th);});
-    card.appendChild(hdr2);
+    // Render Ensemble → Piece → Worker hierarchy
+    Object.keys(ensembles).forEach(function(ensKey){
+      var ens=ensembles[ensKey];
 
-    Object.keys(byWorker).forEach(function(wid){
-      var wd=byWorker[wid];
-      var hrs=Math.round(wd.totalHours*100)/100;
-      var worker=DB.embWorkers.find(function(x){return x.id===wid;});
+      // Ensemble header
+      var ensCard=mk('div');ensCard.style.cssText='margin-bottom:20px;border:1px solid #e8e8e8;border-radius:10px;overflow:hidden';
+      var ensHdr=mk('div');ensHdr.style.cssText='background:#2D6B5E;padding:10px 16px;display:flex;justify-content:space-between;align-items:center';
+      var ensTitle=mk('div');ensTitle.style.cssText='font-size:13px;font-weight:700;color:#fff';ensTitle.textContent='Ensemble: '+ens.label;
+      var ensTotals=mk('div');ensTotals.style.cssText='display:flex;gap:16px;font-size:12px;color:rgba(255,255,255,.85)';
+      var ensHrs=mk('span');ensHrs.textContent=ens.totalHours+'h total';
+      ensTotals.appendChild(ensHrs);
+      if(!isAssistant()){var ensCost=mk('span');ensCost.style.color='#C9A84C';ensCost.textContent=rupee(ens.totalCost);ensTotals.appendChild(ensCost);}
+      app(ensHdr,[ensTitle,ensTotals]);
+      ensCard.appendChild(ensHdr);
 
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr'+(isAssistant()?'':'  1fr')+';gap:8px;padding:11px 16px;border-bottom:1px solid #f5f5f5;align-items:center;cursor:pointer';
+      // Pieces within this ensemble
+      Object.keys(ens.pieces).forEach(function(pieceKey){
+        var piece=ens.pieces[pieceKey];
 
-      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=wd.name;
-      var hr=mk('div');hr.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';hr.textContent=hrs+'h';
+        // Piece subheader
+        var pieceHdr=mk('div');pieceHdr.style.cssText='background:#f0fdf4;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8e8e8';
+        var pieceTitle=mk('div');pieceTitle.style.cssText='font-size:12px;font-weight:700;color:#166534';pieceTitle.textContent='Piece: '+piece.label;
+        var pieceTotals=mk('div');pieceTotals.style.cssText='display:flex;gap:12px;font-size:12px';
+        var pieceHrs=mk('span');pieceHrs.style.cssText='font-weight:700;color:#2D6B5E';pieceHrs.textContent=piece.totalHours+'h';
+        pieceTotals.appendChild(pieceHrs);
+        if(!isAssistant()){var pieceCost=mk('span');pieceCost.style.cssText='font-weight:700;color:#166534';pieceCost.textContent=rupee(piece.totalCost);pieceTotals.appendChild(pieceCost);}
+        app(pieceHdr,[pieceTitle,pieceTotals]);
+        ensCard.appendChild(pieceHdr);
 
-      var cells=[nm,hr];
-      if(!isAssistant()&&worker&&worker.ratePerHour){
-        var cost=Math.round(hrs*Number(worker.ratePerHour));
-        var co=mk('div');co.style.cssText='font-size:13px;font-weight:700;color:#166534';co.textContent=rupee(cost);
-        cells.push(co);
-      } else if(!isAssistant()){
-        var co2=mk('div');co2.style.cssText='font-size:11px;color:#aaa';co2.textContent='—';
-        cells.push(co2);
-      }
-      cells.forEach(function(c){row.appendChild(c);});
+        // Workers within this piece
+        Object.keys(piece.workers).forEach(function(wid){
+          var wd=piece.workers[wid];
+          var wRow=mk('div');wRow.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 16px 8px 28px;border-bottom:1px solid #f9f9f9;cursor:pointer';
+          var wLeft=mk('div');
+          var wName=mk('div');wName.style.cssText='font-size:12px;font-weight:600;color:#333';wName.textContent=wd.name;
+          var wDays=mk('div');wDays.style.cssText='font-size:11px;color:#aaa;margin-top:1px';wDays.textContent=wd.records.length+' session'+(wd.records.length!==1?'s':'');
+          app(wLeft,[wName,wDays]);
+          var wRight=mk('div');wRight.style.cssText='display:flex;gap:14px;align-items:center';
+          var wHrs=mk('div');wHrs.style.cssText='font-size:12px;font-weight:700;color:#2D6B5E';wHrs.textContent=wd.hours+'h';
+          wRight.appendChild(wHrs);
+          if(!isAssistant()){var wCost=mk('div');wCost.style.cssText='font-size:12px;font-weight:700;color:#166534';wCost.textContent=rupee(wd.cost);wRight.appendChild(wCost);}
+          app(wRow,[wLeft,wRight]);
 
-      // Expand to daily detail
-      var expanded=false;
-      var detail=mk('div');detail.style.cssText='display:none;background:#fafafa;border-bottom:1px solid #f5f5f5;padding:6px 16px 10px';
-      wd.records.forEach(function(r){
-        var dr=mk('div');dr.style.cssText='display:flex;justify-content:space-between;font-size:12px;padding:3px 0;color:#555';
-        var dl=mk('span');dl.textContent=fmtDate(r.date)+' · '+fmt12(r.inTime)+' – '+fmt12(r.outTime);
-        var dh=mk('span');dh.style.fontWeight='600';dh.textContent=r.hours+'h';
-        app(dr,[dl,dh]);detail.appendChild(dr);
+          // Expandable daily breakdown
+          var expanded=false;
+          var detail=mk('div');detail.style.cssText='display:none;background:#fafafa;padding:4px 28px 8px';
+          wd.records.forEach(function(r){
+            var dr=mk('div');dr.style.cssText='display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:#666';
+            var dl=mk('span');dl.textContent=fmtDate(r.date)+' · '+fmt12(r.inTime)+' – '+fmt12(r.outTime);
+            var dh=mk('span');dh.style.fontWeight='600';dh.textContent=r.hours+'h';
+            app(dr,[dl,dh]);detail.appendChild(dr);
+          });
+          wRow.onclick=function(){expanded=!expanded;detail.style.display=expanded?'block':'none';wRow.style.background=expanded?'#f9f9f9':'';};
+          ensCard.appendChild(wRow);
+          ensCard.appendChild(detail);
+        });
+
+        // Piece total row
+        var ptRow=mk('div');ptRow.style.cssText='display:flex;justify-content:space-between;padding:7px 16px 7px 28px;background:#f5fdf8;font-size:11px;font-weight:700;color:#166534;border-bottom:1px solid #e8e8e8';
+        var ptL=mk('span');ptL.textContent='Piece total';
+        var ptR=mk('div');ptR.style.cssText='display:flex;gap:14px';
+        var ptH=mk('span');ptH.textContent=piece.totalHours+'h';ptR.appendChild(ptH);
+        if(!isAssistant()){var ptC=mk('span');ptC.textContent=rupee(piece.totalCost);ptR.appendChild(ptC);}
+        app(ptRow,[ptL,ptR]);
+        ensCard.appendChild(ptRow);
       });
-      row.onclick=function(){
-        expanded=!expanded;
-        detail.style.display=expanded?'block':'none';
-        row.style.background=expanded?'#f9f9f9':'';
-      };
-      card.appendChild(row);
-      card.appendChild(detail);
+
+      // Ensemble total row
+      var etRow=mk('div');etRow.style.cssText='display:flex;justify-content:space-between;padding:10px 16px;background:#e6f0ee;font-size:13px;font-weight:700;color:#1e514c';
+      var etL=mk('span');etL.textContent='Ensemble total';
+      var etR=mk('div');etR.style.cssText='display:flex;gap:14px';
+      var etH=mk('span');etH.textContent=ens.totalHours+'h';etR.appendChild(etH);
+      if(!isAssistant()){var etC=mk('span');etC.style.color='#C9A84C';etC.textContent=rupee(ens.totalCost);etR.appendChild(etC);}
+      app(etRow,[etL,etR]);
+      ensCard.appendChild(etRow);
+      reportWrap.appendChild(ensCard);
     });
 
-    // Total row
-    var totRow=mk('div');totRow.style.cssText='display:grid;grid-template-columns:2fr 1fr'+(isAssistant()?'':' 1fr')+';gap:8px;padding:12px 16px;background:#f0fdf4;font-size:13px;font-weight:700;color:#166534';
-    var tCols=[mk('div'),mk('div')];
-    tCols[0].textContent='Total';tCols[1].textContent=totalHoursAll+'h';
-    tCols[0].style.fontWeight='700';tCols[1].style.fontWeight='700';
-    if(!isAssistant()){
-      var totalCost=Object.keys(byWorker).reduce(function(s,wid){
-        var wd=byWorker[wid];var w=DB.embWorkers.find(function(x){return x.id===wid;});
-        return s+(w&&w.ratePerHour?Math.round(wd.totalHours*Number(w.ratePerHour)):0);
-      },0);
-      var tc=mk('div');tc.textContent=totalCost?rupee(totalCost):'—';tCols.push(tc);
-    }
-    tCols.forEach(function(c){totRow.appendChild(c);});
-    card.appendChild(totRow);
-    reportWrap.appendChild(card);
+    // Grand total
+    var grandRow=mk('div');grandRow.style.cssText='display:flex;justify-content:space-between;padding:12px 16px;background:#1e514c;border-radius:8px;font-size:13px;font-weight:700;color:#fff;margin-top:4px';
+    var grL=mk('span');grL.textContent='Order Total';
+    var grR=mk('div');grR.style.cssText='display:flex;gap:14px';
+    var grH=mk('span');grH.textContent=grandHours+'h';grR.appendChild(grH);
+    if(!isAssistant()){var grC=mk('span');grC.style.color='#C9A84C';grC.textContent=rupee(grandCost);grR.appendChild(grC);}
+    app(grandRow,[grL,grR]);
+    reportWrap.appendChild(grandRow);
   }
 
-  // ── WORKERS TAB (admin only) ─────────────────────────────────
   function renderWorkersTab(cw){
     var workers=DB.embWorkers.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
     if(!workers.length){
@@ -7279,7 +7344,7 @@ function openQuotationModal(id){
   app(wrap2,[
     mk('div','modal-title','Edit Quotation — '+(q.clientName||'')),
     mk('div','modal-sub','Edit items, amounts, delivery dates. Add discount and T&C as needed.'),
-    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Items *');app(fg,[l,colHdr,itemsWrap,addItemBtn]);return fg;})(),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Ensembles *');app(fg,[l,colHdr,itemsWrap,addItemBtn]);return fg;})(),
     app(mk('div','form-row'),[mkFg('Travel / extra (₹)',travelInp),(function(){var fg=mk('div','form-group');fg.appendChild(mk('label','form-label',' '));fg.appendChild(totalDisp);return fg;})()]),
     mkFg('Discount (optional)',discRow),
     mkFg('Notes',notesTA),
@@ -7560,7 +7625,7 @@ function printQuotation(id){
     +'</div>'
     +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
       +'<thead><tr style="background:#2D6B5E;color:#fff">'
-        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
+        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ENSEMBLE / DESCRIPTION</th>'
         +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:120px">AMOUNT</th>'
       +'</tr></thead>'
       +'<tbody>'+itemsHtml+'</tbody>'
@@ -8185,7 +8250,7 @@ function getEstGarments(){
 
 function pgEstSettings(){
   var wrap=mk('div');
-  wrap.appendChild(mkPageHeader('Estimator Settings','Configure garment types, components and cost columns'));
+  wrap.appendChild(mkPageHeader('Estimator Settings','Configure ensemble types, components and cost columns'));
 
   // ── MARKUP & DISCOUNT CONFIG ─────────────────────────────────────────
   var cfgSec=mk('div');cfgSec.style.marginBottom='28px';
@@ -8254,8 +8319,8 @@ function pgEstSettings(){
   // ── GARMENT TYPES ──────────────────────────────────────────────────────
   var grmtSec=mk('div');
   var grmtHdr=mk('div');grmtHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-  var grmtTitle=mk('div','section-title','Garment types & components');grmtTitle.style.margin='0';
-  var addGrmtBtn=mkBtn('+ Add garment type',function(){openEstGarmentModal();},'btn btn-primary btn-sm');
+  var grmtTitle=mk('div','section-title','Ensemble types & pieces');grmtTitle.style.margin='0';
+  var addGrmtBtn=mkBtn('+ Add ensemble type',function(){openEstGarmentModal();},'btn btn-primary btn-sm');
   app(grmtHdr,[grmtTitle,addGrmtBtn]);grmtSec.appendChild(grmtHdr);
 
   var garments=getEstGarments();
@@ -8291,7 +8356,7 @@ function pgEstSettings(){
 
   if(!DB.estgarments.length){
     var hint2=mk('div');hint2.style.cssText='margin-top:8px;font-size:12px;color:#aaa;padding:6px 0';
-    hint2.textContent='Using default garment types. Add or edit to save your own.';grmtSec.appendChild(hint2);
+    hint2.textContent='Using default ensemble types. Add or edit to save your own.';grmtSec.appendChild(hint2);
   }
   wrap.appendChild(grmtSec);
 
@@ -8395,14 +8460,14 @@ function openEstGarmentModal(id){
   }
   renderComps();compList._data=[].concat(existingComps);
 
-  var addCompBtn=mkBtn('+ Add component',function(){
+  var addCompBtn=mkBtn('+ Add piece',function(){
     compList._data.push('');renderComps();
     var inputs=compList.querySelectorAll('input');if(inputs.length)inputs[inputs.length-1].focus();
   },'btn btn-xs');addCompBtn.style.marginTop='6px';
 
   var wrap=mk('div');
   app(wrap,[
-    mk('div','modal-title',(id?'Edit':'Add')+' garment type'),
+    mk('div','modal-title',(id?'Edit':'Add')+' ensemble type'),
     app(mk('div','form-row'),[mkFg('Garment name *',nameInp),mkFg('ID',idInp)]),
     (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Components *');app(fg,[l,compList,addCompBtn]);return fg;})(),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
@@ -8578,7 +8643,7 @@ function saveClientEstimate(){
 
   var garments = getEstGarments();
   var garmentObj = garments.find(function(g){return g.id===_estGarment;});
-  if(!garmentObj){alert('Please select a garment type.');return false;}
+  if(!garmentObj){alert('Please select a ensemble type.');return false;}
 
   var cols = getEstCols();
   var grand = garmentObj.components.reduce(function(a,comp){
@@ -8744,8 +8809,8 @@ function pgEstimator(){
   if(!garments.length){
     var empty=mk('div','card');
     var msg=mk('div');msg.style.cssText='text-align:center;padding:20px';
-    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No garment types configured yet.';
-    var s=mk('div');s.style.cssText='font-size:13px;color:#888;margin-bottom:14px';s.textContent='Go to Estimator Settings under Master to set up garment types and cost columns.';
+    var t=mk('div');t.style.cssText='font-size:15px;font-weight:600;margin-bottom:8px';t.textContent='No ensemble types configured yet.';
+    var s=mk('div');s.style.cssText='font-size:13px;color:#888;margin-bottom:14px';s.textContent='Go to Estimator Settings under Master to set up ensemble types and cost columns.';
     var btn3=mkBtn('Go to Estimator Settings',function(){nav('estsettings');},'btn btn-primary');
     app(msg,[t,s,btn3]);app(empty,[msg]);wrap.appendChild(empty);
     return wrap;
@@ -9042,7 +9107,7 @@ function loadSnapIntoEstimatorForEdit(snap,quotId){
   var garments=getEstGarments();
   var garmentObj=garments.find(function(g){return g.id===snap.garmentId;});
   if(!garmentObj){
-    alert('Cannot edit — the garment type "'+snap.garmentName+'" no longer exists in your estimator settings.');
+    alert('Cannot edit — the ensemble type "'+snap.garmentName+'" no longer exists in your estimator settings.');
     return;
   }
 
@@ -9195,8 +9260,8 @@ function loadDraftItemIntoEstimator(item){
   var garments=getEstGarments();
   var garmentObj=garments.find(function(g){return g.id===item.garmentId;});
   if(!garmentObj){
-    // Garment type no longer exists — can't load
-    alert('Cannot edit this item — the garment type no longer exists in your estimator settings.');
+    // Ensemble type no longer exists — can't load
+    alert('Cannot edit this item — the ensemble type no longer exists in your estimator settings.');
     return;
   }
 
@@ -9925,7 +9990,7 @@ function generateOrderQuotationPDF(orderId,discType,discVal,terms){
     // Items table
     +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
       +'<thead><tr style="background:#2D6B5E;color:#fff">'
-        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ITEM / DESCRIPTION</th>'
+        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ENSEMBLE / DESCRIPTION</th>'
         +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:120px">AMOUNT</th>'
       +'</tr></thead>'
       +'<tbody>'+itemsHtml+'</tbody>'
