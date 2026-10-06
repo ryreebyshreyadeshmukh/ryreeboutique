@@ -4917,24 +4917,23 @@ function pgEmbroidery(){
     d3Sel2.appendChild((function(){var o=mk('option');o.value='';o.textContent='All Pieces';return o;})());
     app(d3Wrap,[d3Lbl2,d3Sel2]);
 
-    // Populate piece dropdown when order changes
-    d2Sel.addEventListener('change',function(){
+    function populatePieces(oid){
       while(d3Sel2.options.length>0)d3Sel2.remove(0);
       d3Sel2.appendChild((function(){var o=mk('option');o.value='';o.textContent='All Pieces';return o;})());
-      var oid=d2Sel.value;
       if(!oid)return;
-      // Get pieces from attendance records for this order
       var orderAtt=DB.embAttendance.filter(function(a){return a.orderId===oid;});
       var pieces={};
       orderAtt.forEach(function(a){var p=a.component||'(unspecified)';pieces[p]=true;});
       Object.keys(pieces).sort().forEach(function(p){
         var opt=mk('option');opt.value=p;opt.textContent=p;d3Sel2.appendChild(opt);
       });
-    });
+    }
+    d2Sel.addEventListener('change',function(){populatePieces(d2Sel.value);});
 
     var viewBtn=mkBtn('View Report',function(){
       var oid=d2Sel.value;
       if(!oid){alert('Please select an order.');return;}
+      populatePieces(oid);
       var pieceFilter=(document.getElementById('emb-report-piece')||{}).value||'';
       renderGarmentReport(oid,reportWrap,pieceFilter);
     },'btn btn-primary btn-sm');
@@ -4959,7 +4958,7 @@ function pgEmbroidery(){
         d2Sel.appendChild(opt);
       });
       // Auto-select if only one order
-      if(cOrds.length===1){d2Sel.selectedIndex=1;renderGarmentReport(cOrds[0].id,reportWrap,'');}
+      if(cOrds.length===1){d2Sel.selectedIndex=1;populatePieces(cOrds[0].id);renderGarmentReport(cOrds[0].id,reportWrap,'');}
     }
 
     function showClientDrop(q){
