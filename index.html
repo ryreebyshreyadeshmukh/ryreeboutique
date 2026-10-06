@@ -3692,18 +3692,33 @@ function getCurrentFinYear(){
 
 function getOrderItemPieces(orderId, itemIdx){
   var idx=parseInt(itemIdx||0);
-  // Only show pieces when a real per-item snapshot exists
-  // Check estSnapshots — must match both orderId AND itemIndex exactly
+  // Use Object.keys(data) as source of truth — reflects what was actually estimated
+  // regardless of what pieces are currently named in settings
+
+  // Check estSnapshots first
   var allSnaps=DB.estSnapshots.filter(function(s){return s.orderId===orderId;});
   var snap=allSnaps.find(function(s){return (s.itemIndex||0)===idx;});
-  if(snap&&snap.components&&snap.components.length)return snap.components;
-  // Check quotation services snapshot for this specific item
+  if(snap&&snap.data&&Object.keys(snap.data).length){
+    return Object.keys(snap.data).filter(function(k){
+      // Only include pieces that have at least one non-zero cost value
+      var pieceData=snap.data[k];
+      return pieceData&&Object.values(pieceData).some(function(v){return Number(v)>0;});
+    });
+  }
+
+  // Check quotation services snapshot
   var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
   if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
     var qs=quot.services[idx].estSnapshot;
-    if(qs&&qs.components&&qs.components.length)return qs.components;
+    if(qs&&qs.data&&Object.keys(qs.data).length){
+      return Object.keys(qs.data).filter(function(k){
+        var pieceData=qs.data[k];
+        return pieceData&&Object.values(pieceData).some(function(v){return Number(v)>0;});
+      });
+    }
   }
-  // No reliable data — show nothing
+
+  // No reliable data
   return [];
 }
 
@@ -4445,15 +4460,27 @@ function pgEmbroidery(){
       function getEstComponents(orderId,itemIdx){
         var idx=parseInt(itemIdx||0);
 
-        // Path 1: estSnapshots — strict match by orderId AND itemIndex
+        // Path 1: estSnapshots — use data keys as source of truth
         var allSnaps=DB.estSnapshots.filter(function(s){return s.orderId===orderId;});
         var snap=allSnaps.find(function(s){return (s.itemIndex||0)===idx;});
+        if(snap&&snap.data&&Object.keys(snap.data).length){
+          var dataKeys=Object.keys(snap.data).filter(function(k){
+            var pd=snap.data[k];
+            return pd&&Object.values(pd).some(function(v){return Number(v)>0;});
+          });
+          if(dataKeys.length)return dataKeys;
+        }
         if(snap&&snap.components&&snap.components.length)return snap.components;
+
 
         // Path 2: quotation services[idx].estSnapshot
         var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
         if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
           var qsnap=quot.services[idx].estSnapshot;
+          if(qsnap&&qsnap.data&&Object.keys(qsnap.data).length){
+            var qkeys=Object.keys(qsnap.data).filter(function(k){var pd=qsnap.data[k];return pd&&Object.values(pd).some(function(v){return Number(v)>0;});});
+            if(qkeys.length)return qkeys;
+          }
           if(qsnap&&qsnap.components&&qsnap.components.length)return qsnap.components;
         }
 
