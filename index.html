@@ -3497,7 +3497,7 @@ function pgAppSettings(){
     var pinTitle=mk('div');pinTitle.style.cssText='font-size:14px;font-weight:700;color:#1a1a1a;margin-bottom:4px';pinTitle.textContent='Admin PIN';
     var pinSub=mk('div');pinSub.style.cssText='font-size:12px;color:#888;margin-bottom:16px';pinSub.textContent='4-digit PIN for Shreya. Required to log in as admin.';
 
-    var currentPinInp=mkInput('sec-current-pin','password','Current PIN (leave blank if not set)','');
+    var currentPinInp=mkInput('sec-current-pin','password','Leave blank if setting PIN for first time','');
     currentPinInp.maxLength=4;currentPinInp.inputMode='numeric';currentPinInp.pattern='[0-9]*';
     var newPinInp=mkInput('sec-new-pin','password','New 4-digit PIN','');
     newPinInp.maxLength=4;newPinInp.inputMode='numeric';newPinInp.pattern='[0-9]*';
@@ -3510,8 +3510,9 @@ function pgAppSettings(){
       var current=(document.getElementById('sec-current-pin')||{}).value.trim();
       var newPin=(document.getElementById('sec-new-pin')||{}).value.trim();
       var confirmPin=(document.getElementById('sec-confirm-pin')||{}).value.trim();
-      var existingPin=cfg.adminPin||cfg.password||'';
+      var existingPin=cfg.adminPin||''; // only check 4-digit adminPin, not old text password
 
+      // If no adminPin set yet (migrating from text password), skip current PIN check
       if(existingPin&&current!==existingPin){pinErr.style.color='#E24B4A';pinErr.textContent='Current PIN is incorrect.';return;}
       if(!newPin||newPin.length!==4||!/^[0-9]{4}$/.test(newPin)){pinErr.style.color='#E24B4A';pinErr.textContent='New PIN must be exactly 4 digits.';return;}
       if(newPin!==confirmPin){pinErr.style.color='#E24B4A';pinErr.textContent='PINs do not match.';return;}
