@@ -8345,7 +8345,7 @@ function pgEstSettings(){
 
     // Components
     var compLabel=mk('div');compLabel.style.cssText='font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px';
-    compLabel.textContent='Components ('+g.components.length+')';card.appendChild(compLabel);
+    compLabel.textContent='Pieces ('+g.components.length+')';card.appendChild(compLabel);
     var pills=mk('div');pills.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
     g.components.forEach(function(c){
       var p=mk('span');p.style.cssText='background:#e6f0ee;color:#2D6B5E;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500';
@@ -8470,7 +8470,7 @@ function openEstGarmentModal(id){
   app(wrap,[
     mk('div','modal-title',(id?'Edit':'Add')+' ensemble type'),
     app(mk('div','form-row'),[mkFg('Garment name *',nameInp),mkFg('ID',idInp)]),
-    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Components *');app(fg,[l,compList,addCompBtn]);return fg;})(),
+    (function(){var fg=mk('div','form-group');var l=mk('label','form-label','Pieces *');app(fg,[l,compList,addCompBtn]);return fg;})(),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var name=document.getElementById('egrm-name').value.trim();
       var gid=document.getElementById('egrm-id').value.trim();
