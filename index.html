@@ -9632,6 +9632,23 @@ function renderEstBreakdownTable(s){
   var disc=mk('div');disc.style.cssText='font-size:11px;color:#aaa;margin-top:10px;text-align:right';
   disc.textContent='Discount: '+s.discount+'% on MRP · Markup: '+s.markup+'x';
   container.appendChild(disc);
+
+  // Consistency check — verify visible row totals match stored totalCost
+  var visibleTotal=s.components.reduce(function(a,comp){
+    return a+s.cols.reduce(function(b,col){return b+Number((s.data[comp]||{})[col.id]||0);},0);
+  },0);
+  var storedTotal=Number(s.totalCost||0);
+  var diff=Math.abs(visibleTotal-storedTotal);
+
+  if(diff>1&&storedTotal>0){
+    var warnDiv=mk('div');warnDiv.style.cssText='margin-top:12px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12px;color:#991B1B;line-height:1.5';
+    var warnIcon=mk('span');warnIcon.textContent='⚠️ ';
+    var warnText=mk('span');
+    warnText.textContent='This estimate breakdown appears incomplete. The visible rows total '+rupee(visibleTotal)+' but the stored cost is '+rupee(storedTotal)+'. Some piece data may have been lost. Use Edit Estimate to re-enter the missing costs.';
+    app(warnDiv,[warnIcon,warnText]);
+    container.appendChild(warnDiv);
+  }
+
   return container;
 }
 
