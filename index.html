@@ -3692,24 +3692,18 @@ function getCurrentFinYear(){
 
 function getOrderItemPieces(orderId, itemIdx){
   var idx=parseInt(itemIdx||0);
-  // Check estSnapshots first
-  var snap=DB.estSnapshots.find(function(s){return s.orderId===orderId&&(s.itemIndex||0)===idx;});
+  // Only show pieces when a real per-item snapshot exists
+  // Check estSnapshots — must match both orderId AND itemIndex exactly
+  var allSnaps=DB.estSnapshots.filter(function(s){return s.orderId===orderId;});
+  var snap=allSnaps.find(function(s){return (s.itemIndex||0)===idx;});
   if(snap&&snap.components&&snap.components.length)return snap.components;
-  // Check quotation services snapshot
+  // Check quotation services snapshot for this specific item
   var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
   if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
     var qs=quot.services[idx].estSnapshot;
     if(qs&&qs.components&&qs.components.length)return qs.components;
   }
-  // Fall back to estgarments by ensemble name
-  var order=DB.orders.find(function(o){return o.id===orderId;});
-  if(order){
-    var ensName=(order.items&&order.items[idx]?order.items[idx].name:null)||order.item;
-    if(ensName){
-      var gType=DB.estgarments.find(function(g){return g.name&&g.name.toLowerCase()===ensName.toLowerCase();});
-      if(gType&&gType.components&&gType.components.length)return gType.components;
-    }
-  }
+  // No reliable data — show nothing
   return [];
 }
 
@@ -4471,16 +4465,7 @@ function pgEmbroidery(){
         if(linkedEsts[0]&&idx===0)return linkedEsts[0].components;
 
 
-        // Path 4: Fall back to estgarments pieces for this ensemble type
-        var order2=DB.orders.find(function(o){return o.id===orderId;});
-        if(order2){
-          var ensName=(order2.items&&order2.items[idx]?order2.items[idx].name:null)||order2.item;
-          if(ensName){
-            var gType=DB.estgarments.find(function(g){return g.name&&g.name.toLowerCase()===ensName.toLowerCase();});
-            if(gType&&gType.components&&gType.components.length)return gType.components;
-          }
-        }
-
+        // No reliable snapshot — free text input will show
         // No data found — free text input will show
         return null;
       }
