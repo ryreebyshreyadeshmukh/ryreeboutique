@@ -2096,6 +2096,18 @@ function pgOrders(){
           var itN=mk('div');itN.style.cssText='font-size:11px;color:#666;line-height:1.5;white-space:pre-wrap';itN.textContent=it.itemNotes;
           itInfo.appendChild(itN);
         }
+        // Show pieces for this ensemble
+        var pieces=getOrderItemPieces(o.id,idx2);
+        if(pieces.length){
+          var piecesWrap=mk('div');piecesWrap.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-top:5px';
+          var pLbl=mk('div');pLbl.style.cssText='font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.04em;width:100%;margin-bottom:1px';pLbl.textContent='Pieces';
+          piecesWrap.appendChild(pLbl);
+          pieces.forEach(function(p){
+            var badge=mk('span');badge.style.cssText='font-size:10px;padding:2px 8px;background:#e6f0ee;color:#2D6B5E;border-radius:20px;font-weight:500';
+            badge.textContent=p;piecesWrap.appendChild(badge);
+          });
+          itInfo.appendChild(piecesWrap);
+        }
         itRow.appendChild(itInfo);
         detailSec.appendChild(itRow);
       });
@@ -3676,6 +3688,29 @@ function getCurrentFinYear(){
   var mo=now.getMonth()+1; // 1-12
   if(mo<4)yr=yr-1; // before April → previous year
   return yr+'-'+(String(yr+1).slice(2)); // e.g. "2026-27"
+}
+
+function getOrderItemPieces(orderId, itemIdx){
+  var idx=parseInt(itemIdx||0);
+  // Check estSnapshots first
+  var snap=DB.estSnapshots.find(function(s){return s.orderId===orderId&&(s.itemIndex||0)===idx;});
+  if(snap&&snap.components&&snap.components.length)return snap.components;
+  // Check quotation services snapshot
+  var quot=DB.quotations.find(function(q){return q.linkedOrderId===orderId;});
+  if(quot&&quot.services&&quot.services[idx]&&quot.services[idx].estSnapshot){
+    var qs=quot.services[idx].estSnapshot;
+    if(qs&&qs.components&&qs.components.length)return qs.components;
+  }
+  // Fall back to estgarments by ensemble name
+  var order=DB.orders.find(function(o){return o.id===orderId;});
+  if(order){
+    var ensName=(order.items&&order.items[idx]?order.items[idx].name:null)||order.item;
+    if(ensName){
+      var gType=DB.estgarments.find(function(g){return g.name&&g.name.toLowerCase()===ensName.toLowerCase();});
+      if(gType&&gType.components&&gType.components.length)return gType.components;
+    }
+  }
+  return [];
 }
 
 function getNextInvoiceNo(){
@@ -9776,6 +9811,7 @@ function _doPrintOrder(orderId,internal,discType,discVal){
         +'<div style="font-size:16px;font-weight:700;color:#2D6B5E">'+(i+1)+'. '+it.name+(it.qty>1?' (x'+it.qty+')':'')+'</div>'
         +(it.delivery?'<div style="font-size:12px;color:#888;margin-top:3px">Deliver by: '+it.delivery+'</div>':'')
         +(it.itemNotes?'<div style="font-size:12px;color:#555;margin-top:6px;padding:8px;background:#fff;border-radius:5px;border:1px solid #e8e8e8;white-space:pre-wrap">'+it.itemNotes+'</div>':'')
+        +(function(){var ps=getOrderItemPieces(o.id,i);if(!ps.length)return '';return '<div style="margin-top:8px"><div style="font-size:9px;font-weight:700;color:#aaa;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Pieces</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+ps.map(function(p){return '<span style="font-size:11px;padding:2px 9px;background:#e6f0ee;color:#2D6B5E;border-radius:20px;font-weight:500">'+p+'</span>';}).join('')+'</div></div>';})()
       +'</div>'
       // Right: amount (hidden for internal)
       +(!internal&&it.amount?'<div style="flex-shrink:0;text-align:right"><div style="font-size:11px;color:#aaa;font-weight:600;letter-spacing:.04em">AMOUNT</div><div style="font-size:18px;font-weight:800;color:#2D6B5E">\u20b9'+Number(it.amount).toLocaleString('en-IN')+'</div></div>':'')
