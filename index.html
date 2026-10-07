@@ -8520,16 +8520,21 @@ function pgEstSettings(){
     var affected=[];
     DB.estSnapshots.forEach(function(snap){
       if(!snap.data||!snap.totalCost)return;
+      // Compute visible total from data keys only (ignores components array)
       var visible=Object.keys(snap.data).reduce(function(a,comp){
-        return a+Object.values(snap.data[comp]||{}).reduce(function(b,v){return b+Number(v||0);},0);
+        var pieceTotal=Object.values(snap.data[comp]||{}).reduce(function(b,v){return b+Number(v||0);},0);
+        return a+pieceTotal;
       },0);
       var stored=Number(snap.totalCost||0);
-      if(Math.abs(visible-stored)>1){
+      // Only flag if snapshot data total is LESS than stored (missing pieces)
+      // Negative diff (visible > stored) means duplicate/stale data — skip
+      var diff=stored-visible;
+      if(diff>1){
         var order=DB.orders.find(function(o){return o.id===snap.orderId;});
         var client=order?DB.clients.find(function(c){return c.id===order.clientId;}):null;
         affected.push({
           snap:snap,order:order,client:client,
-          visible:visible,stored:stored,diff:stored-visible
+          visible:visible,stored:stored,diff:diff
         });
       }
     });
@@ -9193,8 +9198,11 @@ function renderEstimatorBody(){
   });
   tableWrap.appendChild(hdr);
 
-  // Component rows
+  // Component rows — when editing existing estimate, hide rows where all values are zero
+  var isEditingExisting=!!(_estEditingId);
   components.forEach(function(comp){
+    var rowSum=cols.reduce(function(s,c){return s+Number((_estData[comp]||{})[c.id]||0);},0);
+    if(isEditingExisting&&rowSum===0)return; // skip empty rows when editing
     var row = mk('div'); row.id='est-row-'+comp.replace(/\s/g,'-');
     row.style.cssText='display:grid;grid-template-columns:130px repeat('+cols.length+',1fr) 90px;gap:0;border-bottom:1px solid #f9f9f9;align-items:center';
 
