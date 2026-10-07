@@ -4940,16 +4940,8 @@ function pgEmbroidery(){
         var opt=mk('option');opt.value=p;opt.textContent=p;d3Sel2.appendChild(opt);
       });
     }
-    d2Sel.addEventListener('change',function(){populatePieces(d2Sel.value);});
+    d2Sel.addEventListener('change',function(){var oid=d2Sel.value;populatePieces(oid);if(oid)renderGarmentReport(oid,reportWrap,'');else reportWrap.innerHTML='';});
 
-    var viewBtn=mkBtn('View Report',function(){
-      var oid=d2Sel.value;
-      if(!oid){alert('Please select an order.');return;}
-      populatePieces(oid);
-      var pieceFilter=(document.getElementById('emb-report-piece')||{}).value||'';
-      renderGarmentReport(oid,reportWrap,pieceFilter);
-    },'btn btn-primary btn-sm');
-    viewBtn.style.alignSelf='flex-end';
 
     // Get unique clients with orders
     var clientIds=[];
@@ -4995,8 +4987,9 @@ function pgEmbroidery(){
     d1Inp.oninput=function(){showClientDrop(this.value);};
     d1Inp.onfocus=function(){showClientDrop(this.value);};
     d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
-
-    app(selRow,[d1Wrap,d2Wrap,d3Wrap,viewBtn]);
+    d1Inp.onblur=function(){setTimeout(function(){d1Drop.style.display='none';},200);};
+    d3Sel2.onchange=function(){var oid=d2Sel.value;if(oid)renderGarmentReport(oid,reportWrap,d3Sel2.value||'');};
+    app(selRow,[d1Wrap,d2Wrap,d3Wrap]);
     cw.appendChild(selRow);
 
     var reportWrap=mk('div');cw.appendChild(reportWrap);
