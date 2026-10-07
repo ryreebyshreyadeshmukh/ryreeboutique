@@ -3703,42 +3703,42 @@ function saveEmbCalcPieces(pieces){
 function getDefaultEmbPieces(){
   return [
     {id:'6yd-saree',name:'6 Yard Saree',dims:[
-      {id:'pallu',label:'Pallu',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
-      {id:'buttis',label:'Buttis',type:'count-size'},
+      {id:'pallu',label:'Pallu',type:'rect',density:0.6},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
+      {id:'buttis',label:'Buttis',type:'count-size',density:0.3},
     ]},
     {id:'9yd-saree',name:'9 Yard Saree',dims:[
-      {id:'pallu',label:'Pallu',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
-      {id:'buttis',label:'Buttis',type:'count-size'},
+      {id:'pallu',label:'Pallu',type:'rect',density:0.6},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
+      {id:'buttis',label:'Buttis',type:'count-size',density:0.3},
     ]},
     {id:'blouse',name:'Blouse',dims:[
-      {id:'front',label:'Front Panel',type:'rect'},
-      {id:'back',label:'Back Panel',type:'rect'},
-      {id:'sleeves',label:'Sleeves',type:'rect2'},
+      {id:'front',label:'Front Panel',type:'rect',density:0.8},
+      {id:'back',label:'Back Panel',type:'rect',density:0.8},
+      {id:'sleeves',label:'Sleeves',type:'rect2',density:0.7},
     ]},
     {id:'dupatta',name:'Dupatta',dims:[
-      {id:'body',label:'Full Body',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
-      {id:'buttis',label:'Buttis',type:'count-size'},
+      {id:'body',label:'Full Body',type:'rect',density:0.5},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
+      {id:'buttis',label:'Buttis',type:'count-size',density:0.3},
     ]},
     {id:'lehenga-kali',name:'Kali Lehenga',dims:[
-      {id:'kali',label:'Per Kali',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
-      {id:'buttis',label:'Buttis',type:'count-size'},
+      {id:'kali',label:'Per Kali',type:'rect',density:0.7},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
+      {id:'buttis',label:'Buttis',type:'count-size',density:0.3},
     ]},
     {id:'lehenga-aline',name:'A-Line Lehenga',dims:[
-      {id:'body',label:'Body',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
-      {id:'buttis',label:'Buttis',type:'count-size'},
+      {id:'body',label:'Body',type:'rect',density:0.7},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
+      {id:'buttis',label:'Buttis',type:'count-size',density:0.3},
     ]},
     {id:'veil',name:'Veil',dims:[
-      {id:'body',label:'Full Body',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
+      {id:'body',label:'Full Body',type:'rect',density:0.4},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
     ]},
     {id:'shela',name:'Shela',dims:[
-      {id:'body',label:'Body',type:'rect'},
-      {id:'border',label:'Border',type:'rect2'},
+      {id:'body',label:'Body',type:'rect',density:0.5},
+      {id:'border',label:'Border',type:'rect2',density:1.0},
     ]},
   ];
 }
@@ -3834,19 +3834,24 @@ function renderEmbCalcTab(cw){
 
     // Header
     var hdr=mk('div');hdr.style.cssText='display:grid;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em';
-    hdr.style.gridTemplateColumns='2fr 1fr 1fr 1fr';
-    ['Dimension','','','Sq Inches'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
+    hdr.style.gridTemplateColumns='2fr 1fr 1fr 0.6fr 1fr';
+    ['Dimension','','','Density','Eff. Sq In'].forEach(function(h){var th=mk('div');th.textContent=h;if(h==='Eff. Sq In'||h==='Density')th.style.textAlign='right';hdr.appendChild(th);});
     card.appendChild(hdr);
 
     var totalArea=0;var flatCost=0;
 
     piece.dims.forEach(function(dim){
       var row=mk('div');row.style.cssText='display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
-      row.style.gridTemplateColumns='2fr 1fr 1fr 1fr';
+      row.style.gridTemplateColumns='2fr 1fr 1fr 0.6fr 1fr';
 
       var lbl=mk('div');lbl.style.cssText='font-size:13px;font-weight:600;color:#333';lbl.textContent=dim.label;
-
       var areaDiv=mk('div');areaDiv.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;text-align:right';
+
+      // Density input — pre-filled from settings, editable
+      var dInp=mk('input');dInp.type='number';dInp.min='0.1';dInp.max='1';dInp.step='0.1';
+      dInp.value=dim.type==='count-rate'?'':String(dim.density||1);
+      dInp.style.cssText='width:100%;padding:5px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;text-align:right';
+      if(dim.type==='count-rate'){dInp.disabled=true;dInp.style.opacity='0.3';dInp.placeholder='—';}
 
       if(dim.type==='rect'||dim.type==='rect2'){
         var mult=dim.type==='rect2'?2:1;
@@ -3857,17 +3862,15 @@ function renderEmbCalcTab(cw){
 
         function updateRect(){
           var l=Number(lInp.value||0);var w=Number(wInp.value||0);
-          var area=l*w*mult;
-          areaDiv.textContent=area>0?area+' sq in':'—';
+          var d=Number(dInp.value||1);
+          var area=Math.round(l*w*mult*d*100)/100;
+          areaDiv.textContent=(l>0&&w>0)?area+' sq in':'—';
           refreshTotal();
         }
-        lInp.oninput=updateRect;wInp.oninput=updateRect;
-
+        lInp.oninput=updateRect;wInp.oninput=updateRect;dInp.oninput=updateRect;
         lbl.textContent=dim.label+(mult===2?' (×2)':'');
-        app(row,[lbl,lInp,wInp,areaDiv]);
-
-        // Store reference for total calc
-        row._getArea=function(){return Number(lInp.value||0)*Number(wInp.value||0)*mult;};
+        app(row,[lbl,lInp,wInp,dInp,areaDiv]);
+        row._getArea=function(){return Math.round(Number(lInp.value||0)*Number(wInp.value||0)*mult*Number(dInp.value||1)*100)/100;};
 
       } else if(dim.type==='count-size'){
         var cInp=mk('input');cInp.type='number';cInp.min='0';cInp.placeholder='Count';
@@ -3877,14 +3880,14 @@ function renderEmbCalcTab(cw){
 
         function updateCount(){
           var c=Number(cInp.value||0);var s=Number(sInp.value||0);
-          var area=c*s;
-          areaDiv.textContent=area>0?area+' sq in':'—';
+          var d=Number(dInp.value||1);
+          var area=Math.round(c*s*d*100)/100;
+          areaDiv.textContent=(c>0&&s>0)?area+' sq in':'—';
           refreshTotal();
         }
-        cInp.oninput=updateCount;sInp.oninput=updateCount;
-        app(row,[lbl,cInp,sInp,areaDiv]);
-        row._getArea=function(){return Number(cInp.value||0)*Number(sInp.value||0);};
-        row._isFlat=false;
+        cInp.oninput=updateCount;sInp.oninput=updateCount;dInp.oninput=updateCount;
+        app(row,[lbl,cInp,sInp,dInp,areaDiv]);
+        row._getArea=function(){return Math.round(Number(cInp.value||0)*Number(sInp.value||0)*Number(dInp.value||1)*100)/100;};
 
       } else if(dim.type==='count-rate'){
         var crInp=mk('input');crInp.type='number';crInp.min='0';crInp.placeholder='Count';
@@ -3899,10 +3902,9 @@ function renderEmbCalcTab(cw){
           refreshTotal();
         }
         crInp.oninput=updateFlat;prInp.oninput=updateFlat;
-        app(row,[lbl,crInp,prInp,areaDiv]);
+        app(row,[lbl,crInp,prInp,dInp,areaDiv]);
         row._getArea=function(){return 0;};
         row._getFlatCost=function(){return Number(crInp.value||0)*Number(prInp.value||0);};
-        row._isFlat=true;
       }
 
       card.appendChild(row);
@@ -3933,8 +3935,8 @@ function renderEmbCalcTab(cw){
         return c;
       }
       app(grid,[
-        rCard('Total Area',area+' sq in',''),
-        rCard('Area Cost',rupee(areaCost),area+' × ₹'+r),
+        rCard('Effective Area',Math.round(area*100)/100+' sq in','after density'),
+        rCard('Area Cost',rupee(areaCost),Math.round(area*100)/100+' × ₹'+r),
         rCard('Total Cost',rupee(total),flat>0?'incl. ₹'+flat+' flat':''),
       ]);
       resultCard.appendChild(grid);
@@ -4029,21 +4031,32 @@ function openEmbPieceModal(piece){
       var row=mk('div');row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px';
 
       var lInp=mk('input');lInp.type='text';lInp.placeholder='Dimension name';lInp.value=dim.label||'';
-      lInp.style.cssText='flex:1;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+      lInp.style.cssText='flex:2;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
       lInp.oninput=function(){dims[di].label=this.value;};
 
-      var tSel=mk('select');tSel.style.cssText='flex:1;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;background:#fff';
+      var tSel=mk('select');tSel.style.cssText='flex:2;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;background:#fff';
       DIM_TYPES.forEach(function(t){
         var o=mk('option');o.value=t.id;o.textContent=t.label;
         if(t.id===dim.type)o.selected=true;
         tSel.appendChild(o);
       });
-      tSel.onchange=function(){dims[di].type=this.value;};
+      tSel.onchange=function(){dims[di].type=this.value;renderDims();};
 
-      var delD=mk('button');delD.textContent='×';delD.style.cssText='padding:4px 8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991B1B;cursor:pointer;font-size:14px';
+      // Density input
+      var dWrap=mk('div');dWrap.style.cssText='flex:1;display:flex;flex-direction:column';
+      var dLbl=mk('div');dLbl.style.cssText='font-size:9px;color:#aaa;margin-bottom:2px';dLbl.textContent='Density';
+      var dInpS=mk('input');dInpS.type='number';dInpS.min='0.1';dInpS.max='1';dInpS.step='0.1';
+      dInpS.value=String(dim.density||1);
+      dInpS.placeholder='0-1';
+      dInpS.style.cssText='width:100%;padding:6px 6px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;text-align:center';
+      if(dim.type==='count-rate'){dInpS.disabled=true;dInpS.style.opacity='0.3';}
+      dInpS.oninput=function(){dims[di].density=Number(this.value||1);};
+      app(dWrap,[dLbl,dInpS]);
+
+      var delD=mk('button');delD.textContent='×';delD.style.cssText='padding:6px 8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991B1B;cursor:pointer;font-size:14px;align-self:flex-end';
       delD.onclick=function(){dims.splice(di,1);renderDims();};
 
-      app(row,[lInp,tSel,delD]);
+      app(row,[lInp,tSel,dWrap,delD]);
       dimList.appendChild(row);
     });
   }
