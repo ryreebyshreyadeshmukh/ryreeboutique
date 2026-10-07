@@ -4270,8 +4270,10 @@ function hidePinScreen(){
     if(screen._onKeyDown) document.removeEventListener('keydown',screen._onKeyDown);
     screen.remove();
   }
-  var app=document.getElementById('app');
-  if(app) app.style.display='';
+  // Hide old login form, show app
+  var lw=document.getElementById('login-wrap');if(lw)lw.style.display='none';
+  var aw=document.getElementById('app-wrap');if(aw)aw.style.display='';
+  var appEl=document.getElementById('app');if(appEl)appEl.style.display='';
   updateNavForUser();
   render();
 }
@@ -8661,7 +8663,12 @@ function resetSessionTimer(){
 function doLogout(){
   _currentUser=null;
   if(_sessionTimer){clearTimeout(_sessionTimer);_sessionTimer=null;}
+  sessionStorage.removeItem('ryree_auth');
+  sessionStorage.removeItem('ryree_role');
   localStorage.removeItem('ryree_session');
+  // Hide old login form, show PIN screen
+  var lw=document.getElementById('login-wrap');if(lw)lw.style.display='none';
+  var aw=document.getElementById('app-wrap');if(aw)aw.style.display='none';
   showPinScreen();
 }
 
@@ -12858,7 +12865,8 @@ if(_qParam){
 }else if(isLoggedIn()){
   showApp();
 }else{
-  document.getElementById('login-wrap').style.display='flex';
+  // Show new PIN screen instead of old login form
+  showPinScreen();
 }
 </script>
 
