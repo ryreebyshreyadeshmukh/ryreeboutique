@@ -4297,14 +4297,22 @@ function updateNavForUser(){
       var page=el.getAttribute('data-page');
       el.style.display=allowedOld.indexOf(page)>-1?'':'none';
     });
-    // Hide settings sections
+    // Hide settings toggle and group
     var st2=document.getElementById('nav-settings-toggle');if(st2)st2.style.display='none';
     var sg2=document.getElementById('nav-settings-group');if(sg2)sg2.style.display='none';
-    // Hide finance and trading sections
+    // Hide finance and trading section headers
     document.querySelectorAll('.nav-section').forEach(function(el){
-      var txt=el.textContent.trim();
+      var txt=(el.textContent||el.innerText||'').trim();
       el.style.display=(txt==='Boutique'||txt==='Operations')?'':'none';
     });
+    // Expand Operations group so Embroidery/Tasks are visible
+    var opsGroup=document.getElementById('nav-ops-group');
+    var opsArrow=document.getElementById('nav-ops-arrow');
+    if(opsGroup){opsGroup.style.display='block';}
+    if(opsArrow){opsArrow.style.transform='rotate(0deg)';}
+    // Collapse finance and trading groups
+    var fg=document.getElementById('nav-finance-group');if(fg)fg.style.display='none';
+    var tg=document.getElementById('nav-trading-group');if(tg)tg.style.display='none';
     return;
   }
 
