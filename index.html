@@ -8520,14 +8520,15 @@ function pgEstSettings(){
     var affected=[];
     DB.estSnapshots.forEach(function(snap){
       if(!snap.data||!snap.totalCost)return;
-      // Compute visible total from data keys only (ignores components array)
-      var visible=Object.keys(snap.data).reduce(function(a,comp){
-        var pieceTotal=Object.values(snap.data[comp]||{}).reduce(function(b,v){return b+Number(v||0);},0);
-        return a+pieceTotal;
+      // Use same logic as breakdown warning:
+      // visible = sum of data values for pieces listed in components array
+      var compsToCheck=snap.components&&snap.components.length
+        ?snap.components
+        :Object.keys(snap.data);
+      var visible=compsToCheck.reduce(function(a,comp){
+        return a+Object.values(snap.data[comp]||{}).reduce(function(b,v){return b+Number(v||0);},0);
       },0);
       var stored=Number(snap.totalCost||0);
-      // Only flag if snapshot data total is LESS than stored (missing pieces)
-      // Negative diff (visible > stored) means duplicate/stale data — skip
       var diff=stored-visible;
       if(diff>1){
         var order=DB.orders.find(function(o){return o.id===snap.orderId;});
