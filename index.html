@@ -4161,10 +4161,35 @@ function showPinScreen(){
     errDiv.textContent='Incorrect PIN. Try again.';
     pin='';
     updateDots();
-    // Shake animation
     card.style.transform='translateX(-8px)';
     setTimeout(function(){card.style.transform='translateX(8px)';},80);
     setTimeout(function(){card.style.transform='';},160);
+  }
+
+  // Password mode for old assistant system
+  function submitPassword(pw){
+    pwErr.textContent='';
+    loadPasswordFromFirebase(function(){
+      var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
+      var adminPin=cfg.adminPin||cfg.password||'';
+      var asstPw=cfg.assistantPassword||getAsstPw()||'';
+      if(pw===adminPin||pw===(cfg.password||'')){
+        _currentUser=null;
+        saveSession(null);
+        hidePinScreen();
+        return;
+      }
+      if(asstPw&&pw===asstPw){
+        // Old assistant system — set sessionStorage role
+        sessionStorage.setItem('ryree_auth','1');
+        sessionStorage.setItem('ryree_role','assistant');
+        _currentUser=null;
+        hidePinScreen();
+        return;
+      }
+      pwErr.textContent='Incorrect password. Try again.';
+      pwInp.value='';
+    });
   }
 
   function addDigit(d){
@@ -4196,8 +4221,36 @@ function showPinScreen(){
     pad.appendChild(btn);
   });
 
+  // Password mode elements (hidden by default)
+  var pwMode=false;
+  var pwWrap=mk('div');pwWrap.style.display='none';
+  var pwInp=mk('input');pwInp.type='password';pwInp.placeholder='Enter password';
+  pwInp.style.cssText='width:100%;padding:10px 14px;font-size:16px;border:2px solid #e0e0e0;border-radius:10px;box-sizing:border-box;margin-bottom:10px;text-align:center';
+  var pwErr=mk('div');pwErr.style.cssText='font-size:12px;color:#E24B4A;min-height:18px;margin-bottom:8px;text-align:center';
+  var pwBtn=mk('button');pwBtn.textContent='Sign in';
+  pwBtn.style.cssText='width:100%;padding:12px;background:#2D6B5E;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer';
+  pwBtn.onclick=function(){submitPassword(pwInp.value);};
+  pwInp.onkeydown=function(e){if(e.key==='Enter')submitPassword(pwInp.value);};
+  app(pwWrap,[pwInp,pwErr,pwBtn]);
+
+  // Toggle between PIN and password
+  var toggleLink=mk('div');
+  toggleLink.style.cssText='text-align:center;margin-top:14px;font-size:12px;color:#aaa;cursor:pointer';
+  toggleLink.textContent='Use password instead';
+  toggleLink.onclick=function(){
+    pwMode=!pwMode;
+    pad.style.display=pwMode?'none':'grid';
+    dotsRow.style.display=pwMode?'none':'flex';
+    pwWrap.style.display=pwMode?'block':'none';
+    errDiv.textContent='';pwErr.textContent='';
+    sub.textContent=pwMode?'Enter your password':'4-digit PIN to continue';
+    toggleLink.textContent=pwMode?'Use PIN instead':'Use password instead';
+    if(pwMode)setTimeout(function(){pwInp.focus();},50);
+  };
+
   // Keyboard support
   function onKeyDown(e){
+    if(pwMode)return;
     if(e.key>='0'&&e.key<='9') addDigit(e.key);
     else if(e.key==='Backspace') delDigit();
     else if(e.key==='Enter'&&pin.length===4) submitPin();
@@ -4206,7 +4259,7 @@ function showPinScreen(){
   screen._onKeyDown=onKeyDown;
 
   card.appendChild(title);card.appendChild(sub);card.appendChild(dotsRow);
-  card.appendChild(errDiv);card.appendChild(pad);
+  card.appendChild(errDiv);card.appendChild(pad);card.appendChild(pwWrap);card.appendChild(toggleLink);
   screen.appendChild(logo);screen.appendChild(tagline);screen.appendChild(card);
   document.body.appendChild(screen);
 }
