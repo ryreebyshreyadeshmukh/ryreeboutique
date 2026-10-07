@@ -8869,6 +8869,7 @@ var _estDiscount = 20;
 var _estData = {};
 var _estClientContext = null; // {clientId, estimateId} when launched from client profile
 var _estEditingId = null; // clientEstimate id being edited
+var _pendingWithdrawInvoiceId = null; // deferred invoice withdrawal
 
 
 // ── CLIENT ESTIMATE FUNCTIONS ─────────────────────────────────
@@ -8923,7 +8924,7 @@ function openClientEstimator(clientId, estimateId){
 
     var bannerRight = mk('div');bannerRight.style.cssText='display:flex;gap:8px';
     var cancelBtn = mkBtn('Cancel',function(){
-      _estClientContext=null;_estEditingId=null;
+      _estClientContext=null;_estEditingId=null;_pendingWithdrawInvoiceId=null;
       _estData={};_estDiscount=20;
       var b=document.getElementById('est-client-banner');if(b)b.remove();
       renderEstimatorBody();
@@ -9016,7 +9017,7 @@ function saveClientEstimate(){
         }
 
         // Clean up context
-        _estClientContext=null;_estEditingId=null;
+        _estClientContext=null;_estEditingId=null;_pendingWithdrawInvoiceId=null;
         _estData={};_estDiscount=20;
         var banner=document.getElementById('est-client-banner');if(banner)banner.remove();
         closeModal();
@@ -9474,6 +9475,16 @@ function loadSnapIntoEstimatorForEdit(snap,quotId){
 }
 
 function saveEstimateEdit(originalSnap,quotId){
+  // Execute deferred invoice withdrawal now that estimate is actually saved
+  if(_pendingWithdrawInvoiceId){
+    var invToWithdraw=DB.invoices.find(function(i){return i.id===_pendingWithdrawInvoiceId;});
+    if(invToWithdraw){
+      var qForWithdraw=DB.quotations.find(function(x){return x.id===quotId;});
+      dbSave('invoices',Object.assign({},invToWithdraw,{status:'Withdrawn',withdrawnAt:Date.now(),withdrawnReason:'Estimate revised'}));
+      if(qForWithdraw)dbSave('quotations',Object.assign({},qForWithdraw,{linkedInvoiceId:null,withdrawnInvoiceId:_pendingWithdrawInvoiceId,carriedOverPayments:invToWithdraw.payments||[]}));
+    }
+    _pendingWithdrawInvoiceId=null;
+  }
   var garments=getEstGarments();
   var garmentObj=garments.find(function(g){return g.id===_estGarment;});
   if(!garmentObj){alert('Garment not found.');return;}
@@ -9985,26 +9996,14 @@ function viewEstBreakdown(quotId){
         return;
       }
       // Show withdraw + edit confirmation
-      var invNo=existingInv?(existingInv.gstInvoiceNo||existingInv.invoiceNo||'Invoice'):'Invoice';
+      var invNo=existingInv?(existingInv.gstInvoiceNo||existingInv.invoiceNo||existingInv.id||'this invoice'):'this invoice';
       var invTotal=existingInv?rupee(existingInv.total||0):'';
-      var msg='Invoice '+invNo+(invTotal?' ('+invTotal+')':'')+' exists for this quotation.'+
+      var msg=invNo+(invTotal?' ('+invTotal+')':'')+' exists for this quotation.'+
         ' Proceeding will: 1) Mark it as Withdrawn  2) Let you update the estimate  3) Carry over payments to new invoice.'+
         ' You will need to create a new invoice after saving. Continue?';
       if(!confirm(msg))return;
-      // Withdraw old invoice — preserve payments
-      if(existingInv){
-        dbSave('invoices',Object.assign({},existingInv,{
-          status:'Withdrawn',
-          withdrawnAt:Date.now(),
-          withdrawnReason:'Estimate revised by Shreya'
-        }));
-      }
-      // Clear linkedInvoiceId from quotation so new invoice can be created
-      dbSave('quotations',Object.assign({},q2,{
-        linkedInvoiceId:null,
-        withdrawnInvoiceId:existingInv?existingInv.id:null,
-        carriedOverPayments:existingInv?(existingInv.payments||[]):[]
-      }));
+      // Defer withdrawal — only execute when estimate is actually saved
+      _pendingWithdrawInvoiceId=existingInv?existingInv.id:null;
       closeModal();
       openEstimateEditor(quotId);
       return;
