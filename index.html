@@ -4138,9 +4138,9 @@ function showPinScreen(){
     loadPasswordFromFirebase(function(){
       errDiv.textContent='';
       var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
-      var adminPin=cfg.adminPin||cfg.password||'';
+      var adminPin=String(cfg.adminPin||cfg.password||'');
 
-      // Check admin PIN
+      // Check admin PIN — compare as strings
       if(pin===adminPin){
         _currentUser=null;
         sessionStorage.setItem('ryree_auth','1');
@@ -4152,7 +4152,7 @@ function showPinScreen(){
 
       // Check staff PINs — also try loading staff from DB
       var staffList=DB.staff||[];
-      var staffMatch=staffList.find(function(s){return s.pin===pin&&s.active!==false;});
+      var staffMatch=staffList.find(function(s){return String(s.pin)===String(pin)&&s.active!==false;});
       if(staffMatch){
         _currentUser=staffMatch;
         sessionStorage.setItem('ryree_auth','1');
