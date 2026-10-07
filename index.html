@@ -4139,6 +4139,7 @@ function showPinScreen(){
       errDiv.textContent='';
       var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
       var adminPin=String(cfg.adminPin||cfg.password||'');
+      console.log('[PIN DEBUG] entered='+JSON.stringify(pin)+' stored='+JSON.stringify(adminPin)+' match='+(pin===adminPin));
 
       // Check admin PIN — compare as strings
       if(pin===adminPin){
