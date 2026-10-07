@@ -220,6 +220,9 @@ textarea.form-input{resize:vertical}
       <div class="nav-item" id="nav-embroidery" data-page="embroidery">
         <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.1 4.1l1.4 1.4M10.5 10.5l1.4 1.4M4.1 11.9l1.4-1.4M10.5 5.5l1.4-1.4" stroke-linecap="round"/></svg>Embroidery
       </div>
+      <div class="nav-item" id="nav-embcalc" data-page="embcalc">
+        <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h2M9 5h2M5 8h2M9 8h2M5 11h2M9 11h2" stroke-linecap="round"/></svg>Emb Calculator
+      </div>
       <div class="nav-item" id="nav-tasks" data-page="tasks">
         <svg class="ni" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>Tasks
       </div>
@@ -1200,7 +1203,7 @@ function render(){
   }
 
   mc.innerHTML='';
-  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,gst:pgGST,appsettings:pgAppSettings,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
+  var fns={measitems:pgMeasItems,tctemplates:pgTCTemplates,tasktemplates:pgTaskTemplates,clothing:pgClothing,services:pgServices,estsettings:pgEstSettings,estimator:pgEstimator,clients:pgClients,staff:pgStaff,inventory:pgInventory,vendors:pgVendors,orders:pgOrders,tasks:pgTasks,expenses:pgExpenses,quotations:pgQuotations,questionnaire:pgQuestionnaire,embroidery:pgEmbroidery,embcalc:pgEmbCalc,gst:pgGST,appsettings:pgAppSettings,invoices:pgInvoices,appointments:pgAppointments,leads:pgLeads,collabs:pgCollabs,dashboard:function(){return isAssistant()?pgDashboardAssistant():pgDashboard();},pl:pgPL,dues:pgDues};
   var fn=fns[page]||pgDashboard;
   mc.appendChild(fn());
 }
@@ -3673,6 +3676,406 @@ function pgAppSettings(){
 }
 // ══════════════════════════════════════════════════════════════
 // END APP SETTINGS MODULE
+// ══════════════════════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════
+// EMBROIDERY CALCULATOR MODULE
+// ══════════════════════════════════════════════════════════════
+
+var DB_EMB_PIECES_KEY='embCalcPieces';
+
+function getEmbCalcPieces(){
+  // Stored in Firestore under settings/embCalcPieces
+  var doc=DB.settings.find(function(x){return x.id===DB_EMB_PIECES_KEY;});
+  return doc?doc.pieces||[]:getDefaultEmbPieces();
+}
+
+function saveEmbCalcPieces(pieces){
+  db.collection('settings').doc(DB_EMB_PIECES_KEY).set({id:DB_EMB_PIECES_KEY,pieces:pieces}).then(function(){
+    var existing=DB.settings.find(function(x){return x.id===DB_EMB_PIECES_KEY;});
+    if(existing)Object.assign(existing,{pieces:pieces});
+    else DB.settings.push({id:DB_EMB_PIECES_KEY,pieces:pieces});
+    render();
+  });
+}
+
+function getDefaultEmbPieces(){
+  return [
+    {id:'6yd-saree',name:'6 Yard Saree',dims:[
+      {id:'pallu',label:'Pallu',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+      {id:'buttis',label:'Buttis',type:'count-size'},
+    ]},
+    {id:'9yd-saree',name:'9 Yard Saree',dims:[
+      {id:'pallu',label:'Pallu',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+      {id:'buttis',label:'Buttis',type:'count-size'},
+    ]},
+    {id:'blouse',name:'Blouse',dims:[
+      {id:'front',label:'Front Panel',type:'rect'},
+      {id:'back',label:'Back Panel',type:'rect'},
+      {id:'sleeves',label:'Sleeves',type:'rect2'},
+    ]},
+    {id:'dupatta',name:'Dupatta',dims:[
+      {id:'body',label:'Full Body',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+      {id:'buttis',label:'Buttis',type:'count-size'},
+    ]},
+    {id:'lehenga-kali',name:'Kali Lehenga',dims:[
+      {id:'kali',label:'Per Kali',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+      {id:'buttis',label:'Buttis',type:'count-size'},
+    ]},
+    {id:'lehenga-aline',name:'A-Line Lehenga',dims:[
+      {id:'body',label:'Body',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+      {id:'buttis',label:'Buttis',type:'count-size'},
+    ]},
+    {id:'veil',name:'Veil',dims:[
+      {id:'body',label:'Full Body',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+    ]},
+    {id:'shela',name:'Shela',dims:[
+      {id:'body',label:'Body',type:'rect'},
+      {id:'border',label:'Border',type:'rect2'},
+    ]},
+  ];
+}
+
+// Dimension types:
+// rect       → L × W (sq in)
+// rect2      → L × W × 2 (sq in)
+// count-size → Count × Size (sq in each)
+// count-rate → Count × ₹ per piece (flat cost, not area)
+
+var DIM_TYPES=[
+  {id:'rect',      label:'Rectangle (L × W)'},
+  {id:'rect2',     label:'Rectangle × 2 (L × W × 2)'},
+  {id:'count-size',label:'Count × Size (motifs/buttis)'},
+  {id:'count-rate', label:'Count × Rate ₹ (flat, e.g. tassels)'},
+];
+
+function pgEmbCalc(){
+  var wrap=mk('div');
+  wrap.appendChild(mkPageHeader('Embroidery Calculator','Calculate embroidery area and cost per piece',null));
+
+  var activeTab='calc';
+  var tabRow=mk('div');tabRow.style.cssText='display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid #f0f0f0';
+  var tabs={};
+  var tabDefs=[{key:'calc',label:'Calculator'},{key:'settings',label:'Piece Settings'}];
+  var contentWrap=mk('div');contentWrap.id='embcalc-content';
+
+  function setTab(key){
+    activeTab=key;
+    Object.keys(tabs).forEach(function(k){
+      tabs[k].style.cssText='padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;'+(k===key?'font-weight:600;color:#2D6B5E;border-bottom:2px solid #2D6B5E;margin-bottom:-2px':'color:#aaa');
+    });
+    contentWrap.innerHTML='';
+    if(key==='calc')renderEmbCalcTab(contentWrap);
+    else renderEmbPieceSettings(contentWrap);
+  }
+
+  tabDefs.forEach(function(td){
+    var tb=mk('button');tb.textContent=td.label;
+    tb.style.cssText='padding:8px 18px;border:none;background:none;cursor:pointer;font-size:13px;color:#aaa';
+    tb.onclick=function(){setTab(td.key);};
+    tabs[td.key]=tb;tabRow.appendChild(tb);
+  });
+  wrap.appendChild(tabRow);
+  wrap.appendChild(contentWrap);
+  setTimeout(function(){setTab('calc');},0);
+  return wrap;
+}
+
+// ── CALCULATOR TAB ───────────────────────────────────────────
+function renderEmbCalcTab(cw){
+  var pieces=getEmbCalcPieces();
+  if(!pieces.length){
+    var noP=mk('div','card');noP.appendChild(mk('div','empty','No piece types configured. Go to Piece Settings to add pieces.'));
+    cw.appendChild(noP);return;
+  }
+
+  // Piece selector + rate
+  var topRow=mk('div');topRow.style.cssText='display:flex;gap:16px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap';
+
+  var pWrap=mk('div');pWrap.style.cssText='flex:1;min-width:200px';
+  var pLbl=mk('div','form-label','Piece Type');
+  var pSel=mk('select');pSel.style.cssText='width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px;background:#fff';
+  pieces.forEach(function(p){
+    var o=mk('option');o.value=p.id;o.textContent=p.name;pSel.appendChild(o);
+  });
+  app(pWrap,[pLbl,pSel]);
+
+  var rWrap=mk('div');rWrap.style.cssText='min-width:160px';
+  var rLbl=mk('div','form-label','Rate per sq inch (₹)');
+  var rInp=mk('input');rInp.type='number';rInp.min='0';rInp.placeholder='e.g. 15';
+  rInp.style.cssText='width:100%;padding:8px 10px;font-size:13px;border:1px solid #e0e0e0;border-radius:8px';
+  app(rWrap,[rLbl,rInp]);
+
+  app(topRow,[pWrap,rWrap]);
+  cw.appendChild(topRow);
+
+  // Dimension inputs + live result
+  var dimWrap=mk('div');dimWrap.id='emb-dim-wrap';
+  cw.appendChild(dimWrap);
+
+  var resultCard=mk('div');resultCard.id='emb-result';
+  resultCard.style.cssText='display:none;background:#1e514c;border-radius:12px;padding:20px 24px;margin-top:20px;color:#fff';
+  cw.appendChild(resultCard);
+
+  function calcAndRender(){
+    var piece=pieces.find(function(p){return p.id===pSel.value;});
+    if(!piece)return;
+    var rate=Number(rInp.value||0);
+    dimWrap.innerHTML='';
+
+    var card=mk('div','card-p0');card.style.marginBottom='0';
+
+    // Header
+    var hdr=mk('div');hdr.style.cssText='display:grid;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em';
+    hdr.style.gridTemplateColumns='2fr 1fr 1fr 1fr';
+    ['Dimension','','','Sq Inches'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
+    card.appendChild(hdr);
+
+    var totalArea=0;var flatCost=0;
+
+    piece.dims.forEach(function(dim){
+      var row=mk('div');row.style.cssText='display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid #f5f5f5;align-items:center';
+      row.style.gridTemplateColumns='2fr 1fr 1fr 1fr';
+
+      var lbl=mk('div');lbl.style.cssText='font-size:13px;font-weight:600;color:#333';lbl.textContent=dim.label;
+
+      var areaDiv=mk('div');areaDiv.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;text-align:right';
+
+      if(dim.type==='rect'||dim.type==='rect2'){
+        var mult=dim.type==='rect2'?2:1;
+        var lInp=mk('input');lInp.type='number';lInp.min='0';lInp.placeholder='L (in)';
+        lInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+        var wInp=mk('input');wInp.type='number';wInp.min='0';wInp.placeholder='W (in)';
+        wInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+
+        function updateRect(){
+          var l=Number(lInp.value||0);var w=Number(wInp.value||0);
+          var area=l*w*mult;
+          areaDiv.textContent=area>0?area+' sq in':'—';
+          refreshTotal();
+        }
+        lInp.oninput=updateRect;wInp.oninput=updateRect;
+
+        lbl.textContent=dim.label+(mult===2?' (×2)':'');
+        app(row,[lbl,lInp,wInp,areaDiv]);
+
+        // Store reference for total calc
+        row._getArea=function(){return Number(lInp.value||0)*Number(wInp.value||0)*mult;};
+
+      } else if(dim.type==='count-size'){
+        var cInp=mk('input');cInp.type='number';cInp.min='0';cInp.placeholder='Count';
+        cInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+        var sInp=mk('input');sInp.type='number';sInp.min='0';sInp.placeholder='Size (sq in)';
+        sInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+
+        function updateCount(){
+          var c=Number(cInp.value||0);var s=Number(sInp.value||0);
+          var area=c*s;
+          areaDiv.textContent=area>0?area+' sq in':'—';
+          refreshTotal();
+        }
+        cInp.oninput=updateCount;sInp.oninput=updateCount;
+        app(row,[lbl,cInp,sInp,areaDiv]);
+        row._getArea=function(){return Number(cInp.value||0)*Number(sInp.value||0);};
+        row._isFlat=false;
+
+      } else if(dim.type==='count-rate'){
+        var crInp=mk('input');crInp.type='number';crInp.min='0';crInp.placeholder='Count';
+        crInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+        var prInp=mk('input');prInp.type='number';prInp.min='0';prInp.placeholder='₹ each';
+        prInp.style.cssText='width:100%;padding:5px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+
+        function updateFlat(){
+          var c=Number(crInp.value||0);var r=Number(prInp.value||0);
+          var cost=c*r;
+          areaDiv.textContent=cost>0?rupee(cost):'—';
+          refreshTotal();
+        }
+        crInp.oninput=updateFlat;prInp.oninput=updateFlat;
+        app(row,[lbl,crInp,prInp,areaDiv]);
+        row._getArea=function(){return 0;};
+        row._getFlatCost=function(){return Number(crInp.value||0)*Number(prInp.value||0);};
+        row._isFlat=true;
+      }
+
+      card.appendChild(row);
+    });
+
+    dimWrap.appendChild(card);
+
+    function refreshTotal(){
+      var area=0;var flat=0;
+      card.querySelectorAll('div[style*="grid"]').forEach(function(row){
+        if(row._getArea)area+=row._getArea();
+        if(row._getFlatCost)flat+=row._getFlatCost();
+      });
+      var r=Number(rInp.value||0);
+      var areaCost=Math.round(area*r);
+      var total=areaCost+flat;
+
+      resultCard.style.display='block';
+      resultCard.innerHTML='';
+
+      var grid=mk('div');grid.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px';
+      function rCard(label,val,sub){
+        var c=mk('div');c.style.cssText='background:rgba(255,255,255,.1);border-radius:8px;padding:12px 16px';
+        var l=mk('div');l.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.6);margin-bottom:6px';l.textContent=label;
+        var v=mk('div');v.style.cssText='font-size:20px;font-weight:800;color:#C9A84C';v.textContent=val;
+        app(c,[l,v]);
+        if(sub){var s=mk('div');s.style.cssText='font-size:11px;color:rgba(255,255,255,.5);margin-top:3px';s.textContent=sub;c.appendChild(s);}
+        return c;
+      }
+      app(grid,[
+        rCard('Total Area',area+' sq in',''),
+        rCard('Area Cost',rupee(areaCost),area+' × ₹'+r),
+        rCard('Total Cost',rupee(total),flat>0?'incl. ₹'+flat+' flat':''),
+      ]);
+      resultCard.appendChild(grid);
+
+      var hint=mk('div');hint.style.cssText='font-size:12px;color:rgba(255,255,255,.5);text-align:center';
+      hint.textContent='Copy total cost ₹'+total.toLocaleString('en-IN')+' → enter in Price Estimator → Embroidery column';
+      resultCard.appendChild(hint);
+    }
+
+    rInp.oninput=refreshTotal;
+  }
+
+  pSel.onchange=calcAndRender;
+  calcAndRender();
+}
+
+// ── PIECE SETTINGS TAB ────────────────────────────────────────
+function renderEmbPieceSettings(cw){
+  var pieces=getEmbCalcPieces();
+
+  var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px';
+  var title=mk('div','section-title','Piece Types & Dimensions');title.style.margin='0';
+  var addBtn=mkBtn('+ Add Piece Type',function(){openEmbPieceModal(null);},'btn btn-primary btn-sm');
+  app(hdr,[title,addBtn]);cw.appendChild(hdr);
+
+  if(!pieces.length){
+    var noP=mk('div','card');noP.appendChild(mk('div','empty','No piece types yet. Add your first piece type.'));
+    cw.appendChild(noP);return;
+  }
+
+  pieces.forEach(function(piece,pi){
+    var card=mk('div','card');card.style.marginBottom='12px';
+    var cardHdr=mk('div');cardHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom=10px';
+    var pName=mk('div');pName.style.cssText='font-size:15px;font-weight:700;color:#1a1a1a';pName.textContent=piece.name;
+    var acts=mk('div');acts.style.cssText='display:flex;gap:6px';
+    var editBtn=mkBtn('Edit',(function(p){return function(){openEmbPieceModal(p);};})(piece),'btn btn-xs');
+    var delBtn=mk('button');delBtn.textContent='Del';delBtn.className='btn-danger';delBtn.style.cssText='padding:2px 8px;font-size:11px';
+    delBtn.onclick=(function(pid){return function(){
+      if(!confirm('Delete this piece type?'))return;
+      var updated=getEmbCalcPieces().filter(function(p){return p.id!==pid;});
+      saveEmbCalcPieces(updated);
+    };})(piece.id);
+    app(acts,[editBtn,delBtn]);
+    app(cardHdr,[pName,acts]);
+    card.appendChild(cardHdr);
+
+    // Dimension badges
+    var dimList=mk('div');dimList.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-top=8px';
+    piece.dims.forEach(function(dim){
+      var typeLabel=DIM_TYPES.find(function(t){return t.id===dim.type;});
+      var badge=mk('div');badge.style.cssText='font-size:11px;padding:4px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:20px;color:#166534';
+      badge.textContent=dim.label+' ('+( typeLabel?typeLabel.label:dim.type)+')';
+      dimList.appendChild(badge);
+    });
+    card.appendChild(dimList);
+    cw.appendChild(card);
+  });
+}
+
+function openEmbPieceModal(piece){
+  var isNew=!piece;
+  var dims=piece?JSON.parse(JSON.stringify(piece.dims||[])):[];
+
+  var wrap=mk('div');
+  wrap.appendChild(mk('div','modal-title',isNew?'Add Piece Type':'Edit Piece Type'));
+
+  var nameInp=mkInput('emb-piece-name','text','e.g. 6 Yard Saree',piece?piece.name:'');
+  wrap.appendChild(mkFg('Piece name *',nameInp));
+
+  // Dimensions list
+  var dimSection=mk('div');dimSection.style.cssText='margin-top:12px';
+  var dimTitle=mk('div');dimTitle.style.cssText='font-size:12px;font-weight:700;color:#555;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center';
+  var dimLbl=mk('span');dimLbl.textContent='Dimensions';
+  var addDimBtn=mkBtn('+ Add Dimension',function(){
+    dims.push({id:uid().slice(0,6),label:'',type:'rect'});
+    renderDims();
+  },'btn btn-xs btn-sm');
+  app(dimTitle,[dimLbl,addDimBtn]);
+  dimSection.appendChild(dimTitle);
+
+  var dimList=mk('div');dimList.id='emb-dim-list';
+  dimSection.appendChild(dimList);
+  wrap.appendChild(dimSection);
+
+  function renderDims(){
+    dimList.innerHTML='';
+    if(!dims.length){
+      var noD=mk('div');noD.style.cssText='font-size:12px;color:#aaa;padding:8px 0';noD.textContent='No dimensions yet. Add one above.';
+      dimList.appendChild(noD);return;
+    }
+    dims.forEach(function(dim,di){
+      var row=mk('div');row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:8px';
+
+      var lInp=mk('input');lInp.type='text';lInp.placeholder='Dimension name';lInp.value=dim.label||'';
+      lInp.style.cssText='flex:1;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px';
+      lInp.oninput=function(){dims[di].label=this.value;};
+
+      var tSel=mk('select');tSel.style.cssText='flex:1;padding:6px 8px;font-size:12px;border:1px solid #e0e0e0;border-radius:6px;background:#fff';
+      DIM_TYPES.forEach(function(t){
+        var o=mk('option');o.value=t.id;o.textContent=t.label;
+        if(t.id===dim.type)o.selected=true;
+        tSel.appendChild(o);
+      });
+      tSel.onchange=function(){dims[di].type=this.value;};
+
+      var delD=mk('button');delD.textContent='×';delD.style.cssText='padding:4px 8px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;color:#991B1B;cursor:pointer;font-size:14px';
+      delD.onclick=function(){dims.splice(di,1);renderDims();};
+
+      app(row,[lInp,tSel,delD]);
+      dimList.appendChild(row);
+    });
+  }
+  renderDims();
+
+  var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:8px';
+  app(wrap,[err,mkActions([
+    mkBtn('Cancel',closeModal),
+    mkBtn(isNew?'Add Piece':'Save',function(){
+      var name=(document.getElementById('emb-piece-name')||{}).value.trim();
+      if(!name){err.textContent='Piece name is required.';return;}
+      if(!dims.length){err.textContent='Add at least one dimension.';return;}
+      var emptyDim=dims.find(function(d){return !d.label.trim();});
+      if(emptyDim){err.textContent='All dimensions need a name.';return;}
+
+      var all=getEmbCalcPieces();
+      if(isNew){
+        all.push({id:uid(),name:name,dims:dims});
+      } else {
+        var idx=all.findIndex(function(p){return p.id===piece.id;});
+        if(idx>-1)all[idx]={id:piece.id,name:name,dims:dims};
+      }
+      saveEmbCalcPieces(all);
+      closeModal();
+    },'btn btn-primary')
+  ])]);
+  showM(wrap,true);
+  setTimeout(function(){var e=document.getElementById('emb-piece-name');if(e)e.focus();},50);
+}
+
+// ══════════════════════════════════════════════════════════════
+// END EMBROIDERY CALCULATOR MODULE
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
