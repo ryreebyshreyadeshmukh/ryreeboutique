@@ -9972,11 +9972,41 @@ function viewEstBreakdown(quotId){
   }
   wrap.appendChild(contentWrap);
 
-  // Edit Estimate button — only if quotation not yet invoiced
+  // Edit Estimate button
   var q2=DB.quotations.find(function(x){return x.id===quotId;});
   var editEstBtn=mkBtn('Edit Estimate',function(){
     if(q2&&q2.linkedInvoiceId){
-      alert('Cannot edit — an invoice has already been created for this quotation.');
+      // Find the existing invoice
+      var existingInv=DB.invoices.find(function(i){return i.id===q2.linkedInvoiceId;});
+      if(existingInv&&existingInv.status==='Withdrawn'){
+        // Already withdrawn — just allow edit
+        closeModal();
+        openEstimateEditor(quotId);
+        return;
+      }
+      // Show withdraw + edit confirmation
+      var invNo=existingInv?(existingInv.gstInvoiceNo||existingInv.invoiceNo||'Invoice'):'Invoice';
+      var invTotal=existingInv?rupee(existingInv.total||0):'';
+      var msg='Invoice '+invNo+(invTotal?' ('+invTotal+')':'')+' exists for this quotation.'+
+        ' Proceeding will: 1) Mark it as Withdrawn  2) Let you update the estimate  3) Carry over payments to new invoice.'+
+        ' You will need to create a new invoice after saving. Continue?';
+      if(!confirm(msg))return;
+      // Withdraw old invoice — preserve payments
+      if(existingInv){
+        dbSave('invoices',Object.assign({},existingInv,{
+          status:'Withdrawn',
+          withdrawnAt:Date.now(),
+          withdrawnReason:'Estimate revised by Shreya'
+        }));
+      }
+      // Clear linkedInvoiceId from quotation so new invoice can be created
+      dbSave('quotations',Object.assign({},q2,{
+        linkedInvoiceId:null,
+        withdrawnInvoiceId:existingInv?existingInv.id:null,
+        carriedOverPayments:existingInv?(existingInv.payments||[]):[]
+      }));
+      closeModal();
+      openEstimateEditor(quotId);
       return;
     }
     if(q2&&q2.status==='Accepted'){
@@ -11421,12 +11451,28 @@ function createInvoiceFromQuotation(qid){
           created:Date.now()
         };
 
+        // Carry over payments from withdrawn invoice if any
+        var carriedPayments=q.carriedOverPayments||[];
+        var carriedAdvance=carriedPayments.reduce(function(s,p){return s+Number(p.amount||0);},0);
+        if(carriedPayments.length){
+          inv.payments=carriedPayments;
+          inv.advancePaid=carriedAdvance;
+          inv.carriedFromInvoice=q.withdrawnInvoiceId||null;
+        }
+
         dbSave('invoices',inv);
-        // Mark quotation as having invoice
-        dbSave('quotations',Object.assign({},q,{linkedInvoiceId:inv.id}));
+        // Mark quotation as having invoice, clear carried over data
+        dbSave('quotations',Object.assign({},q,{
+          linkedInvoiceId:inv.id,
+          withdrawnInvoiceId:null,
+          carriedOverPayments:[]
+        }));
         closeModal();
         nav('invoices');
-        alert('Invoice '+invoiceNo+' created!'+(gstEnabled?' (GST: CGST '+rupee(cgst)+' + SGST '+rupee(sgst)+')':''));
+        var msg='Invoice '+invoiceNo+' created!';
+        if(carriedPayments.length)msg+=' Payments of '+rupee(carriedAdvance)+' carried over from withdrawn invoice.';
+        if(gstEnabled)msg+=' GST: CGST '+rupee(cgst)+' + SGST '+rupee(sgst);
+        alert(msg);
       },'btn btn-primary')
     ])
   ]);
@@ -11913,8 +11959,8 @@ function viewInvoice(id){
   app(left,[invNo,clName,clPhone]);
   var right=mk('div');right.style.textAlign='right';
   var statusBadge=mk('span','badge');
-  var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534'};
-  var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4'};
+  var statusColors={Draft:'#B45309',Sent:'#1D4ED8',Paid:'#166534','Partially Paid':'#B45309',Overdue:'#991B1B',Withdrawn:'#6b7280'};
+  var statusBgs={Draft:'#FFFBEB',Sent:'#EFF6FF',Paid:'#F0FDF4','Partially Paid':'#FFFBEB',Overdue:'#FEF2F2',Withdrawn:'#f3f4f6'};
   statusBadge.style.cssText='background:'+(statusBgs[inv.status]||'#f5f5f5')+';color:'+(statusColors[inv.status]||'#888')+';font-size:12px;padding:4px 10px';
   statusBadge.textContent=inv.status||'Draft';
   var dateEl=mk('div');dateEl.style.cssText='font-size:12px;color:#aaa;margin-top:6px';dateEl.textContent=inv.date||'';
