@@ -4133,38 +4133,45 @@ function showPinScreen(){
   }
 
   function submitPin(){
-    errDiv.textContent='';
-    if(!DB||!DB.settings){errDiv.textContent='Loading... please try again.';return;}
-    var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
-    var adminPin=cfg.adminPin||cfg.password||'';
+    errDiv.textContent='Checking...';
+    // Load from Firebase to ensure fresh data
+    loadPasswordFromFirebase(function(){
+      errDiv.textContent='';
+      var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
+      var adminPin=cfg.adminPin||cfg.password||'';
 
-    // Check admin PIN
-    if(pin===adminPin){
-      _currentUser=null;
-      saveSession(null);
-      hidePinScreen();
-      return;
-    }
+      // Check admin PIN
+      if(pin===adminPin){
+        _currentUser=null;
+        sessionStorage.setItem('ryree_auth','1');
+        sessionStorage.setItem('ryree_role','admin');
+        saveSession(null);
+        hidePinScreen();
+        return;
+      }
 
-    // Check staff PINs
-    var staffMatch=DB.staff.find(function(s){return s.pin===pin&&s.active!==false;});
-    if(staffMatch){
-      _currentUser=staffMatch;
-      saveSession(staffMatch);
-      resetSessionTimer();
-      hidePinScreen();
-      // Re-render nav for this user
-      updateNavForUser();
-      nav('dashboard');
-      return;
-    }
+      // Check staff PINs — also try loading staff from DB
+      var staffList=DB.staff||[];
+      var staffMatch=staffList.find(function(s){return s.pin===pin&&s.active!==false;});
+      if(staffMatch){
+        _currentUser=staffMatch;
+        sessionStorage.setItem('ryree_auth','1');
+        sessionStorage.setItem('ryree_role','staff');
+        saveSession(staffMatch);
+        resetSessionTimer();
+        hidePinScreen();
+        updateNavForUser();
+        nav('dashboard');
+        return;
+      }
 
-    errDiv.textContent='Incorrect PIN. Try again.';
-    pin='';
-    updateDots();
-    card.style.transform='translateX(-8px)';
-    setTimeout(function(){card.style.transform='translateX(8px)';},80);
-    setTimeout(function(){card.style.transform='';},160);
+      errDiv.textContent='Incorrect PIN. Try again.';
+      pin='';
+      updateDots();
+      card.style.transform='translateX(-8px)';
+      setTimeout(function(){card.style.transform='translateX(8px)';},80);
+      setTimeout(function(){card.style.transform='';},160);
+    });
   }
 
   // Password mode for old assistant system
