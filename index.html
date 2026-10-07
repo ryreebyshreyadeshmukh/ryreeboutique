@@ -363,12 +363,14 @@ function getAsstPw(){return _cachedAsstPw||localStorage.getItem('ryree_asst_pw')
 function getCurrentRole(){return sessionStorage.getItem('ryree_role')||'admin';}
 function isAdmin(){return getCurrentRole()==='admin';}
 function isAssistant(){return getCurrentRole()==='assistant';}
+var _cachedAdminPin=null;
 function loadPasswordFromFirebase(cb){
   db.collection('settings').doc('config').get().then(function(doc){
     if(doc.exists){
       if(doc.data().password){_cachedPw=doc.data().password;localStorage.setItem('ryree_pw',doc.data().password);}
       if(doc.data().assistantPassword){_cachedAsstPw=doc.data().assistantPassword;localStorage.setItem('ryree_asst_pw',doc.data().assistantPassword);}
       if(doc.data().openAIKey){_cachedOpenAIKey=doc.data().openAIKey;}
+      if(doc.data().adminPin){_cachedAdminPin=String(doc.data().adminPin);}
     }
     if(cb)cb();
   }).catch(function(){if(cb)cb();});
@@ -4138,8 +4140,7 @@ function showPinScreen(){
     loadPasswordFromFirebase(function(){
       errDiv.textContent='';
       var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
-      var adminPin=String(cfg.adminPin||cfg.password||'');
-      console.log('[PIN DEBUG] entered='+JSON.stringify(pin)+' stored='+JSON.stringify(adminPin)+' match='+(pin===adminPin));
+      var adminPin=_cachedAdminPin||String(cfg.adminPin||cfg.password||'');
 
       // Check admin PIN — compare as strings
       if(pin===adminPin){
