@@ -8505,6 +8505,115 @@ function pgEstSettings(){
   }
   wrap.appendChild(grmtSec);
 
+  // ── ESTIMATE INTEGRITY CHECK ────────────────────────────────
+  var integrityBtn=mkBtn('Check All Estimates for Issues',function(){
+    integrityWrap.innerHTML='';
+    var affected=[];
+    DB.estSnapshots.forEach(function(snap){
+      if(!snap.data||!snap.totalCost)return;
+      var visible=Object.keys(snap.data).reduce(function(a,comp){
+        return a+Object.values(snap.data[comp]||{}).reduce(function(b,v){return b+Number(v||0);},0);
+      },0);
+      var stored=Number(snap.totalCost||0);
+      if(Math.abs(visible-stored)>1){
+        var order=DB.orders.find(function(o){return o.id===snap.orderId;});
+        var client=order?DB.clients.find(function(c){return c.id===order.clientId;}):null;
+        affected.push({
+          snap:snap,order:order,client:client,
+          visible:visible,stored:stored,diff:stored-visible
+        });
+      }
+    });
+    if(!affected.length){
+      var ok=mk('div');ok.style.cssText='padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#166534;font-size:13px';
+      ok.textContent='✅ All estimates look correct. No missing piece data detected.';
+      integrityWrap.appendChild(ok);return;
+    }
+    var hdr=mk('div');hdr.style.cssText='font-size:13px;font-weight:700;color:#991B1B;margin-bottom:10px';
+    hdr.textContent='⚠️ '+affected.length+' estimate'+(affected.length!==1?'s':'')+' have missing piece data:';
+    integrityWrap.appendChild(hdr);
+    affected.forEach(function(row){
+      var card=mk('div');card.style.cssText='background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px';
+      var info=mk('div');
+      var clientName=mk('div');clientName.style.cssText='font-size:13px;font-weight:700;color:#1a1a1a';
+      clientName.textContent=(row.client?row.client.name:'Unknown client')+(row.order?' · '+(row.order.orderNo||row.order.item||''):'');
+      var detail=mk('div');detail.style.cssText='font-size:11px;color:#888;margin-top:2px';
+      detail.textContent='Ensemble '+(row.snap.itemIndex!==undefined?row.snap.itemIndex+1:'?')+
+        ' · Visible: '+rupee(row.visible)+' · Stored: '+rupee(row.stored)+
+        ' · Missing: '+rupee(row.diff);
+      app(info,[clientName,detail]);
+      var editBtn=mkBtn('Edit Estimate',function(o){return function(){
+        if(!o)return;
+        closeModal();
+        nav('estimator');
+      };}(row.order),'btn btn-xs');
+      app(card,[info,editBtn]);
+      integrityWrap.appendChild(card);
+
+      // Reference breakdown from quotation
+      var quot=DB.quotations.find(function(q){return q.linkedOrderId===(row.order?row.order.id:'');});
+      var svcIdx=row.snap.itemIndex||0;
+      var svc=quot&&quot.services?quot.services[svcIdx]:null;
+      var qsnap=svc?svc.estSnapshot:null;
+      if(qsnap&&qsnap.data&&Object.keys(qsnap.data).length){
+        var refCard=mk('div');refCard.style.cssText='background:#fff;border:1px solid #FECACA;border-radius:0 0 8px 8px;padding:10px 16px;margin-top:-4px;margin-bottom:8px';
+        var refTitle=mk('div');refTitle.style.cssText='font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
+        refTitle.textContent='Reference from Quotation (use these to re-enter missing costs)';
+        refCard.appendChild(refTitle);
+        // Build reference table
+        var cols=DB.estcols||[];
+        var tbl=mk('div');tbl.style.cssText='overflow-x:auto';
+        var tblInner=mk('table');tblInner.style.cssText='width:100%;border-collapse:collapse;font-size:11px';
+        // Header
+        var thead=mk('tr');thead.style.cssText='background:#fafafa';
+        var thPiece=mk('th');thPiece.style.cssText='text-align:left;padding:4px 8px;font-weight:700;color:#888;border:1px solid #f0f0f0';thPiece.textContent='Piece';
+        thead.appendChild(thPiece);
+        cols.forEach(function(col){
+          var th=mk('th');th.style.cssText='text-align:right;padding:4px 8px;font-weight:700;color:#888;border:1px solid #f0f0f0;white-space:nowrap';
+          th.textContent=col.label||col.id;thead.appendChild(th);
+        });
+        var thTotal=mk('th');thTotal.style.cssText='text-align:right;padding:4px 8px;font-weight:700;color:#2D6B5E;border:1px solid #f0f0f0';thTotal.textContent='Row Total';
+        thead.appendChild(thTotal);
+        tblInner.appendChild(thead);
+        // Rows
+        Object.keys(qsnap.data).forEach(function(piece){
+          var pdata=qsnap.data[piece]||{};
+          var rowTotal=cols.reduce(function(s,col){return s+Number(pdata[col.id]||0);},0);
+          if(rowTotal===0)return; // skip empty pieces
+          var tr=mk('tr');
+          var tdPiece=mk('td');tdPiece.style.cssText='padding:4px 8px;font-weight:600;border:1px solid #f0f0f0';tdPiece.textContent=piece;
+          tr.appendChild(tdPiece);
+          cols.forEach(function(col){
+            var td=mk('td');td.style.cssText='text-align:right;padding:4px 8px;border:1px solid #f0f0f0;color:#555';
+            var val=Number(pdata[col.id]||0);
+            td.textContent=val>0?rupee(val):'—';tr.appendChild(td);
+          });
+          var tdTotal=mk('td');tdTotal.style.cssText='text-align:right;padding:4px 8px;font-weight:700;color:#2D6B5E;border:1px solid #f0f0f0';
+          tdTotal.textContent=rupee(rowTotal);tr.appendChild(tdTotal);
+          tblInner.appendChild(tr);
+        });
+        app(tbl,[tblInner]);refCard.appendChild(tbl);
+        integrityWrap.appendChild(refCard);
+      } else {
+        // No quotation snapshot — show current snapshot data as reference
+        var noRef=mk('div');noRef.style.cssText='background:#fff;border:1px solid #f0f0f0;border-radius:0 0 8px 8px;padding:8px 16px;margin-top:-4px;margin-bottom:8px;font-size:11px;color:#aaa';
+        noRef.textContent='No quotation reference found. Check physical records for missing piece costs.';
+        integrityWrap.appendChild(noRef);
+      }
+    });
+    var note=mk('div');note.style.cssText='font-size:11px;color:#aaa;margin-top:8px';
+    note.textContent='For each affected estimate: click Edit Estimate → re-enter the missing piece costs → save.';
+    integrityWrap.appendChild(note);
+  },'btn btn-sm');
+  integrityBtn.style.cssText+='background:#991B1B;border-color:#991B1B;color:#fff;margin-bottom:10px';
+  var integrityWrap=mk('div');
+  var integrityRow=mk('div');integrityRow.style.cssText='margin-top:20px;padding:16px;background:#fff9f9;border-radius:8px;border:1px solid #FECACA';
+  var integrityTitle=mk('div');integrityTitle.style.cssText='font-size:13px;font-weight:700;color:#991B1B;margin-bottom:4px';integrityTitle.textContent='Estimate Integrity Check';
+  var integritySub=mk('div');integritySub.style.cssText='font-size:12px;color:#B45309;margin-bottom:12px';
+  integritySub.textContent='Scan all estimates to find any where piece data may have been lost due to the rename issue.';
+  app(integrityRow,[integrityTitle,integritySub,integrityBtn,integrityWrap]);
+  wrap.appendChild(integrityRow);
+
   // Seed defaults button
   var seedRow=mk('div');seedRow.style.cssText='margin-top:20px;padding:14px;background:#fafafa;border-radius:8px;border:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center';
   var seedTxt=mk('div');seedTxt.style.cssText='font-size:13px;color:#888';seedTxt.textContent='Start from the default configuration (Lehenga, Saree, Blouse, Co-ord Set, Dress + 7 cost columns)';
