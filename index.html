@@ -144,7 +144,7 @@ textarea.form-input{resize:vertical}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
-<body>
+<body style="margin:0;background:#1e514c">
 
 <div class="login-wrap" id="login-wrap">
   <img src="https://raw.githubusercontent.com/ryreebyshreyadeshmukh/ryreeboutique/main/Ryree_logo.PNG" style="width:260px;max-width:80vw;margin-bottom:20px">
@@ -4080,8 +4080,8 @@ function openServiceModal(id){
 
 // ── PIN SCREEN ───────────────────────────────────────────────
 function showPinScreen(){
-  var app=document.getElementById('app');
-  if(app) app.style.display='none';
+  var appEl=document.getElementById('app');
+  if(appEl) appEl.style.display='none';
   var existing=document.getElementById('pin-screen');
   if(existing) existing.remove();
 
@@ -4134,6 +4134,7 @@ function showPinScreen(){
 
   function submitPin(){
     errDiv.textContent='';
+    if(!DB||!DB.settings){errDiv.textContent='Loading... please try again.';return;}
     var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
     var adminPin=cfg.adminPin||cfg.password||'';
 
@@ -4168,8 +4169,9 @@ function showPinScreen(){
 
   // Password mode for old assistant system
   function submitPassword(pw){
-    pwErr.textContent='';
+    pwErr.textContent='Loading...';
     loadPasswordFromFirebase(function(){
+      pwErr.textContent='';
       var cfg=DB.settings.find(function(x){return x.id==='config';})||{};
       var adminPin=cfg.adminPin||cfg.password||'';
       var asstPw=cfg.assistantPassword||getAsstPw()||'';
@@ -12865,8 +12867,8 @@ if(_qParam){
 }else if(isLoggedIn()){
   showApp();
 }else{
-  // Show new PIN screen instead of old login form
-  showPinScreen();
+  // Show new PIN screen — defer slightly to ensure DOM ready
+  setTimeout(function(){showPinScreen();},100);
 }
 </script>
 
