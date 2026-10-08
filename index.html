@@ -11812,13 +11812,15 @@ function createInvoiceFromQuotation(qid){
 
           var clientState=cl?cl.state||'27':'27';
           var interState=clientState!=='27'&&clientState!==(gstCfg.stateCode||'27');
-          // taxableAmount = total × 100/105
-          taxableAmount=Math.round((total*100/105)*100)/100;
+          // taxableAmount = total × 100/105, rounded to nearest rupee
+          total=Math.round(total); // ensure no paisa in the final payable amount
+          taxableAmount=Math.round(total*100/105);
+          var gstDiff=total-taxableAmount;
           if(interState){
-            igst=Math.round((total-taxableAmount)*100)/100;
+            igst=gstDiff;
           } else {
-            cgst=Math.round((total-taxableAmount)/2*100)/100;
-            sgst=Math.round((total-taxableAmount)/2*100)/100;
+            cgst=Math.floor(gstDiff/2);
+            sgst=gstDiff-cgst; // absorbs odd rupee; cgst+sgst+taxable = total exactly
           }
           // total stays unchanged — client pays exactly the quoted price
 
