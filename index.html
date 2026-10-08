@@ -11806,24 +11806,21 @@ function createInvoiceFromQuotation(qid){
         var taxableAmount=0,cgst=0,sgst=0,igst=0,gstRate=0;
 
         if(gstEnabled){
-          // Get GST rate from first service (or default 5%)
-          var firstSvc=services[0];
-          var svcRecord=firstSvc&&firstSvc.serviceId?DB.services.find(function(s){return s.id===firstSvc.serviceId;}):null;
-          // Try matching by name
-          if(!svcRecord&&firstSvc)svcRecord=DB.services.find(function(s){return s.name===firstSvc.name;});
-          gstRate=svcRecord?Number(svcRecord.gstRate||5):5;
+          // GST-inclusive model: quoted price already includes GST
+          // Back-calculate taxable value from the inclusive total
+          gstRate=5; // Fixed 5% GST (SAC 9988 — stitching/tailoring/embroidery services)
 
-          taxableAmount=Math.round(total*100)/100; // GST exclusive — total is base price
           var clientState=cl?cl.state||'27':'27';
           var interState=clientState!=='27'&&clientState!==(gstCfg.stateCode||'27');
+          // taxableAmount = total × 100/105
+          taxableAmount=Math.round((total*100/105)*100)/100;
           if(interState){
-            igst=Math.round(taxableAmount*gstRate)/100;
+            igst=Math.round((total-taxableAmount)*100)/100;
           } else {
-            cgst=Math.round(taxableAmount*gstRate/2)/100;
-            sgst=Math.round(taxableAmount*gstRate/2)/100;
+            cgst=Math.round((total-taxableAmount)/2*100)/100;
+            sgst=Math.round((total-taxableAmount)/2*100)/100;
           }
-          var gstTotal=cgst+sgst+igst;
-          total=Math.round((taxableAmount+gstTotal)*100)/100;
+          // total stays unchanged — client pays exactly the quoted price
 
           gstInvoiceNo=invoiceNo; // same sequential number, flagged as GST invoice
         }
@@ -12016,24 +12013,37 @@ function printInvoice(id){
       +'<tbody>'+itemsHtml+'</tbody>'
     +'</table>'
     // Totals
-    +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
-      +'<table style="width:280px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
-        +(discAmt>0
-          ?'<tr style="background:#f9f9f9"><td style="padding:8px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
-           +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Discount</td><td style="padding:8px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- \u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>'
-          :'')
-        +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px">Total</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
-        +(totalCollected>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Amount Collected</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+totalCollected.toLocaleString('en-IN')+'</td></tr>':'')
-        +'<tr style="background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
-          +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balance>0?'Balance Due':'Paid in Full')+'</td>'
-          +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balance>0?'#c0392b':'#166534')+'">'
-            +(balance>0?'\u20b9'+balance.toLocaleString('en-IN'):'\u2713')
-          +'</td>'
-        +'</tr>'
-      +'</table>'
-    +'</div>'
+    +(function(){
+      var cgst=Number(inv.cgst||0);
+      var sgst=Number(inv.sgst||0);
+      var gstRate=Number(inv.gstRate||0);
+      var hasGst=cgst>0||sgst>0;
+      var taxableVal=hasGst?(total-cgst-sgst):0;
+      var halfRate=gstRate/2;
+      return '<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
+        +'<table style="width:300px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+          +(discAmt>0
+            ?'<tr style="background:#f9f9f9"><td style="padding:8px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Discount</td><td style="padding:8px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- \u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>'
+            :'')
+          +(hasGst
+            ?'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;color:#888;font-size:13px">Taxable Value</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+taxableVal.toLocaleString('en-IN')+'</td></tr>'
+             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">CGST ('+(halfRate)+'%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+cgst.toLocaleString('en-IN')+'</td></tr>'
+             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">SGST ('+(halfRate)+'%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+sgst.toLocaleString('en-IN')+'</td></tr>'
+            :'')
+          +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px;font-weight:600">Total'+(hasGst?' (incl. GST)':'')+'</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
+          +(totalCollected>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Amount Collected</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+totalCollected.toLocaleString('en-IN')+'</td></tr>':'')
+          +'<tr style="background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
+            +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balance>0?'Balance Due':'Paid in Full')+'</td>'
+            +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balance>0?'#c0392b':'#166534')+'">'
+              +(balance>0?'\u20b9'+balance.toLocaleString('en-IN'):'\u2713')
+            +'</td>'
+          +'</tr>'
+        +'</table>'
+      +'</div>';
+    })()
     +(inv.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+inv.notes+'</div>':'')
-    +''
+    +(inv.gstEnabled?'<div style="font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:4px">SAC Code: 9988 &nbsp;|&nbsp; Composite Supply — Tailoring &amp; Garment Making Services &nbsp;|&nbsp; GST @ 5% (incl.)</div>':'')
     +'</body></html>';
 
   var win=window.open('','_blank');
