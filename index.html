@@ -4803,6 +4803,17 @@ function embCalcHours(inTime,outTime){
   return diff>0?Math.round(diff/60*100)/100:0;
 }
 
+function embCalcHoursWithBreakMins(inTime,outTime,breakMins){
+  // Simpler variant used by the break-duration dropdown
+  if(!inTime||!outTime)return 0;
+  function toMins(t){var p=t.split(':');return parseInt(p[0])*60+parseInt(p[1]||0);}
+  var shiftMins=toMins(outTime)-toMins(inTime);
+  if(shiftMins<=0)return 0;
+  var bm=Number(breakMins)||0;
+  if(bm>=shiftMins)bm=0; // safety: don't produce negative hours
+  return Math.round((shiftMins-bm)/60*100)/100;
+}
+
 function embCalcHoursWithBreak(inTime,outTime,breakIn,breakOut){
   // Returns payable hours after deducting break
   // Rule: both break times entered → deduct actual break duration
@@ -4901,23 +4912,50 @@ function pgEmbroidery(){
     // Load existing attendance for this date
     var existing=DB.embAttendance.filter(function(a){return a.date===date;});
 
-    var card=mk('div','card-p0');
-    var hdr=mk('div');hdr.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
-    ['Worker','In Time','Out Time','Break','Hours','Working On','✓'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
-    card.appendChild(hdr);
-
     var entries={};
     workers.forEach(function(w){
       var att=existing.find(function(a){return a.workerId===w.id;});
-      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',breakIn:att?att.breakIn||'':'',breakOut:att?att.breakOut||'':'',hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',component:att?att.component||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',component:att.component||'',hours:att.hours||0}:{}]};
+      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',breakMins:att?att.breakMins||30:30,hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',component:att?att.component||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',component:att.component||'',hours:att.hours||0}:{}]};
     });
 
-
+    // Card-per-worker layout
+    var cardsWrap=mk('div');cardsWrap.style.cssText='display:flex;flex-direction:column;gap:10px';
 
     var hoursDisplays={};
     workers.forEach(function(w){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:14px 16px;border-bottom:2px solid #e0e0e0;align-items:start;background:#fff';
-      var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';nameCell.textContent=w.name;
+      // Outer card
+      var card=mk('div');
+      card.style.cssText='background:#fff;border:1px solid #e4e4e4;border-radius:10px;overflow:hidden;transition:border-color .15s';
+
+      // ── Card header: name + hours badge + present toggle ──
+      var cardHdr=mk('div');cardHdr.id='emb-cardhdr-'+w.id;
+      cardHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;cursor:pointer;user-select:none';
+
+      var nameSpan=mk('div');nameSpan.style.cssText='font-size:14px;font-weight:600;color:#1a1a1a';nameSpan.textContent=w.name;
+
+      var hdrRight=mk('div');hdrRight.style.cssText='display:flex;align-items:center;gap:12px';
+
+      var hoursBadge=mk('div');hoursBadge.id='emb-hrs-'+w.id;
+      hoursBadge.style.cssText='font-size:13px;font-weight:700;color:#888;background:#f0f0f0;padding:3px 10px;border-radius:20px;transition:all .2s';
+      hoursBadge.textContent=entries[w.id].hours?entries[w.id].hours+'h':'—';
+      hoursDisplays[w.id]=hoursBadge;
+
+      // Present toggle
+      var togWrap=mk('label');togWrap.style.cssText='display:flex;align-items:center;gap:6px;cursor:pointer';
+      var chk=mk('input');chk.type='checkbox';chk.id='emb-present-'+w.id;chk.checked=entries[w.id].present;
+      chk.style.cssText='width:16px;height:16px;cursor:pointer;accent-color:#2D6B5E';
+      var togLbl=mk('span');togLbl.style.cssText='font-size:12px;color:#555;font-weight:500';togLbl.textContent='Present';
+      app(togWrap,[chk,togLbl]);
+
+      app(hdrRight,[hoursBadge,togWrap]);
+      app(cardHdr,[nameSpan,hdrRight]);
+
+      // ── Card body: time row + working on ──
+      var cardBody=mk('div');cardBody.id='emb-cardbody-'+w.id;
+      cardBody.style.cssText='padding:14px 16px;display:flex;flex-direction:column;gap:14px';
+
+      // Time row: In ──→ Break ──→ Out
+      var timeRow=mk('div');timeRow.style.cssText='display:flex;align-items:flex-end;gap:0;flex-wrap:wrap;gap:8px';
 
       // 12hr time selectors
       function mkTimeSelect(prefix,wid,defaultVal){
@@ -4931,41 +4969,57 @@ function pgEmbroidery(){
         var hrOpts=[{value:'',label:'--'}].concat([1,2,3,4,5,6,7,8,9,10,11,12].map(function(x){return {value:String(x),label:String(x)};}));
         var mnOpts=[{value:'00',label:'00'},{value:'15',label:'15'},{value:'30',label:'30'},{value:'45',label:'45'}];
         var apOpts=[{value:'AM',label:'AM'},{value:'PM',label:'PM'}];
-        var hSel=mkSelect(prefix+'-h-'+wid,hrOpts,h);hSel.style.cssText='width:48px;padding:4px;font-size:12px';
-        var mSel=mkSelect(prefix+'-m-'+wid,mnOpts,m);mSel.style.cssText='width:44px;padding:4px;font-size:12px';
-        var aSel=mkSelect(prefix+'-ap-'+wid,apOpts,ap);aSel.style.cssText='width:48px;padding:4px;font-size:12px';
+        var hSel=mkSelect(prefix+'-h-'+wid,hrOpts,h);hSel.style.cssText='width:52px;padding:5px 4px;font-size:13px;border:1px solid #ddd;border-radius:6px';
+        var mSel=mkSelect(prefix+'-m-'+wid,mnOpts,m);mSel.style.cssText='width:50px;padding:5px 4px;font-size:13px;border:1px solid #ddd;border-radius:6px';
+        var aSel=mkSelect(prefix+'-ap-'+wid,apOpts,ap);aSel.style.cssText='width:54px;padding:5px 4px;font-size:13px;border:1px solid #ddd;border-radius:6px';
         app(wrap2,[hSel,mk('span',null,':'),mSel,aSel]);
         return wrap2;
       }
 
-  
+      function mkTimeField(label,prefix,wid,defaultVal){
+        var wrap=mk('div');wrap.style.cssText='display:flex;flex-direction:column;gap:4px';
+        var lbl=mk('div');lbl.style.cssText='font-size:11px;font-weight:600;color:#999';lbl.textContent=label;
+        var sel=mkTimeSelect(prefix,wid,defaultVal);
+        app(wrap,[lbl,sel]);
+        return wrap;
+      }
 
-      var inSel=mkTimeSelect('in',w.id,entries[w.id].inTime);
-      var outSel=mkTimeSelect('out',w.id,entries[w.id].outTime);
-      var brkInSel=mkTimeSelect('brkin',w.id,entries[w.id].breakIn||'');
-      var brkOutSel=mkTimeSelect('brkout',w.id,entries[w.id].breakOut||'');
-      // Wrap break selectors with label
-      var brkWrap=mk('div');brkWrap.style.cssText='display:flex;flex-direction:column;gap:3px';
-      var brkInLbl=mk('div');brkInLbl.style.cssText='font-size:9px;color:#aaa;font-weight:600;text-transform:uppercase';brkInLbl.textContent='Start';
-      var brkOutLbl=mk('div');brkOutLbl.style.cssText='font-size:9px;color:#aaa;font-weight:600;text-transform:uppercase;margin-top:4px';brkOutLbl.textContent='End';
-      app(brkWrap,[brkInLbl,brkInSel,brkOutLbl,brkOutSel]);
+      var inField=mkTimeField('In',   'in',  w.id, entries[w.id].inTime);
+      var outField=mkTimeField('Out', 'out', w.id, entries[w.id].outTime);
 
-      var hoursCell=mk('div');hoursCell.id='emb-hrs-'+w.id;hoursCell.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';
+      // Arrow connector
+      function mkArrow(){var a=mk('div');a.style.cssText='font-size:16px;color:#ccc;padding-bottom:4px;align-self:flex-end';a.textContent='→';return a;}
+
+      // Break duration dropdown
+      var brkField=mk('div');brkField.style.cssText='display:flex;flex-direction:column;gap:4px';
+      var brkLbl=mk('div');brkLbl.style.cssText='font-size:11px;font-weight:600;color:#999';brkLbl.textContent='Break';
+      var brkOpts=[{value:'0',label:'No break'},{value:'15',label:'15 min'},{value:'30',label:'30 min'},{value:'45',label:'45 min'},{value:'60',label:'1 hr'}];
+      var savedBrkMins=entries[w.id].breakMins;
+      var brkSel=mkSelect('brk-'+w.id,brkOpts,String(savedBrkMins));
+      brkSel.style.cssText='padding:5px 8px;font-size:13px;border:1px solid #ddd;border-radius:6px;color:#444';
+      app(brkField,[brkLbl,brkSel]);
+
+      app(timeRow,[inField,mkArrow(),outField,mkArrow(),brkField]);
+
+      var hoursCell=mk('div');hoursCell.id='emb-hrs-'+w.id;
+      hoursCell.style.cssText='font-size:13px;font-weight:700;color:#888;background:#f0f0f0;padding:3px 10px;border-radius:20px;transition:all .2s';
       hoursCell.textContent=entries[w.id].hours?entries[w.id].hours+'h':'—';
       hoursDisplays[w.id]=hoursCell;
 
-      // Update hours when time changes — applies break deduction
+      // Update hours badge when time/break changes
       function updateHrs(){
         var it=embGetTime24('in',w.id);var ot=embGetTime24('out',w.id);
-        var bi=embGetTime24('brkin',w.id);var bo=embGetTime24('brkout',w.id);
-        var h=embCalcHoursWithBreak(it,ot,bi,bo);
-        var hc=document.getElementById('emb-hrs-'+w.id);
-        if(hc)hc.textContent=h>0?h+'h':'—';
+        var bm=parseInt((document.getElementById('brk-'+w.id)||{}).value||30);
+        var h=embCalcHoursWithBreakMins(it,ot,bm);
+        var badge=document.getElementById('emb-hrs-'+w.id);
+        if(badge){
+          if(h>0){badge.textContent=h+'h';badge.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E;background:#e8f5f1;padding:3px 10px;border-radius:20px;transition:all .2s';}
+          else{badge.textContent='—';badge.style.cssText='font-size:13px;font-weight:700;color:#888;background:#f0f0f0;padding:3px 10px;border-radius:20px;transition:all .2s';}
+        }
       }
-      inSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
-      outSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
-      brkInSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
-      brkOutSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      inField.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      outField.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      brkSel.onchange=updateHrs;
 
       // Present checkbox
       // Three-dropdown: Client (search) → Garment → Component
@@ -5182,32 +5236,30 @@ function pgEmbroidery(){
       splitWrap.appendChild(addSplitBtn);
       var orderSel=splitWrap;
 
-      var presentCell=mk('div');presentCell.style.cssText='display:flex;justify-content:center';
-      var chk=mk('input');chk.type='checkbox';chk.id='emb-present-'+w.id;
-      chk.checked=entries[w.id].present;
-      chk.style.cssText='width:18px;height:18px;cursor:pointer;accent-color:#2D6B5E';
-      chk.onchange=function(){
-        var isP=this.checked;
-        row.style.background=isP?'#f0fdf4':'#fff';
-        inSel.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.4';});
-        outSel.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.4';});
-        orderSel.disabled=!isP;orderSel.style.opacity=isP?'1':'0.4';
-      };
-      // Init disabled state
-      if(!chk.checked){
-        inSel.querySelectorAll('select').forEach(function(s){s.disabled=true;s.style.opacity='0.4';});
-        outSel.querySelectorAll('select').forEach(function(s){s.disabled=true;s.style.opacity='0.4';});
-        orderSel.disabled=true;orderSel.style.opacity='0.4';
-      } else {
-        row.style.background='#f0fdf4';
-      }
-      presentCell.appendChild(chk);
+      // Working On section label
+      var workLbl=mk('div');workLbl.style.cssText='font-size:11px;font-weight:600;color:#999;margin-bottom:2px';workLbl.textContent='Working on';
 
-      app(row,[nameCell,inSel,outSel,brkWrap,hoursCell,orderSel,presentCell]);
-      card.appendChild(row);
+      app(cardBody,[timeRow,workLbl,orderSel]);
+      app(card,[cardHdr,cardBody]);
+
+      // Present toggle wires up card body visibility + card style
+      function applyPresentState(isP){
+        cardBody.style.display=isP?'flex':'none';
+        card.style.borderColor=isP?'#2D6B5E':'#e4e4e4';
+        card.style.background=isP?'#fff':'#fafafa';
+        cardHdr.style.background=isP?'#f0fdf9':'#fafafa';
+        inField.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.5';});
+        outField.querySelectorAll('select').forEach(function(s){s.disabled=!isP;s.style.opacity=isP?'1':'0.5';});
+        brkSel.disabled=!isP;brkSel.style.opacity=isP?'1':'0.5';
+        orderSel.style.opacity=isP?'1':'0.5';
+      }
+      chk.onchange=function(){applyPresentState(this.checked);};
+      applyPresentState(chk.checked);
+
+      cardsWrap.appendChild(card);
     });
 
-    formWrap.appendChild(card);
+    formWrap.appendChild(cardsWrap);
 
     // Save button
     var saveErr=mk('div');saveErr.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:8px';
@@ -5218,10 +5270,9 @@ function pgEmbroidery(){
         if(present){
           var it=embGetTime24('in',w.id);
           var ot=embGetTime24('out',w.id);
-          var bi=embGetTime24('brkin',w.id);
-          var bo=embGetTime24('brkout',w.id);
+          var bm=parseInt((document.getElementById('brk-'+w.id)||{}).value||30);
           if(!it||!ot){errors.push(w.name+': please enter both in and out time');return;}
-          var hrs=embCalcHoursWithBreak(it,ot,bi,bo);
+          var hrs=embCalcHoursWithBreakMins(it,ot,bm);
           if(hrs<=0){errors.push(w.name+': out time must be after in time');return;}
           // Read split assignments from hidden fields
           var orderIdEls=document.querySelectorAll('.emb-order-id-'+w.id);
@@ -5259,7 +5310,7 @@ function pgEmbroidery(){
           var firstAssign=assignments[0]||{};
           dbSave('embAttendance',{
             id:attId,workerId:w.id,workerName:w.name,date:date,
-            inTime:it,outTime:ot,breakIn:bi,breakOut:bo,hours:hrs,
+            inTime:it,outTime:ot,breakMins:bm,hours:hrs,
             orderId:firstAssign.orderId||'',
             orderLabel:firstAssign.orderLabel||'',
             itemIndex:firstAssign.itemIndex||0,
