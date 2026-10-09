@@ -4803,6 +4803,30 @@ function embCalcHours(inTime,outTime){
   return diff>0?Math.round(diff/60*100)/100:0;
 }
 
+function embCalcHoursWithBreak(inTime,outTime,breakIn,breakOut){
+  // Returns payable hours after deducting break
+  // Rule: both break times entered → deduct actual break duration
+  //       one or both missing → deduct flat 30 mins (default)
+  //       shift too short (≤30 mins) → no deduction to avoid negative
+  if(!inTime||!outTime)return 0;
+  function toMins(t){
+    if(!t)return 0;
+    var parts=t.split(':');return parseInt(parts[0])*60+parseInt(parts[1]||0);
+  }
+  var shiftMins=toMins(outTime)-toMins(inTime);
+  if(shiftMins<=0)return 0;
+  var breakMins=0;
+  if(breakIn&&breakOut){
+    var bd=toMins(breakOut)-toMins(breakIn);
+    breakMins=bd>0?bd:0; // ignore invalid break (out before in)
+  } else {
+    // Flat 30-min deduction only if shift is long enough
+    breakMins=shiftMins>30?30:0;
+  }
+  var payable=shiftMins-breakMins;
+  return payable>0?Math.round(payable/60*100)/100:0;
+}
+
 function pgEmbroidery(){
   var wrap=mk('div');
   var today=new Date().toISOString().split('T')[0];
@@ -4878,21 +4902,21 @@ function pgEmbroidery(){
     var existing=DB.embAttendance.filter(function(a){return a.date===date;});
 
     var card=mk('div','card-p0');
-    var hdr=mk('div');hdr.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
-    ['Worker','In Time','Out Time','Hours','Working On','✓'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
+    var hdr=mk('div');hdr.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:10px 16px;background:#fafafa;border-bottom:1px solid #e8e8e8;font-size:11px;font-weight:700;color:#888;text-transform:uppercase';
+    ['Worker','In Time','Out Time','Break','Hours','Working On','✓'].forEach(function(h){var th=mk('div');th.textContent=h;hdr.appendChild(th);});
     card.appendChild(hdr);
 
     var entries={};
     workers.forEach(function(w){
       var att=existing.find(function(a){return a.workerId===w.id;});
-      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',component:att?att.component||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',component:att.component||'',hours:att.hours||0}:{}]};
+      entries[w.id]={present:!!att,inTime:att?att.inTime:'',outTime:att?att.outTime:'',breakIn:att?att.breakIn||'':'',breakOut:att?att.breakOut||'':'',hours:att?att.hours:0,orderId:att?att.orderId||'':'',itemIndex:att?att.itemIndex||0:0,itemLabel:att?att.itemLabel||'':'',component:att?att.component||'':'',assignments:att&&att.assignments&&att.assignments.length?att.assignments:[att&&att.orderId?{orderId:att.orderId,orderLabel:att.orderLabel||'',itemIndex:att.itemIndex||0,itemLabel:att.itemLabel||'',component:att.component||'',hours:att.hours||0}:{}]};
     });
 
 
 
     var hoursDisplays={};
     workers.forEach(function(w){
-      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:14px 16px;border-bottom:2px solid #e0e0e0;align-items:start;background:#fff';
+      var row=mk('div');row.style.cssText='display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 0.7fr 1.5fr 50px;gap:8px;padding:14px 16px;border-bottom:2px solid #e0e0e0;align-items:start;background:#fff';
       var nameCell=mk('div');nameCell.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';nameCell.textContent=w.name;
 
       // 12hr time selectors
@@ -4918,20 +4942,30 @@ function pgEmbroidery(){
 
       var inSel=mkTimeSelect('in',w.id,entries[w.id].inTime);
       var outSel=mkTimeSelect('out',w.id,entries[w.id].outTime);
+      var brkInSel=mkTimeSelect('brkin',w.id,entries[w.id].breakIn||'');
+      var brkOutSel=mkTimeSelect('brkout',w.id,entries[w.id].breakOut||'');
+      // Wrap break selectors with label
+      var brkWrap=mk('div');brkWrap.style.cssText='display:flex;flex-direction:column;gap:3px';
+      var brkInLbl=mk('div');brkInLbl.style.cssText='font-size:9px;color:#aaa;font-weight:600;text-transform:uppercase';brkInLbl.textContent='Start';
+      var brkOutLbl=mk('div');brkOutLbl.style.cssText='font-size:9px;color:#aaa;font-weight:600;text-transform:uppercase;margin-top:4px';brkOutLbl.textContent='End';
+      app(brkWrap,[brkInLbl,brkInSel,brkOutLbl,brkOutSel]);
 
       var hoursCell=mk('div');hoursCell.id='emb-hrs-'+w.id;hoursCell.style.cssText='font-size:13px;font-weight:700;color:#2D6B5E';
       hoursCell.textContent=entries[w.id].hours?entries[w.id].hours+'h':'—';
       hoursDisplays[w.id]=hoursCell;
 
-      // Update hours when time changes
+      // Update hours when time changes — applies break deduction
       function updateHrs(){
         var it=embGetTime24('in',w.id);var ot=embGetTime24('out',w.id);
-        var h=embCalcHours(it,ot);
+        var bi=embGetTime24('brkin',w.id);var bo=embGetTime24('brkout',w.id);
+        var h=embCalcHoursWithBreak(it,ot,bi,bo);
         var hc=document.getElementById('emb-hrs-'+w.id);
         if(hc)hc.textContent=h>0?h+'h':'—';
       }
       inSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
       outSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      brkInSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
+      brkOutSel.querySelectorAll('select').forEach(function(s){s.onchange=updateHrs;});
 
       // Present checkbox
       // Three-dropdown: Client (search) → Garment → Component
@@ -5169,7 +5203,7 @@ function pgEmbroidery(){
       }
       presentCell.appendChild(chk);
 
-      app(row,[nameCell,inSel,outSel,hoursCell,orderSel,presentCell]);
+      app(row,[nameCell,inSel,outSel,brkWrap,hoursCell,orderSel,presentCell]);
       card.appendChild(row);
     });
 
@@ -5184,8 +5218,10 @@ function pgEmbroidery(){
         if(present){
           var it=embGetTime24('in',w.id);
           var ot=embGetTime24('out',w.id);
+          var bi=embGetTime24('brkin',w.id);
+          var bo=embGetTime24('brkout',w.id);
           if(!it||!ot){errors.push(w.name+': please enter both in and out time');return;}
-          var hrs=embCalcHours(it,ot);
+          var hrs=embCalcHoursWithBreak(it,ot,bi,bo);
           if(hrs<=0){errors.push(w.name+': out time must be after in time');return;}
           // Read split assignments from hidden fields
           var orderIdEls=document.querySelectorAll('.emb-order-id-'+w.id);
@@ -5223,7 +5259,7 @@ function pgEmbroidery(){
           var firstAssign=assignments[0]||{};
           dbSave('embAttendance',{
             id:attId,workerId:w.id,workerName:w.name,date:date,
-            inTime:it,outTime:ot,hours:hrs,
+            inTime:it,outTime:ot,breakIn:bi,breakOut:bo,hours:hrs,
             orderId:firstAssign.orderId||'',
             orderLabel:firstAssign.orderLabel||'',
             itemIndex:firstAssign.itemIndex||0,
