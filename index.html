@@ -4993,11 +4993,28 @@ function pgEmbroidery(){
       // Break duration dropdown
       var brkField=mk('div');brkField.style.cssText='display:flex;flex-direction:column;gap:4px';
       var brkLbl=mk('div');brkLbl.style.cssText='font-size:11px;font-weight:600;color:#999';brkLbl.textContent='Break';
-      var brkOpts=[{value:'0',label:'No break'},{value:'15',label:'15 min'},{value:'30',label:'30 min'},{value:'45',label:'45 min'},{value:'60',label:'1 hr'}];
+      var brkOpts=[{value:'0',label:'No break'},{value:'15',label:'15 min'},{value:'30',label:'30 min'},{value:'45',label:'45 min'},{value:'60',label:'1 hr'},{value:'90',label:'1.5 hrs'},{value:'120',label:'2 hrs'},{value:'custom',label:'Custom…'}];
       var savedBrkMins=entries[w.id].breakMins;
-      var brkSel=mkSelect('brk-'+w.id,brkOpts,String(savedBrkMins));
+      var savedBrkStr=([0,15,30,45,60,90,120].indexOf(savedBrkMins)>-1)?String(savedBrkMins):'custom';
+      var brkSel=mkSelect('brk-'+w.id,brkOpts,savedBrkStr);
       brkSel.style.cssText='padding:5px 8px;font-size:13px;border:1px solid #ddd;border-radius:6px;color:#444';
-      app(brkField,[brkLbl,brkSel]);
+      // Custom minutes input (shown only when "Custom…" selected)
+      var brkCustomWrap=mk('div');brkCustomWrap.style.cssText='display:'+(savedBrkStr==='custom'?'flex':'none')+';align-items:center;gap:4px;margin-top:4px';
+      var brkCustomInp=mk('input');brkCustomInp.type='number';brkCustomInp.min='1';brkCustomInp.max='480';brkCustomInp.step='5';
+      brkCustomInp.id='brk-custom-'+w.id;
+      brkCustomInp.value=savedBrkStr==='custom'?savedBrkMins:'';
+      brkCustomInp.placeholder='mins';
+      brkCustomInp.style.cssText='width:60px;padding:5px 6px;font-size:13px;border:1px solid #ddd;border-radius:6px';
+      var brkCustomLbl=mk('span');brkCustomLbl.style.cssText='font-size:12px;color:#888';brkCustomLbl.textContent='mins';
+      app(brkCustomWrap,[brkCustomInp,brkCustomLbl]);
+      brkSel.onchange=function(){
+        var isCustom=this.value==='custom';
+        brkCustomWrap.style.display=isCustom?'flex':'none';
+        if(!isCustom){brkCustomInp.value='';}
+        updateHrs();
+      };
+      brkCustomInp.oninput=updateHrs;
+      app(brkField,[brkLbl,brkSel,brkCustomWrap]);
 
       app(timeRow,[inField,mkArrow(),outField,mkArrow(),brkField]);
 
@@ -5007,9 +5024,15 @@ function pgEmbroidery(){
       hoursDisplays[w.id]=hoursCell;
 
       // Update hours badge when time/break changes
+      function getBrkMins(wid){
+        var sel=document.getElementById('brk-'+wid);
+        if(!sel)return 30;
+        if(sel.value==='custom'){return parseInt((document.getElementById('brk-custom-'+wid)||{}).value||0)||0;}
+        return parseInt(sel.value)||0;
+      }
       function updateHrs(){
         var it=embGetTime24('in',w.id);var ot=embGetTime24('out',w.id);
-        var bm=parseInt((document.getElementById('brk-'+w.id)||{}).value||30);
+        var bm=getBrkMins(w.id);
         var h=embCalcHoursWithBreakMins(it,ot,bm);
         var badge=document.getElementById('emb-hrs-'+w.id);
         if(badge){
@@ -5270,7 +5293,8 @@ function pgEmbroidery(){
         if(present){
           var it=embGetTime24('in',w.id);
           var ot=embGetTime24('out',w.id);
-          var bm=parseInt((document.getElementById('brk-'+w.id)||{}).value||30);
+          var brkEl=document.getElementById('brk-'+w.id);
+          var bm=brkEl&&brkEl.value==='custom'?parseInt((document.getElementById('brk-custom-'+w.id)||{}).value||0)||0:parseInt((brkEl||{}).value||30);
           if(!it||!ot){errors.push(w.name+': please enter both in and out time');return;}
           var hrs=embCalcHoursWithBreakMins(it,ot,bm);
           if(hrs<=0){errors.push(w.name+': out time must be after in time');return;}
