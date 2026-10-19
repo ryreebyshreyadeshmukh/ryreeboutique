@@ -6137,7 +6137,11 @@ function pgDashboardAssistant(){
   var todayAppts=DB.appointments.filter(function(a){return a.date===today;});
   var weekEnd=new Date();weekEnd.setDate(weekEnd.getDate()+7);
   var weekEndStr=weekEnd.toISOString().split('T')[0];
+  var month30=new Date();month30.setDate(month30.getDate()+30);var month30Str=month30.toISOString().split('T')[0];
+  var week2End=new Date();week2End.setDate(week2End.getDate()+14);var week2Str=week2End.toISOString().split('T')[0];
   var dueThisWeek=DB.orders.filter(function(o){return o.delivery&&o.delivery>=today&&o.delivery<=weekEndStr&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+  var dueNextWeek=DB.orders.filter(function(o){return o.delivery&&o.delivery>weekEndStr&&o.delivery<=week2Str&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
+  var dueLater=DB.orders.filter(function(o){return o.delivery&&o.delivery>week2Str&&o.delivery<=month30Str&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
   var overdueDeliveries=DB.orders.filter(function(o){return o.delivery&&o.delivery<today&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;});
 
   // Find Sanika staff record
