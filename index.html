@@ -6402,11 +6402,24 @@ function pgDashboard(){
     app(right,[urgLbl,dt]);
     app(row,[left,mkBadge(o.status),right]);return row;
   }
-  function mkGrpHdr(label,count,color){
-    var h=mk('div');h.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#f7f7f7;border-bottom:1px solid #eee';
-    var l=mk('span');l.style.cssText='font-size:11px;font-weight:700;color:'+color+';letter-spacing:.04em';l.textContent=label;
-    var c=mk('span');c.style.cssText='font-size:11px;font-weight:700;color:'+color;c.textContent=String(count);
-    app(h,[l,c]);return h;
+  function mkDelGroup(label,count,color,orders,startOpen){
+    var grpWrap=mk('div');grpWrap.style.borderBottom='1px solid #eee';
+    var hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 16px;background:#f7f7f7;cursor:pointer;user-select:none';
+    var hLeft=mk('div');hLeft.style.cssText='display:flex;align-items:center;gap:8px';
+    var arrow=mk('span');arrow.style.cssText='font-size:10px;color:'+color+';transition:transform .15s;display:inline-block';arrow.textContent='▶';
+    var lbl=mk('span');lbl.style.cssText='font-size:11px;font-weight:700;color:'+color+';letter-spacing:.04em';lbl.textContent=label;
+    var cnt=mk('span');cnt.style.cssText='font-size:11px;font-weight:700;background:'+color+';color:#fff;border-radius:10px;padding:1px 7px';cnt.textContent=String(count);
+    app(hLeft,[arrow,lbl,cnt]);
+    var hint=mk('span');hint.style.cssText='font-size:11px;color:#bbb;font-style:italic';hint.textContent='tap to expand';
+    app(hdr,[hLeft,hint]);
+    var body=mk('div');body.style.display='none';
+    orders.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+      var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));body.appendChild(mkDeliveryRow(o,d));
+    });
+    function setOpen(open){body.style.display=open?'block':'none';arrow.style.transform=open?'rotate(90deg)':'';hint.style.display=open?'none':'inline';}
+    setOpen(startOpen||false);
+    hdr.onclick=function(){setOpen(body.style.display==='none');};
+    app(grpWrap,[hdr,body]);return grpWrap;
   }
 
   var totalDeliveries=overdueDeliveries.length+dueThisWeek.length+dueNextWeek.length+dueLater.length;
@@ -6416,26 +6429,10 @@ function pgDashboard(){
   if(!totalDeliveries){
     delCard.appendChild(mk('div','empty','No deliveries due in the next 30 days.'));
   } else {
-    if(overdueDeliveries.length){
-      delCard.appendChild(mkGrpHdr('OVERDUE',overdueDeliveries.length,'#991B1B'));
-      overdueDeliveries.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
-        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
-    }
-    if(dueThisWeek.length){
-      delCard.appendChild(mkGrpHdr('THIS WEEK',dueThisWeek.length,'#B45309'));
-      dueThisWeek.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
-        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
-    }
-    if(dueNextWeek.length){
-      delCard.appendChild(mkGrpHdr('NEXT WEEK',dueNextWeek.length,'#555'));
-      dueNextWeek.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
-        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
-    }
-    if(dueLater.length){
-      delCard.appendChild(mkGrpHdr('LATER THIS MONTH',dueLater.length,'#555'));
-      dueLater.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
-        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
-    }
+    if(overdueDeliveries.length) delCard.appendChild(mkDelGroup('OVERDUE',overdueDeliveries.length,'#991B1B',overdueDeliveries,false));
+    if(dueThisWeek.length)       delCard.appendChild(mkDelGroup('THIS WEEK',dueThisWeek.length,'#B45309',dueThisWeek,false));
+    if(dueNextWeek.length)       delCard.appendChild(mkDelGroup('NEXT WEEK',dueNextWeek.length,'#666',dueNextWeek,false));
+    if(dueLater.length)          delCard.appendChild(mkDelGroup('LATER THIS MONTH',dueLater.length,'#666',dueLater,false));
   }
   delSec.appendChild(delCard);
 
