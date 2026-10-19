@@ -6161,18 +6161,11 @@ function pgDashboardAssistant(){
   app(stats,[
     sc('Today appointments',todayAppts.length,'#2D6B5E'),
     sc('Due this week',dueThisWeek.length,dueThisWeek.length>0?'#B45309':'#888',dueThisWeek.length>0?'#FFFBEB':'#fff'),
-    sc('Overdue deliveries',overdueDeliveries.length,overdueDeliveries.length>0?'#991B1B':'#888',overdueDeliveries.length>0?'#FEF2F2':'#fff'),
+    sc('Overdue',overdueDeliveries.length,overdueDeliveries.length>0?'#991B1B':'#888',overdueDeliveries.length>0?'#FEF2F2':'#fff'),
     sc('My pending tasks',myTasks.length,myTasks.length>0?'#6D28D9':'#888',myTasks.length>0?'#F5F3FF':'#fff')
   ]);
   wrap.appendChild(stats);
 
-  // ── OVERDUE DELIVERIES ALERT ────────────────────────────────
-  if(overdueDeliveries.length>0){
-    var alert=mk('div');alert.style.cssText='background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:14px;cursor:pointer';
-    var at=mk('div');at.style.cssText='font-size:13px;font-weight:700;color:#991B1B';at.textContent=overdueDeliveries.length+' order'+(overdueDeliveries.length!==1?'s':'')+' past delivery date — inform Shreya';
-    alert.appendChild(at);alert.onclick=function(){nav('orders');};
-    wrap.appendChild(alert);
-  }
 
   // ── TODAY APPOINTMENTS ──────────────────────────────────────
   var apptSec=mk('div');apptSec.style.marginBottom='20px';
@@ -6198,37 +6191,85 @@ function pgDashboardAssistant(){
   }
   apptSec.appendChild(apptCard);
 
-  // ── DELIVERIES THIS WEEK ────────────────────────────────────
+  // ── DELIVERIES — full width, grouped ───────────────────────
   var delSec=mk('div');delSec.style.marginBottom='20px';
-  delSec.appendChild(mk('div','section-title','Deliveries due this week'));
+  var delHdrRow=mk('div');delHdrRow.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+  var delTitle=mk('div','section-title','Upcoming deliveries');delTitle.style.margin='0';
+  var allUpcoming=dueThisWeek.length+dueNextWeek.length+dueLater.length+overdueDeliveries.length;
+  var delCount=mk('div');delCount.style.cssText='font-size:12px;color:#888';delCount.textContent=allUpcoming+' order'+(allUpcoming!==1?'s':'');
+  app(delHdrRow,[delTitle,delCount]);
+  delSec.appendChild(delHdrRow);
+
   var delCard=mk('div','card-p0');
-  if(!dueThisWeek.length){
-    delCard.appendChild(mk('div','empty','No deliveries due this week.'));
-  } else {
-    dueThisWeek.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
-      var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+
+  function mkDeliveryRow(o,daysLeft){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var isOverdueRow=daysLeft<0;
+    var isUrgent=daysLeft>=0&&daysLeft<=2;
+    var bgColor=isOverdueRow?'#FFF8F8':isUrgent?'#FFFBEB':'#fff';
+    var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer;background:'+bgColor;
+    row.onclick=function(){nav('orders');};
+    var left=mk('div');
+    var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600;color:#1a1a1a';nm.textContent=cl?cl.name:'?';
+    var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa;margin-top:2px';sub.textContent=o.item+(o.orderNo?' · #'+o.orderNo:'');
+    app(left,[nm,sub]);
+    var right=mk('div');right.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:4px';
+    var dtColor=isOverdueRow?'#991B1B':isUrgent?'#B45309':'#2D6B5E';
+    var dtText=isOverdueRow?Math.abs(daysLeft)+'d overdue':daysLeft===0?'Due today':daysLeft===1?'Tomorrow':'In '+daysLeft+' days';
+    var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:700;color:'+dtColor;dt.textContent=dtText;
+    var dateStr=mk('div');dateStr.style.cssText='font-size:11px;color:#aaa';dateStr.textContent=fmtDate(o.delivery);
+    var st=mkBadge(o.status);
+    app(right,[dt,dateStr,st]);
+    app(row,[left,right]);
+    return row;
+  }
+
+  function mkGroupHeader(label,count,color){
+    var g=mk('div');g.style.cssText='padding:7px 16px;background:#f8f8f8;border-bottom:1px solid #efefef;display:flex;align-items:center;gap:8px';
+    var t=mk('span');t.style.cssText='font-size:11px;font-weight:700;color:'+(color||'#888');t.textContent=label;
+    var c=mk('span');c.style.cssText='font-size:11px;color:#bbb';c.textContent=count+' order'+(count!==1?'s':'');
+    app(g,[t,c]);return g;
+  }
+
+  var hasAny=false;
+  if(overdueDeliveries.length){
+    hasAny=true;
+    delCard.appendChild(mkGroupHeader('Overdue',overdueDeliveries.length,'#991B1B'));
+    overdueDeliveries.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
       var daysLeft=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));
-      var isUrgent=daysLeft<=2;
-      var row=mk('div');row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer'+(isUrgent?';background:#FFFBEB':'');
-      row.onclick=function(){nav('orders');};
-      var left=mk('div');
-      var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'?';
-      var sub=mk('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=o.item+(o.orderNo?' · '+o.orderNo:'');
-      app(left,[nm,sub]);
-      var right=mk('div');right.style.textAlign='right';
-      var dt=mk('div');dt.style.cssText='font-size:12px;font-weight:700;color:'+(isUrgent?'#B45309':'#2D6B5E');
-      dt.textContent=daysLeft===0?'Due today ('+fmtDate(o.delivery)+')':daysLeft===1?'Due tomorrow ('+fmtDate(o.delivery)+')':'Due '+fmtDate(o.delivery);
-      var st=mkBadge(o.status);right.appendChild(dt);right.appendChild(st);
-      app(row,[left,right]);delCard.appendChild(row);
+      delCard.appendChild(mkDeliveryRow(o,daysLeft));
     });
   }
+  if(dueThisWeek.length){
+    hasAny=true;
+    delCard.appendChild(mkGroupHeader('This week',dueThisWeek.length,'#B45309'));
+    dueThisWeek.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+      var daysLeft=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));
+      delCard.appendChild(mkDeliveryRow(o,daysLeft));
+    });
+  }
+  if(dueNextWeek.length){
+    hasAny=true;
+    delCard.appendChild(mkGroupHeader('Next week',dueNextWeek.length,'#555'));
+    dueNextWeek.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+      var daysLeft=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));
+      delCard.appendChild(mkDeliveryRow(o,daysLeft));
+    });
+  }
+  if(dueLater.length){
+    hasAny=true;
+    delCard.appendChild(mkGroupHeader('Later this month',dueLater.length,'#555'));
+    dueLater.sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+      var daysLeft=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));
+      delCard.appendChild(mkDeliveryRow(o,daysLeft));
+    });
+  }
+  if(!hasAny){delCard.appendChild(mk('div','empty','No upcoming deliveries in the next 30 days.'));}
   delSec.appendChild(delCard);
+  wrap.appendChild(delSec);
 
-  // Two col layout - appointments + deliveries
-  var col1=mk('div');col1.appendChild(apptSec);
-  var col2=mk('div');col2.appendChild(delSec);
-  var two=mk('div','two-col');app(two,[col1,col2]);
-  wrap.appendChild(two);
+  // Appointments — single col, compact
+  wrap.appendChild(apptSec);
 
   // ── MY TASKS ────────────────────────────────────────────────
   var taskSec=mk('div');taskSec.style.marginBottom='20px';
@@ -6330,8 +6371,74 @@ function pgDashboard(){
   var todayStr=new Date().toISOString().split('T')[0];
   var leadsDue=DB.leads.filter(function(l){return l.followUpDate&&l.followUpDate<=todayStr&&l.status!=='Converted'&&l.status!=='Cold';}).length;
   var collabOverdue=(DB.collabs||[]).filter(function(c){return c.status==='Active'&&c.returnDate&&c.returnDate<todayStr;}).length;
-  app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Today\'s appointments',todayA,'#2D6B5E'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
+  var overdueCount=DB.orders.filter(function(o){return o.delivery&&o.delivery<today&&['Pending','In Progress','Ready'].indexOf(o.status)>=0;}).length;
+  app(stats,[sc('Total clients',DB.clients.length),sc('Active orders',active,'#2D6B5E'),sc('Overdue',overdueCount,overdueCount>0?'#991B1B':'#888'),sc('Revenue collected',rupee(rev),'#C9A84C')]);
   
+  // ── DELIVERY DATES ──────────────────────────────────────────
+  var weekEnd=new Date();weekEnd.setDate(weekEnd.getDate()+7);
+  var weekEndStr=weekEnd.toISOString().split('T')[0];
+  var week2End=new Date();week2End.setDate(week2End.getDate()+14);var week2Str=week2End.toISOString().split('T')[0];
+  var month30=new Date();month30.setDate(month30.getDate()+30);var month30Str=month30.toISOString().split('T')[0];
+  var activeStatuses=['Pending','In Progress','Ready'];
+  var overdueDeliveries=DB.orders.filter(function(o){return o.delivery&&o.delivery<today&&activeStatuses.indexOf(o.status)>=0;});
+  var dueThisWeek=DB.orders.filter(function(o){return o.delivery&&o.delivery>=today&&o.delivery<=weekEndStr&&activeStatuses.indexOf(o.status)>=0;});
+  var dueNextWeek=DB.orders.filter(function(o){return o.delivery&&o.delivery>weekEndStr&&o.delivery<=week2Str&&activeStatuses.indexOf(o.status)>=0;});
+  var dueLater=DB.orders.filter(function(o){return o.delivery&&o.delivery>week2Str&&o.delivery<=month30Str&&activeStatuses.indexOf(o.status)>=0;});
+
+  function mkDeliveryRow(o,daysLeft){
+    var cl=DB.clients.find(function(x){return x.id===o.clientId;});
+    var row=mk('div');
+    var isOverdue=daysLeft<0;var isUrgent=daysLeft>=0&&daysLeft<=2;
+    row.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer;'+(isOverdue?'background:#FEF9F9;':isUrgent?'background:#FFFBF0;':'');
+    row.onclick=function(){nav('orders');};
+    var left=mk('div');left.style.flex='1';
+    var nm=mk('div');nm.style.cssText='font-size:13px;font-weight:600';nm.textContent=cl?cl.name:'?';
+    var sb=mk('div');sb.style.cssText='font-size:11px;color:#aaa';sb.textContent=o.item;
+    app(left,[nm,sb]);
+    var right=mk('div');right.style.textAlign='right';
+    var urgLbl=mk('div');urgLbl.style.cssText='font-size:12px;font-weight:700;'+(isOverdue?'color:#991B1B':isUrgent?'color:#B45309':'color:#2D6B5E');
+    urgLbl.textContent=isOverdue?Math.abs(daysLeft)+'d overdue':daysLeft===0?'Due today':daysLeft===1?'Tomorrow':'In '+daysLeft+' days';
+    var dt=mk('div');dt.style.cssText='font-size:11px;color:#aaa';dt.textContent=fmtDate(o.delivery);
+    app(right,[urgLbl,dt]);
+    app(row,[left,mkBadge(o.status),right]);return row;
+  }
+  function mkGrpHdr(label,count,color){
+    var h=mk('div');h.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:7px 16px;background:#f7f7f7;border-bottom:1px solid #eee';
+    var l=mk('span');l.style.cssText='font-size:11px;font-weight:700;color:'+color+';letter-spacing:.04em';l.textContent=label;
+    var c=mk('span');c.style.cssText='font-size:11px;font-weight:700;color:'+color;c.textContent=String(count);
+    app(h,[l,c]);return h;
+  }
+
+  var totalDeliveries=overdueDeliveries.length+dueThisWeek.length+dueNextWeek.length+dueLater.length;
+  var delSec=mk('div');delSec.style.marginBottom='24px';
+  delSec.appendChild(mk('div','section-title','Upcoming deliveries ('+totalDeliveries+')'));
+  var delCard=mk('div','card-p0');
+  if(!totalDeliveries){
+    delCard.appendChild(mk('div','empty','No deliveries due in the next 30 days.'));
+  } else {
+    if(overdueDeliveries.length){
+      delCard.appendChild(mkGrpHdr('OVERDUE',overdueDeliveries.length,'#991B1B'));
+      overdueDeliveries.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
+    }
+    if(dueThisWeek.length){
+      delCard.appendChild(mkGrpHdr('THIS WEEK',dueThisWeek.length,'#B45309'));
+      dueThisWeek.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
+    }
+    if(dueNextWeek.length){
+      delCard.appendChild(mkGrpHdr('NEXT WEEK',dueNextWeek.length,'#555'));
+      dueNextWeek.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
+    }
+    if(dueLater.length){
+      delCard.appendChild(mkGrpHdr('LATER THIS MONTH',dueLater.length,'#555'));
+      dueLater.slice().sort(function(a,b){return (a.delivery||'').localeCompare(b.delivery||'');}).forEach(function(o){
+        var d=Math.round((new Date(o.delivery)-new Date(today))/(1000*60*60*24));delCard.appendChild(mkDeliveryRow(o,d));});
+    }
+  }
+  delSec.appendChild(delCard);
+
   var oc=mk('div','card-p0');
   if(!recentO.length)oc.appendChild(mk('div','empty','No orders yet.'));
   else recentO.forEach(function(o){
@@ -6465,6 +6572,7 @@ function pgDashboard(){
     wrap.appendChild(briefAlert);
   }
   wrap.appendChild(stats);
+  wrap.appendChild(delSec);
   wrap.appendChild(two);
   wrap.appendChild(twSec);
   wrap.appendChild(bdaySection);
