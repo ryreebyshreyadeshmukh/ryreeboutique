@@ -11953,6 +11953,8 @@ function pgInvoices(){
     var waInvBtn=mkBtn('WhatsApp',(function(iobj){return function(){waMsgInvoice(iobj);};})(inv),'btn btn-xs');
     waInvBtn.style.cssText+='color:#25D366;border-color:#25D366';
     var printBtn=mkBtn('Print',(function(iid){return function(){printInvoice(iid);};})(invId),'btn btn-xs');
+    var brkBtn=mkBtn('Breakdown',(function(iid){return function(){printBreakdown(iid);};})(invId),'btn btn-xs');
+    brkBtn.style.cssText+='color:#7C3AED;border-color:#7C3AED';
 
     var delBtn=mk('button','btn-danger','Del');delBtn.style.padding='3px 8px';
     delBtn.setAttribute('data-iid',invId);
@@ -11964,7 +11966,7 @@ function pgInvoices(){
       dbDel('invoices',iid);
     };
 
-    app(acts,[viewBtn,editBtn,collectBtn,printBtn,delBtn]);
+    app(acts,[viewBtn,editBtn,collectBtn,printBtn,brkBtn,delBtn]);
 
     var balTd=mk('td');
     balTd.style.cssText='font-weight:700;color:'+(balance>0?'#991B1B':'#166534');
@@ -12384,6 +12386,123 @@ function printInvoice(id){
     })()
     +(inv.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+inv.notes+'</div>':'')
     +(inv.gstEnabled?'<div style="font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:4px">All amounts in INR &nbsp;|&nbsp; GST @ 5% applicable on each line item &nbsp;|&nbsp; GSTIN: '+(bizGstin||'—')+'</div>':'')
+    +'</body></html>';
+
+  var win=window.open('','_blank');
+  if(win){win.document.open();win.document.write(html);win.document.close();}
+  else alert('Allow popups to print.');
+}
+
+// ── PRICE BREAKDOWN SLIP (reference only, no legal standing) ─────────────
+function printBreakdown(id){
+  var inv=DB.invoices.find(function(x){return x.id===id;});if(!inv)return;
+  var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
+  var today=new Date(inv.date||Date.now()).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  var services=inv.services||[];
+
+  // Reconstruct ensemble-level items from split lines
+  // Split lines carry parentItem; group them back. Non-split lines are standalone.
+  var ensembles=[];
+  var seen={};
+  services.forEach(function(s){
+    if(s.parentItem){
+      // This is a split sub-line — group under parentItem
+      if(!seen[s.parentItem]){
+        seen[s.parentItem]=true;
+        // Sum all sub-lines for this parent
+        var total=services.filter(function(x){return x.parentItem===s.parentItem;})
+          .reduce(function(a,x){return a+Number(x.price||0);},0);
+        // Get delivery from first sub-line that has it
+        var delivery=services.filter(function(x){return x.parentItem===s.parentItem&&x.delivery;})[0];
+        delivery=delivery?delivery.delivery:'';
+        // Get notes from first sub-line (notes only on fabric line)
+        var notes=services.filter(function(x){return x.parentItem===s.parentItem&&x.itemNotes;})[0];
+        notes=notes?notes.itemNotes:'';
+        ensembles.push({name:s.parentItem,price:total,delivery:delivery,itemNotes:notes,isSplit:true});
+      }
+    } else {
+      // Client-fabric or old-style item — show as-is
+      ensembles.push({name:s.name,price:Number(s.price||0),delivery:s.delivery||'',itemNotes:s.itemNotes||'',isSplit:false});
+    }
+  });
+
+  var subtotal=ensembles.reduce(function(a,e){return a+e.price;},0);
+  var discAmt=Number(inv.discountAmt||0);
+  var finalTotal=subtotal-discAmt;
+
+  var gstCfgP=getGSTConfig();
+  var bizName=gstCfgP.legalName||'Ryree by Shreya Deshmukh';
+  var bizPhone=gstCfgP.businessPhone||'';
+  var bizEmail=gstCfgP.businessEmail||'';
+
+  var rowsHtml=ensembles.map(function(e,i){
+    return '<tr style="border-bottom:1px solid #f5f5f5">'
+      +'<td style="padding:12px 16px;font-size:13px;vertical-align:top">'
+        +'<div style="font-weight:700;color:#222">'+(i+1)+'. '+e.name+'</div>'
+        +(e.delivery?'<div style="font-size:11px;color:#999;margin-top:3px">Delivery by: '+e.delivery+'</div>':'')
+        +(e.itemNotes?'<div style="font-size:11px;color:#666;margin-top:5px;padding:5px 8px;background:#f9f9f9;border-radius:4px">'+e.itemNotes+'</div>':'')
+      +'</td>'
+      +'<td style="padding:12px 16px;text-align:right;font-size:14px;font-weight:700;vertical-align:top;white-space:nowrap">₹'+e.price.toLocaleString('en-IN')+'</td>'
+    +'</tr>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Price Breakdown — '+(cl?cl.name:inv.clientName||'Client')+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#222;padding:28px;font-size:13px;position:relative}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}'
+    // Watermark
+    +'@media print{body::before{content:"REFERENCE ONLY";position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:72px;font-weight:900;color:rgba(0,0,0,0.05);letter-spacing:.1em;pointer-events:none;z-index:0}}'
+    +'body::before{content:"REFERENCE ONLY";position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:72px;font-weight:900;color:rgba(0,0,0,0.05);letter-spacing:.1em;pointer-events:none;z-index:0}'
+    +'</style></head><body>'
+    +'<div class="no-print">'
+      +'<button onclick="window.print()" style="background:#7C3AED;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
+    +'</div>'
+    // Header
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid #7C3AED;margin-bottom:20px">'
+      +'<div>'
+        +'<div style="font-size:9px;color:#7C3AED;font-weight:700;letter-spacing:.12em;margin-bottom:3px">RYREE BY SHREYA DESHMUKH</div>'
+        +'<div style="font-size:20px;font-weight:900;color:#7C3AED">'+bizName+'</div>'
+        +((bizPhone||bizEmail)?'<div style="font-size:11px;color:#999;margin-top:4px">'+[bizPhone,bizEmail].filter(Boolean).join(' · ')+'</div>':'')
+      +'</div>'
+      +'<div style="text-align:right">'
+        +'<div style="font-size:20px;font-weight:900;color:#222;letter-spacing:.04em">PRICE BREAKDOWN</div>'
+        +'<div style="font-size:11px;color:#aaa;margin-top:3px">Ref: '+inv.invoiceNo+'</div>'
+        +'<div style="font-size:11px;color:#aaa;margin-top:1px">Date: '+today+'</div>'
+      +'</div>'
+    +'</div>'
+    // Disclaimer banner
+    +'<div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:6px;padding:8px 14px;margin-bottom:18px;font-size:11px;color:#92400E;font-weight:600;text-align:center;letter-spacing:.03em">'
+      +'⚠️ This document is for reference and information purposes only. It is NOT a tax invoice and has no legal or financial standing.'
+    +'</div>'
+    // Client
+    +'<div style="margin-bottom:18px">'
+      +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">PREPARED FOR</div>'
+      +'<div style="font-size:17px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>'
+      +((cl&&cl.phone)||inv.clientPhone?'<div style="font-size:12px;color:#777;margin-top:2px">'+((cl&&cl.phone)||inv.clientPhone)+'</div>':'')
+    +'</div>'
+    // Items table
+    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:18px">'
+      +'<thead><tr style="background:#7C3AED;color:#fff">'
+        +'<th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">ENSEMBLE / SERVICE</th>'
+        +'<th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:700;width:140px">AMOUNT</th>'
+      +'</tr></thead>'
+      +'<tbody>'+rowsHtml+'</tbody>'
+    +'</table>'
+    // Totals
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
+      +'<table style="width:280px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+        +(discAmt>0
+          ?'<tr style="background:#f9f9f9"><td style="padding:8px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">₹'+subtotal.toLocaleString('en-IN')+'</td></tr>'
+           +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Discount</td><td style="padding:8px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>'
+          :'')
+        +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:10px 14px;font-size:13px;font-weight:700">Total (ex-GST)</td><td style="padding:10px 14px;text-align:right;font-size:16px;font-weight:900;color:#7C3AED">₹'+finalTotal.toLocaleString('en-IN')+'</td></tr>'
+        +(inv.gstEnabled?'<tr><td colspan="2" style="padding:6px 14px;font-size:11px;color:#999;font-style:italic;text-align:center">+ 5% GST applicable on the above amount</td></tr>':'')
+      +'</table>'
+    +'</div>'
+    // Footer
+    +'<div style="border-top:1px solid #f0f0f0;padding-top:12px;font-size:10px;color:#bbb;text-align:center;line-height:1.8">'
+      +'This document is a price reference slip only. It does not constitute a tax invoice, receipt, or any legally binding document.<br>'
+      +'For your official invoice, please refer to Invoice No. <strong>'+inv.invoiceNo+'</strong>'
+    +'</div>'
     +'</body></html>';
 
   var win=window.open('','_blank');
@@ -12825,7 +12944,8 @@ function viewInvoice(id){
     mkBtn('Close',closeModal),
     mkBtn('Edit',function(){closeModal();setTimeout(function(){openEditInvoice(id);},100);},'btn btn-sm'),
     balance>0?mkBtn('+ Collect',function(){closeModal();setTimeout(function(){openInvoiceCollect(id);},100);},'btn btn-primary'):null,
-    mkBtn('Print',function(){printInvoice(id);},'btn btn-sm')
+    mkBtn('Print',function(){printInvoice(id);},'btn btn-sm'),
+    mkBtn('Breakdown',function(){printBreakdown(id);},'btn btn-sm')
   ].filter(Boolean)));
 
   showM(wrap);
