@@ -8055,6 +8055,28 @@ function openQuotationModal(id){
 
     var notesInp=mk('textarea','form-input');notesInp.value=svc.description||svc.itemNotes||'';notesInp.placeholder='Item description...';notesInp.className='quot-item-notes form-input';notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
 
+    // Fabric source toggle — determines GST treatment on invoice
+    var fabricRow=mk('div');fabricRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
+    var fabLabel=mk('span');fabLabel.style.cssText='font-size:11px;font-weight:600;color:#888;white-space:nowrap';fabLabel.textContent='Fabric source:';
+    var fabOpts=['Boutique fabric','Client fabric'];
+    var _fabSrc=svc.fabricSource||'Boutique fabric';
+    fabOpts.forEach(function(opt){
+      var btn=mk('button');btn.type='button';btn.className='quot-fab-opt';btn.setAttribute('data-val',opt);
+      btn.style.cssText='padding:4px 12px;border-radius:20px;border:1px solid #ccc;font-size:11px;cursor:pointer;transition:all .15s;'+(opt===_fabSrc?'background:#2D6B5E;color:#fff;border-color:#2D6B5E':'background:#fff;color:#555');
+      btn.onclick=function(){
+        fabricRow.querySelectorAll('.quot-fab-opt').forEach(function(b){b.style.background='#fff';b.style.color='#555';b.style.borderColor='#ccc';});
+        this.style.background='#2D6B5E';this.style.color='#fff';this.style.borderColor='#2D6B5E';
+        // Show split hint if boutique, hide if client
+        var hint=row.querySelector('.quot-split-hint');
+        if(hint)hint.style.display=(opt==='Boutique fabric')?'block':'none';
+      };
+      fabricRow.appendChild(btn);
+    });
+    // Hint text shown for boutique items
+    var splitHint=mk('div');splitHint.className='quot-split-hint';
+    splitHint.style.cssText='font-size:10px;color:#2D6B5E;font-style:italic;display:'+(_fabSrc==='Boutique fabric'?'block':'none');
+    splitHint.textContent='Will be split into 3 lines on invoice: Fabric (25%) + Embroidery (50%) + Stitching (25%)';
+
     // Images — load from orderImages if available
     var imgSlots=mk('div');imgSlots.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px';
     var imgLabel=mk('div');imgLabel.style.cssText='font-size:11px;color:#aaa;margin-bottom:4px';imgLabel.textContent='Reference images';
@@ -8079,7 +8101,7 @@ function openQuotationModal(id){
       }
     }
 
-    app(row,[top,mid,notesInp,imgLabel,imgSlots]);
+    app(row,[top,mid,fabricRow,splitHint,notesInp,imgLabel,imgSlots]);
     itemsWrap.appendChild(row);
   }
 
@@ -8144,14 +8166,39 @@ function openQuotationModal(id){
       mkBtn('Cancel',closeModal),
       mkBtn('Save',function(){
         var items2=[];
+        var boutiqueLargeWarn=false;
         itemsWrap.querySelectorAll('.quot-item-row').forEach(function(row){
           var name=(row.querySelector('.quot-item-name')||{}).value||'';
           var price=Number((row.querySelector('.quot-item-amount')||{}).value||0);
           var delivery=(row.querySelector('.quot-item-delivery')||{}).value||'';
           var notes=(row.querySelector('.quot-item-notes')||{}).value||'';
-          var description=notes; // same field, stored as description
-          if(name)items2.push({name:name,price:price,delivery:delivery,itemNotes:notes});
+          // Read fabricSource from active toggle button (check background via computed color)
+          var fabricSrc='Boutique fabric';
+          var allFabBtns=row.querySelectorAll('.quot-fab-opt');
+          allFabBtns.forEach(function(b){
+            var bg=b.style.background||b.style.backgroundColor||'';
+            // Active button has teal background — either hex or rgb form
+            if(bg==='#2D6B5E'||bg==='rgb(45, 107, 94)'||bg.indexOf('45, 107, 94')>=0||bg.indexOf('2D6B5E')>=0||bg.indexOf('2d6b5e')>=0){
+              fabricSrc=b.getAttribute('data-val')||'Boutique fabric';
+            }
+          });
+          if(!name)return;
+          if(fabricSrc==='Boutique fabric'){
+            // Warn if price > 2500 (would hit 18% HSN slab if not split)
+            if(price>2500)boutiqueLargeWarn=true;
+            // Auto-split into 3 sub-lines: 25% Fabric, 50% Embroidery, 25% Stitching
+            var p1=Math.round(price*0.25);
+            var p2=Math.round(price*0.50);
+            var p3=price-p1-p2; // absorbs rounding
+            items2.push({name:'Fabric, Dyeing & Fabric Treatment ('+name+')',price:p1,delivery:delivery,itemNotes:notes,hsnSac:'HSN 50-55',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
+            items2.push({name:'Embroidery / Hand Work ('+name+')',price:p2,delivery:delivery,itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
+            items2.push({name:'Stitching & Finishing ('+name+')',price:p3,delivery:delivery,itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
+          } else {
+            // Client fabric: single line, SAC 9988, 5% job work
+            items2.push({name:name,price:price,delivery:delivery,itemNotes:notes,hsnSac:'SAC 9988',gstRate:5,fabricSource:'Client fabric'});
+          }
         });
+        if(boutiqueLargeWarn)alert('⚠️ GST Split Note: One or more boutique-fabric ensembles exceed ₹2,500. Each has been automatically split into 3 lines (Fabric 25% + Embroidery 50% + Stitching 25%) at 5% GST each, as required. The quotation has been saved with these split lines.');
         if(!items2.length){alert('Add at least one item.');return;}
         clearModalDraft('quotation');
         dbSave('quotations',Object.assign({},q,{
@@ -8427,6 +8474,7 @@ function printQuotation(id){
            +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:9px 14px;color:#166534;font-size:13px">Discount'+(discType==='pct'?' ('+discVal+'%)':'')+' </td><td style="padding:9px 14px;text-align:right;color:#166534;font-weight:600">- ₹'+discAmt.toLocaleString('en-IN')+'</td></tr>'
           :'')
         +'<tr style="background:#e6f0ee;border-top:2px solid #2D6B5E"><td style="padding:10px 14px;font-weight:700;font-size:14px">Total</td><td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:#2D6B5E">₹'+total.toLocaleString('en-IN')+'</td></tr>'
+        +'<tr><td colspan="2" style="padding:7px 14px;font-size:11px;color:#888;font-style:italic;text-align:center">+ 5% GST applicable on the above amount</td></tr>'
       +'</table>'
     +'</div>'
     +(q.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+q.notes+'</div>':'')
@@ -12026,23 +12074,20 @@ function createInvoiceFromQuotation(qid){
         var taxableAmount=0,cgst=0,sgst=0,igst=0,gstRate=0;
 
         if(gstEnabled){
-          // GST-inclusive model: quoted price already includes GST
-          // Back-calculate taxable value from the inclusive total
+          // GST-exclusive model: quoted price is ex-GST; 5% GST added on top
           gstRate=5; // Fixed 5% GST (SAC 9988 — stitching/tailoring/embroidery services)
 
           var clientState=cl?cl.state||'27':'27';
           var interState=clientState!=='27'&&clientState!==(gstCfg.stateCode||'27');
-          // taxableAmount = total × 100/105, rounded to nearest rupee
-          total=Math.round(total); // ensure no paisa in the final payable amount
-          taxableAmount=Math.round(total*100/105);
-          var gstDiff=total-taxableAmount;
+          taxableAmount=Math.round(total); // quoted amount is the taxable base
+          var gstAmt=Math.round(taxableAmount*gstRate/100);
           if(interState){
-            igst=gstDiff;
+            igst=gstAmt;
           } else {
-            cgst=Math.floor(gstDiff/2);
-            sgst=gstDiff-cgst; // absorbs odd rupee; cgst+sgst+taxable = total exactly
+            cgst=Math.floor(gstAmt/2);
+            sgst=gstAmt-cgst; // absorbs odd rupee
           }
-          // total stays unchanged — client pays exactly the quoted price
+          total=taxableAmount+gstAmt; // client pays ex-GST + GST
 
           gstInvoiceNo=invoiceNo; // same sequential number, flagged as GST invoice
         }
@@ -12176,6 +12221,7 @@ function printInvoice(id){
   var discAmt=Number(inv.discountAmt||0);
   var subtotal=Number(inv.subtotal||total);
 
+  var hasGstItems=inv.gstEnabled&&services.some(function(s){return s.hsnSac||s.gstRate;});
   var itemsHtml=services.map(function(s,i){
     var imgHtml='';
     var imgs=[];
@@ -12186,38 +12232,78 @@ function printInvoice(id){
     if(!imgs.length&&s.refImages&&s.refImages.length)imgs=s.refImages;
     if(imgs.length){
       imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
-        +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:120px;height:120px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+        +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
         +'</div>';
     }
-    return '<tr style="border-bottom:1px solid #f0f0f0">'
-      +'<td style="padding:12px;font-size:13px;vertical-align:top">'
-        +'<div style="font-weight:700;font-size:14px;color:#222">'+(i+1)+'. '+s.name+'</div>'
-        +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
-        +(s.itemNotes?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
-        +imgHtml
-      +'</td>'
-      +'<td style="padding:12px;text-align:right;font-size:15px;font-weight:700;vertical-align:top;white-space:nowrap">'
-        +(s.price?'\u20b9'+Number(s.price).toLocaleString('en-IN'):'\u2014')
-      +'</td>'
-    +'</tr>';
+    var taxableV=Number(s.price||0);
+    var gstR=Number(s.gstRate||5);
+    var halfR=gstR/2;
+    var gstAmt=Math.round(taxableV*gstR/100);
+    var cgstV=Math.floor(gstAmt/2);
+    var sgstV=gstAmt-cgstV;
+    var lineTotal=taxableV+gstAmt;
+    var hsnCode=s.hsnSac||'SAC 9988';
+    if(hasGstItems){
+      // Per-line GST columns
+      return '<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
+          +'<div style="font-weight:700;font-size:13px;color:#222">'+(i+1)+'. '+s.name+'</div>'
+          +(s.delivery?'<div style="font-size:10px;color:#888;margin-top:2px">Delivery: '+s.delivery+'</div>':'')
+          +(s.itemNotes?'<div style="font-size:10px;color:#555;margin-top:4px;padding:4px 6px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
+          +imgHtml
+        +'</td>'
+        +'<td style="padding:10px 12px;text-align:center;font-size:12px;color:#666;vertical-align:top;white-space:nowrap">'+hsnCode+'</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;vertical-align:top;white-space:nowrap">\u20b9'+taxableV.toLocaleString('en-IN')+'</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:12px;color:#555;vertical-align:top;white-space:nowrap">\u20b9'+cgstV.toLocaleString('en-IN')+' ('+halfR+'%)</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:12px;color:#555;vertical-align:top;white-space:nowrap">\u20b9'+sgstV.toLocaleString('en-IN')+' ('+halfR+'%)</td>'
+        +'<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:700;vertical-align:top;white-space:nowrap">\u20b9'+lineTotal.toLocaleString('en-IN')+'</td>'
+      +'</tr>';
+    } else {
+      return '<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:12px;font-size:13px;vertical-align:top">'
+          +'<div style="font-weight:700;font-size:14px;color:#222">'+(i+1)+'. '+s.name+'</div>'
+          +(s.delivery?'<div style="font-size:11px;color:#888;margin-top:3px">Delivery by: '+s.delivery+'</div>':'')
+          +(s.itemNotes?'<div style="font-size:11px;color:#555;margin-top:6px;padding:6px 8px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
+          +imgHtml
+        +'</td>'
+        +'<td style="padding:12px;text-align:right;font-size:15px;font-weight:700;vertical-align:top;white-space:nowrap">'
+          +(s.price?'\u20b9'+Number(s.price).toLocaleString('en-IN'):'\u2014')
+        +'</td>'
+      +'</tr>';
+    }
   }).join('');
+
+  var gstCfgP=getGSTConfig();
+  var bizName=gstCfgP.legalName||'Ryree by Shreya Deshmukh';
+  var bizAddr=[gstCfgP.addr1,gstCfgP.addr2,gstCfgP.city,gstCfgP.state,gstCfgP.pin].filter(Boolean).join(', ');
+  var bizPhone=gstCfgP.businessPhone||'';
+  var bizEmail=gstCfgP.businessEmail||'';
+  var bizGstin=gstCfgP.gstin||'';
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice '+inv.invoiceNo+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#222;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
     +'<div class="no-print">'
-      +'<button onclick="window.print()" style="background:#222;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
+      +'<button onclick="window.print()" style="background:#2D6B5E;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;margin-right:8px">Print / Save PDF</button>'
       +'<button onclick="window.close()" style="background:#f0f0f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">Close</button>'
     +'</div>'
-    // Header
-    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2px solid #222;margin-bottom:20px">'
+    // Header — branding left, invoice meta right
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:22px">'
+      // Business branding
       +'<div>'
-        +'<div style="font-size:28px;font-weight:900;letter-spacing:-0.5px">INVOICE</div>'
-        +'<div style="font-size:13px;color:#666;margin-top:4px">No. '+inv.invoiceNo+'</div>'
-        +(inv.quotationNo?'<div style="font-size:11px;color:#aaa;margin-top:2px">Order ref: '+inv.quotationNo+'</div>':'')
+        +'<div style="font-size:9px;color:#2D6B5E;font-weight:700;letter-spacing:.12em;margin-bottom:3px">RYREE BY SHREYA DESHMUKH</div>'
+        +'<div style="font-size:22px;font-weight:900;color:#2D6B5E;letter-spacing:-0.3px">'+bizName+'</div>'
+        +(bizAddr?'<div style="font-size:11px;color:#777;margin-top:5px;line-height:1.5">'+bizAddr+'</div>':'')
+        +(bizPhone?'<div style="font-size:11px;color:#777;margin-top:2px">'+bizPhone+(bizEmail?' · '+bizEmail:'')+'</div>':bizEmail?'<div style="font-size:11px;color:#777;margin-top:2px">'+bizEmail+'</div>':'')
+        +(bizGstin?'<div style="font-size:11px;color:#777;margin-top:2px">GSTIN: '+bizGstin+'</div>':'')
       +'</div>'
+      // Invoice number + date
       +'<div style="text-align:right">'
-        +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em">DATE</div>'
-        +'<div style="font-size:14px;font-weight:700">'+today+'</div>'
+        +'<div style="font-size:26px;font-weight:900;letter-spacing:-0.5px;color:#222">INVOICE</div>'
+        +'<div style="font-size:13px;color:#666;margin-top:4px">No. <strong>'+inv.invoiceNo+'</strong></div>'
+        +(inv.gstInvoiceNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">GST Invoice No: '+inv.gstInvoiceNo+'</div>':'')
+        +(inv.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">Order Ref: '+inv.linkedOrderNo+'</div>':'')
+        +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em;margin-top:8px">DATE</div>'
+        +'<div style="font-size:13px;font-weight:700">'+today+'</div>'
       +'</div>'
     +'</div>'
     // Client
@@ -12225,47 +12311,79 @@ function printInvoice(id){
       +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">BILL TO</div>'
       +'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>'
       +((cl&&cl.phone)||inv.clientPhone?'<div style="font-size:13px;color:#666;margin-top:2px">'+((cl&&cl.phone)||inv.clientPhone)+'</div>':'')
+      +(inv.clientGstin?'<div style="font-size:11px;color:#888;margin-top:2px">GSTIN: '+inv.clientGstin+'</div>':'')
     +'</div>'
     // Items
-    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px">'
+    +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px;font-size:12px">'
       +'<thead><tr style="background:#222;color:#fff">'
-        +'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">DESCRIPTION</th>'
-        +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:130px">AMOUNT</th>'
+        +(hasGstItems
+          ?'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">DESCRIPTION</th>'
+           +'<th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;width:90px">HSN/SAC</th>'
+           +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:100px">TAXABLE VALUE</th>'
+           +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:90px">CGST</th>'
+           +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:90px">SGST</th>'
+           +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:90px">TOTAL</th>'
+          :'<th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em">DESCRIPTION</th>'
+           +'<th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;width:130px">AMOUNT</th>')
       +'</tr></thead>'
       +'<tbody>'+itemsHtml+'</tbody>'
     +'</table>'
     // Totals
     +(function(){
-      var cgst=Number(inv.cgst||0);
-      var sgst=Number(inv.sgst||0);
-      var gstRate=Number(inv.gstRate||0);
-      var hasGst=cgst>0||sgst>0;
-      var taxableVal=hasGst?(total-cgst-sgst):0;
-      var halfRate=gstRate/2;
+      var cgst=0,sgst=0,taxableVal=0;
+      if(hasGstItems){
+        // Compute totals from per-line GST amounts
+        services.forEach(function(s){
+          var tv=Number(s.price||0);
+          var gstR=Number(s.gstRate||5);
+          var gstA=Math.round(tv*gstR/100);
+          var c=Math.floor(gstA/2);
+          var sg=gstA-c;
+          taxableVal+=tv;
+          cgst+=c;
+          sgst+=sg;
+        });
+        // Add travel if any (5% GST on travel as misc service)
+        if(Number(inv.travelCharge||0)>0){
+          var tc=Number(inv.travelCharge);
+          var ta=Math.round(tc*5/100);
+          taxableVal+=tc;
+          cgst+=Math.floor(ta/2);
+          sgst+=ta-Math.floor(ta/2);
+        }
+      } else {
+        cgst=Number(inv.cgst||0);
+        sgst=Number(inv.sgst||0);
+        taxableVal=Number(inv.taxableAmount||0)||( (cgst>0||sgst>0)?(total-cgst-sgst):0 );
+      }
+      var hasGst=(cgst>0||sgst>0);
+      var halfRate=2.5; // always 2.5% CGST + 2.5% SGST for 5% GST
+      var grandTotal=hasGstItems?(taxableVal+cgst+sgst):total;
       return '<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
-        +'<table style="width:300px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
+        +'<table style="width:320px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
           +(discAmt>0
             ?'<tr style="background:#f9f9f9"><td style="padding:8px 14px;color:#888;font-size:13px">Subtotal</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+subtotal.toLocaleString('en-IN')+'</td></tr>'
              +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Discount</td><td style="padding:8px 14px;text-align:right;font-size:13px;color:#166534;font-weight:600">- \u20b9'+discAmt.toLocaleString('en-IN')+'</td></tr>'
             :'')
           +(hasGst
-            ?'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;color:#888;font-size:13px">Taxable Value</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+taxableVal.toLocaleString('en-IN')+'</td></tr>'
-             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">CGST ('+(halfRate)+'%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+cgst.toLocaleString('en-IN')+'</td></tr>'
-             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">SGST ('+(halfRate)+'%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+sgst.toLocaleString('en-IN')+'</td></tr>'
+            ?'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;color:#888;font-size:13px">Total Taxable Value</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+taxableVal.toLocaleString('en-IN')+'</td></tr>'
+             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">Total CGST (2.5%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+cgst.toLocaleString('en-IN')+'</td></tr>'
+             +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">Total SGST (2.5%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+sgst.toLocaleString('en-IN')+'</td></tr>'
             :'')
-          +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px;font-weight:600">Total'+(hasGst?' (incl. GST)':'')+'</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+total.toLocaleString('en-IN')+'</td></tr>'
+          +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px;font-weight:600">Grand Total'+(hasGst?' (incl. GST)':'')+'</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+grandTotal.toLocaleString('en-IN')+'</td></tr>'
           +(totalCollected>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Amount Collected</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+totalCollected.toLocaleString('en-IN')+'</td></tr>':'')
-          +'<tr style="background:'+(balance>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
-            +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balance>0?'Balance Due':'Paid in Full')+'</td>'
-            +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balance>0?'#c0392b':'#166534')+'">'
-              +(balance>0?'\u20b9'+balance.toLocaleString('en-IN'):'\u2713')
+          +(function(){var balanceHere=grandTotal-totalCollected;return '<tr style="background:'+(balanceHere>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
+            +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balanceHere>0?'Balance Due':'Paid in Full')+'</td>'
+            +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balanceHere>0?'#c0392b':'#166534')+'">'
+              +(balanceHere>0?'\u20b9'+balanceHere.toLocaleString('en-IN'):'\u2713')
             +'</td>'
-          +'</tr>'
+          +'</tr>';})()
+
         +'</table>'
       +'</div>';
     })()
     +(inv.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+inv.notes+'</div>':'')
-    +(inv.gstEnabled?'<div style="font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:4px">SAC Code: 9988 &nbsp;|&nbsp; Composite Supply — Tailoring &amp; Garment Making Services &nbsp;|&nbsp; GST @ 5% (incl.)</div>':'')
+    +(inv.gstEnabled?'<div style="font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:4px">All amounts in INR &nbsp;|&nbsp; GST @ 5% applicable on each line item &nbsp;|&nbsp; GSTIN: '+(bizGstin||'—')+'</div>':'')
     +'</body></html>';
 
   var win=window.open('','_blank');
