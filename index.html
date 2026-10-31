@@ -8055,28 +8055,6 @@ function openQuotationModal(id){
 
     var notesInp=mk('textarea','form-input');notesInp.value=svc.description||svc.itemNotes||'';notesInp.placeholder='Item description...';notesInp.className='quot-item-notes form-input';notesInp.rows=2;notesInp.style.cssText='width:100%;background:#fff;font-size:12px;resize:vertical';
 
-    // Fabric source toggle — determines GST treatment on invoice
-    var fabricRow=mk('div');fabricRow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px';
-    var fabLabel=mk('span');fabLabel.style.cssText='font-size:11px;font-weight:600;color:#888;white-space:nowrap';fabLabel.textContent='Fabric source:';
-    var fabOpts=['Boutique fabric','Client fabric'];
-    var _fabSrc=svc.fabricSource||'Boutique fabric';
-    fabOpts.forEach(function(opt){
-      var btn=mk('button');btn.type='button';btn.className='quot-fab-opt';btn.setAttribute('data-val',opt);
-      btn.style.cssText='padding:4px 12px;border-radius:20px;border:1px solid #ccc;font-size:11px;cursor:pointer;transition:all .15s;'+(opt===_fabSrc?'background:#2D6B5E;color:#fff;border-color:#2D6B5E':'background:#fff;color:#555');
-      btn.onclick=function(){
-        fabricRow.querySelectorAll('.quot-fab-opt').forEach(function(b){b.style.background='#fff';b.style.color='#555';b.style.borderColor='#ccc';});
-        this.style.background='#2D6B5E';this.style.color='#fff';this.style.borderColor='#2D6B5E';
-        // Show split hint if boutique, hide if client
-        var hint=row.querySelector('.quot-split-hint');
-        if(hint)hint.style.display=(opt==='Boutique fabric')?'block':'none';
-      };
-      fabricRow.appendChild(btn);
-    });
-    // Hint text shown for boutique items
-    var splitHint=mk('div');splitHint.className='quot-split-hint';
-    splitHint.style.cssText='font-size:10px;color:#2D6B5E;font-style:italic;display:'+(_fabSrc==='Boutique fabric'?'block':'none');
-    splitHint.textContent='Will be split into 3 lines on invoice: Fabric (25%) + Embroidery (50%) + Stitching (25%)';
-
     // Images — load from orderImages if available
     var imgSlots=mk('div');imgSlots.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-top:6px';
     var imgLabel=mk('div');imgLabel.style.cssText='font-size:11px;color:#aaa;margin-bottom:4px';imgLabel.textContent='Reference images';
@@ -8101,7 +8079,7 @@ function openQuotationModal(id){
       }
     }
 
-    app(row,[top,mid,fabricRow,splitHint,notesInp,imgLabel,imgSlots]);
+    app(row,[top,mid,notesInp,imgLabel,imgSlots]);
     itemsWrap.appendChild(row);
   }
 
@@ -8166,39 +8144,15 @@ function openQuotationModal(id){
       mkBtn('Cancel',closeModal),
       mkBtn('Save',function(){
         var items2=[];
-        var boutiqueLargeWarn=false;
         itemsWrap.querySelectorAll('.quot-item-row').forEach(function(row){
           var name=(row.querySelector('.quot-item-name')||{}).value||'';
           var price=Number((row.querySelector('.quot-item-amount')||{}).value||0);
           var delivery=(row.querySelector('.quot-item-delivery')||{}).value||'';
           var notes=(row.querySelector('.quot-item-notes')||{}).value||'';
-          // Read fabricSource from active toggle button (check background via computed color)
-          var fabricSrc='Boutique fabric';
-          var allFabBtns=row.querySelectorAll('.quot-fab-opt');
-          allFabBtns.forEach(function(b){
-            var bg=b.style.background||b.style.backgroundColor||'';
-            // Active button has teal background — either hex or rgb form
-            if(bg==='#2D6B5E'||bg==='rgb(45, 107, 94)'||bg.indexOf('45, 107, 94')>=0||bg.indexOf('2D6B5E')>=0||bg.indexOf('2d6b5e')>=0){
-              fabricSrc=b.getAttribute('data-val')||'Boutique fabric';
-            }
-          });
           if(!name)return;
-          if(fabricSrc==='Boutique fabric'){
-            // Warn if price > 2500 (would hit 18% HSN slab if not split)
-            if(price>2500)boutiqueLargeWarn=true;
-            // Auto-split into 3 sub-lines: 25% Fabric, 50% Embroidery, 25% Stitching
-            var p1=Math.round(price*0.25);
-            var p2=Math.round(price*0.50);
-            var p3=price-p1-p2; // absorbs rounding
-            items2.push({name:'Fabric, Dyeing & Fabric Treatment ('+name+')',price:p1,delivery:delivery,itemNotes:notes,hsnSac:'HSN 50-55',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
-            items2.push({name:'Embroidery / Hand Work ('+name+')',price:p2,delivery:delivery,itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
-            items2.push({name:'Stitching & Finishing ('+name+')',price:p3,delivery:delivery,itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:name});
-          } else {
-            // Client fabric: single line, SAC 9988, 5% job work
-            items2.push({name:name,price:price,delivery:delivery,itemNotes:notes,hsnSac:'SAC 9988',gstRate:5,fabricSource:'Client fabric'});
-          }
+          // Save as clean per-ensemble line — GST split happens only at invoice creation
+          items2.push({name:name,price:price,delivery:delivery,itemNotes:notes});
         });
-        if(boutiqueLargeWarn)alert('⚠️ GST Split Note: One or more boutique-fabric ensembles exceed ₹2,500. Each has been automatically split into 3 lines (Fabric 25% + Embroidery 50% + Stitching 25%) at 5% GST each, as required. The quotation has been saved with these split lines.');
         if(!items2.length){alert('Add at least one item.');return;}
         clearModalDraft('quotation');
         dbSave('quotations',Object.assign({},q,{
@@ -12048,9 +12002,41 @@ function createInvoiceFromQuotation(qid){
   var notesInp=mkInput('ci-notes','text','Optional notes on invoice');
   notesInp.value=q.notes||'';
 
+  // Per-item fabric source toggles — determines GST line splitting on invoice
+  var fabSrcWrap=mk('div');
+  fabSrcWrap.style.cssText='margin-bottom:4px';
+  var fabSrcLabel=mk('div');
+  fabSrcLabel.style.cssText='font-size:12px;font-weight:600;color:#555;margin-bottom:6px';
+  fabSrcLabel.textContent='Fabric Source (affects GST lines on invoice)';
+  fabSrcWrap.appendChild(fabSrcLabel);
+  services.forEach(function(svc,idx){
+    var itemRow=mk('div');
+    itemRow.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#f9f9f9;border-radius:6px;margin-bottom:4px;gap:8px';
+    var itemName=mk('span');
+    itemName.style.cssText='font-size:12px;color:#333;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    itemName.textContent=svc.name+(svc.price?' — '+rupee(Number(svc.price)):'');
+    var toggleWrap=mk('div');
+    toggleWrap.style.cssText='display:flex;gap:4px;flex-shrink:0';
+    ['Boutique fabric','Client fabric'].forEach(function(opt){
+      var btn=mk('button');btn.type='button';
+      btn.className='ci-fab-opt-'+idx;
+      btn.setAttribute('data-idx',idx);btn.setAttribute('data-val',opt);
+      var isActive=(opt==='Boutique fabric'); // default: boutique
+      btn.style.cssText='padding:3px 10px;border-radius:20px;border:1px solid #ccc;font-size:11px;cursor:pointer;transition:all .15s;'+(isActive?'background:#2D6B5E;color:#fff;border-color:#2D6B5E':'background:#fff;color:#555');
+      btn.onclick=function(){
+        document.querySelectorAll('.ci-fab-opt-'+idx).forEach(function(b){b.style.background='#fff';b.style.color='#555';b.style.borderColor='#ccc';});
+        this.style.background='#2D6B5E';this.style.color='#fff';this.style.borderColor='#2D6B5E';
+      };
+      toggleWrap.appendChild(btn);
+    });
+    app(itemRow,[itemName,toggleWrap]);
+    fabSrcWrap.appendChild(itemRow);
+  });
+
   app(wrap,[
     mkFg('Discount (optional)',discRow),
     (function(){var fg=mk('div','form-group');fg.appendChild(totalDisp);return fg;})(),
+    mkFg('Fabric Source per Item',fabSrcWrap),
     mkFg('Notes',notesInp),
     mkActions([
       mkBtn('Cancel',closeModal),
@@ -12062,36 +12048,57 @@ function createInvoiceFromQuotation(qid){
         var invoiceNo=getNextInvoiceNo(); // always use GST sequential format
         var notes=(document.getElementById('ci-notes')||{}).value||'';
 
-        // Build services with reference images from linked Order
-        var servicesWithImages=services.map(function(svc,idx){
+        // Build services applying fabric-source-based GST split
+        // Boutique fabric → 3 sub-lines (Fabric 25% HSN 50-55 + Embroidery 50% SAC 9988 + Stitching 25% SAC 9988)
+        // Client fabric → single line SAC 9988 5% job work
+        var splitServices=[];
+        services.forEach(function(svc,idx){
           var imgDoc=orderImages.find(function(img){return img.itemIndex===idx;});
           var images=imgDoc?(imgDoc.images||[imgDoc.base64||''].filter(Boolean)):[];
-          return Object.assign({},svc,{refImages:images});
+          // Read active fabric toggle for this item
+          var fabricSrc='Boutique fabric';
+          document.querySelectorAll('.ci-fab-opt-'+idx).forEach(function(b){
+            var bg=b.style.background||b.style.backgroundColor||'';
+            if(bg==='#2D6B5E'||bg==='rgb(45, 107, 94)'||bg.indexOf('45, 107, 94')>=0||bg.indexOf('2D6B5E')>=0||bg.indexOf('2d6b5e')>=0){
+              fabricSrc=b.getAttribute('data-val')||'Boutique fabric';
+            }
+          });
+          var price=Number(svc.price||0);
+          if(fabricSrc==='Boutique fabric'){
+            var p1=Math.round(price*0.25);
+            var p2=Math.round(price*0.50);
+            var p3=price-p1-p2; // absorbs rounding
+            splitServices.push(Object.assign({},svc,{name:'Fabric, Dyeing & Fabric Treatment ('+svc.name+')',price:p1,hsnSac:'HSN 50-55',gstRate:5,fabricSource:'Boutique fabric',parentItem:svc.name,refImages:images}));
+            splitServices.push({name:'Embroidery / Hand Work ('+svc.name+')',price:p2,delivery:'',itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:svc.name,refImages:[]});
+            splitServices.push({name:'Stitching & Finishing ('+svc.name+')',price:p3,delivery:'',itemNotes:'',hsnSac:'SAC 9988',gstRate:5,fabricSource:'Boutique fabric',parentItem:svc.name,refImages:[]});
+          } else {
+            splitServices.push(Object.assign({},svc,{hsnSac:'SAC 9988',gstRate:5,fabricSource:'Client fabric',refImages:images}));
+          }
         });
+        var servicesWithImages=splitServices;
 
-        // GST Calculation
+        // GST Calculation — sum from per-line amounts
         var gstCfg=getGSTConfig();
         var gstEnabled=!!gstCfg.gstEnabled;
         var gstInvoiceNo='';
         var taxableAmount=0,cgst=0,sgst=0,igst=0,gstRate=0;
 
         if(gstEnabled){
-          // GST-exclusive model: quoted price is ex-GST; 5% GST added on top
-          gstRate=5; // Fixed 5% GST (SAC 9988 — stitching/tailoring/embroidery services)
-
           var clientState=cl?cl.state||'27':'27';
           var interState=clientState!=='27'&&clientState!==(gstCfg.stateCode||'27');
-          taxableAmount=Math.round(total); // quoted amount is the taxable base
+          // Taxable base = discounted total (each split line's price sums back to ensemble price)
+          taxableAmount=Math.round(total);
+          // All split lines are at 5% — compute single consolidated GST amount
+          gstRate=5;
           var gstAmt=Math.round(taxableAmount*gstRate/100);
           if(interState){
             igst=gstAmt;
           } else {
             cgst=Math.floor(gstAmt/2);
-            sgst=gstAmt-cgst; // absorbs odd rupee
+            sgst=gstAmt-cgst;
           }
-          total=taxableAmount+gstAmt; // client pays ex-GST + GST
-
-          gstInvoiceNo=invoiceNo; // same sequential number, flagged as GST invoice
+          total=taxableAmount+gstAmt;
+          gstInvoiceNo=invoiceNo;
         }
 
         var inv={
