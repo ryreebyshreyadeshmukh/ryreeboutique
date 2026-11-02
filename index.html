@@ -12242,6 +12242,25 @@ function generateInvoiceFromQuotation(qid){
   alert('Invoice '+invoiceNo+' created! View it in the Invoices module.');
 }
 
+function amountInWords(n){
+  var a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  var b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function words(num){
+    if(num===0)return '';
+    if(num<20)return a[num]+' ';
+    if(num<100)return b[Math.floor(num/10)]+' '+(num%10?a[num%10]+' ':'');
+    if(num<1000)return a[Math.floor(num/100)]+' Hundred '+(num%100?words(num%100):'');
+    if(num<100000)return words(Math.floor(num/1000))+'Thousand '+(num%1000?words(num%1000):'');
+    if(num<10000000)return words(Math.floor(num/100000))+'Lakh '+(num%100000?words(num%100000):'');
+    return words(Math.floor(num/10000000))+'Crore '+(num%10000000?words(num%10000000):'');
+  }
+  var rupees=Math.floor(n);
+  var paise=Math.round((n-rupees)*100);
+  var result='Rupees '+words(rupees).trim();
+  if(paise>0)result+=' and '+words(paise).trim()+' Paise';
+  return result+' Only';
+}
+
 function printInvoice(id){
   var inv=DB.invoices.find(function(x){return x.id===id;});if(!inv)return;
   var cl=inv.clientId?DB.clients.find(function(x){return x.id===inv.clientId;}):null;
@@ -12255,35 +12274,54 @@ function printInvoice(id){
   var subtotal=Number(inv.subtotal||total);
 
   var hasGstItems=inv.gstEnabled&&services.some(function(s){return s.hsnSac||s.gstRate;});
+
+  // Pre-compute aggregate GST and distribute to lines so per-line totals sum exactly to Grand Total
+  var _aggTaxable=0;
+  services.forEach(function(s){_aggTaxable+=Number(s.price||0);});
+  var _aggGst=Math.round(_aggTaxable*5/100);
+  var _aggCgst=Math.floor(_aggGst/2);
+  var _aggSgst=_aggGst-_aggCgst;
+  // Distribute GST proportionally; last line absorbs any rounding remainder
+  var _cgstAssigned=0,_sgstAssigned=0;
+  var _lineGst=services.map(function(s,i){
+    if(i===services.length-1){
+      return {cgst:_aggCgst-_cgstAssigned,sgst:_aggSgst-_sgstAssigned};
+    }
+    var tv=Number(s.price||0);
+    var c=Math.round(_aggCgst*tv/_aggTaxable);
+    var sg=Math.round(_aggSgst*tv/_aggTaxable);
+    _cgstAssigned+=c;_sgstAssigned+=sg;
+    return {cgst:c,sgst:sg};
+  });
+
   var itemsHtml=services.map(function(s,i){
     var imgHtml='';
-    var imgs=[];
-    if(inv.linkedOrderId){
-      var imgDoc=DB.orderImages.find(function(img){return img.orderId===inv.linkedOrderId&&img.itemIndex===i;});
-      imgs=imgDoc?(imgDoc.images||[]):[];
-    }
-    if(!imgs.length&&s.refImages&&s.refImages.length)imgs=s.refImages;
-    if(imgs.length){
-      imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
-        +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
-        +'</div>';
+    // Suppress images on GST/tax invoices \u2014 not appropriate for B2B finance documents
+    if(!hasGstItems){
+      var imgs=[];
+      if(inv.linkedOrderId){
+        var imgDoc=DB.orderImages.find(function(img){return img.orderId===inv.linkedOrderId&&img.itemIndex===i;});
+        imgs=imgDoc?(imgDoc.images||[]):[];
+      }
+      if(!imgs.length&&s.refImages&&s.refImages.length)imgs=s.refImages;
+      if(imgs.length){
+        imgHtml='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+          +imgs.filter(Boolean).map(function(src){return '<img src="'+src+'" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e0e0e0"/>';}).join('')
+          +'</div>';
+      }
     }
     var taxableV=Number(s.price||0);
-    var gstR=Number(s.gstRate||5);
-    var halfR=gstR/2;
-    var gstAmt=Math.round(taxableV*gstR/100);
-    var cgstV=Math.floor(gstAmt/2);
-    var sgstV=gstAmt-cgstV;
-    var lineTotal=taxableV+gstAmt;
+    var halfR=2.5;
+    var cgstV=_lineGst[i].cgst;
+    var sgstV=_lineGst[i].sgst;
+    var lineTotal=taxableV+cgstV+sgstV;
     var hsnCode=s.hsnSac||'SAC 9988';
     if(hasGstItems){
-      // Per-line GST columns
       return '<tr style="border-bottom:1px solid #f0f0f0">'
         +'<td style="padding:10px 12px;font-size:13px;vertical-align:top">'
           +'<div style="font-weight:700;font-size:13px;color:#222">'+(i+1)+'. '+s.name+'</div>'
           +(s.delivery?'<div style="font-size:10px;color:#888;margin-top:2px">Delivery: '+s.delivery+'</div>':'')
           +(s.itemNotes?'<div style="font-size:10px;color:#555;margin-top:4px;padding:4px 6px;background:#f9f9f9;border-radius:4px">'+s.itemNotes+'</div>':'')
-          +imgHtml
         +'</td>'
         +'<td style="padding:10px 12px;text-align:center;font-size:12px;color:#666;vertical-align:top;white-space:nowrap">'+hsnCode+'</td>'
         +'<td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;vertical-align:top;white-space:nowrap">\u20b9'+taxableV.toLocaleString('en-IN')+'</td>'
@@ -12312,6 +12350,8 @@ function printInvoice(id){
   var bizPhone=gstCfgP.businessPhone||'';
   var bizEmail=gstCfgP.businessEmail||'';
   var bizGstin=gstCfgP.gstin||'';
+  // Pre-compute grandTotal here so amountInWords can use it in html string
+  var grandTotal=hasGstItems?(_aggTaxable+_aggCgst+_aggSgst):total;
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Invoice '+inv.invoiceNo+'</title>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#222;padding:28px;font-size:13px}table{width:100%;border-collapse:collapse}.no-print{margin-bottom:16px}@media print{.no-print{display:none}body{padding:16px}}</style></head><body>'
@@ -12333,7 +12373,6 @@ function printInvoice(id){
       +'<div style="text-align:right">'
         +'<div style="font-size:26px;font-weight:900;letter-spacing:-0.5px;color:#222">'+(hasGstItems?'TAX INVOICE':'INVOICE')+'</div>'
         +'<div style="font-size:13px;color:#666;margin-top:4px">No. <strong>'+inv.invoiceNo+'</strong></div>'
-        +(inv.gstInvoiceNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">GST Invoice No: '+inv.gstInvoiceNo+'</div>':'')
         +(inv.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">Order Ref: '+inv.linkedOrderNo+'</div>':'')
         +(hasGstItems?'<div style="font-size:11px;color:#aaa;margin-top:1px">Place of Supply: Maharashtra (27)</div>':'')
         +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em;margin-top:8px">DATE</div>'
@@ -12373,23 +12412,14 @@ function printInvoice(id){
     +'</table>'
     // Totals
     +(function(){
-      var cgst=0,sgst=0,taxableVal=0;
-      if(hasGstItems){
-        // Compute GST on aggregate taxable value to avoid per-line rounding drift
-        services.forEach(function(s){taxableVal+=Number(s.price||0);});
-        if(Number(inv.travelCharge||0)>0){taxableVal+=Number(inv.travelCharge);}
-        // Single GST calculation on total — eliminates ₹1 rounding error
-        var totalGst=Math.round(taxableVal*5/100);
-        cgst=Math.floor(totalGst/2);
-        sgst=totalGst-cgst;
-      } else {
+      var cgst=_aggCgst,sgst=_aggSgst,taxableVal=_aggTaxable;
+      if(!hasGstItems){
         cgst=Number(inv.cgst||0);
         sgst=Number(inv.sgst||0);
         taxableVal=Number(inv.taxableAmount||0)||( (cgst>0||sgst>0)?(total-cgst-sgst):0 );
       }
       var hasGst=(cgst>0||sgst>0);
-      var halfRate=2.5; // always 2.5% CGST + 2.5% SGST for 5% GST
-      var grandTotal=hasGstItems?(taxableVal+cgst+sgst):total;
+      var halfRate=2.5;
       return '<div style="display:flex;justify-content:flex-end;margin-bottom:20px">'
         +'<table style="width:320px;border-collapse:collapse;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden">'
           +(discAmt>0
@@ -12413,6 +12443,7 @@ function printInvoice(id){
         +'</table>'
       +'</div>';
     })()
+    +(hasGstItems?'<div style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:9px 14px;margin-bottom:16px;font-size:12px;color:#444"><strong>Amount in Words: </strong><em>'+amountInWords(grandTotal)+'</em></div>':'')
     +(inv.notes?'<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#555"><strong>Notes: </strong>'+inv.notes+'</div>':'')
     +(inv.gstEnabled?'<div style="font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;padding-top:10px;margin-top:4px">All amounts in INR &nbsp;|&nbsp; GST @ 5% applicable on each line item &nbsp;|&nbsp; GSTIN: '+(bizGstin||'—')+'</div>':'')
     +'</body></html>';
