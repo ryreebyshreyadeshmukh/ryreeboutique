@@ -3500,24 +3500,63 @@ function pgAppSettings(){
       card.appendChild(mkFg(f.label,mkInput('bs-'+f.id,'text',f.ph,f.val)));
     });
 
-    var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:4px';
+    // Logo upload
+    var logoFg=mk('div');logoFg.style.cssText='margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0';
+    var logoLabel=mk('div');logoLabel.style.cssText='font-size:12px;font-weight:600;color:#555;margin-bottom:6px';logoLabel.textContent='Business Logo (appears on invoices)';
+    var logoPreview=mk('img');logoPreview.id='bs-logo-preview';
+    logoPreview.style.cssText='width:64px;height:64px;object-fit:contain;border:1px solid #e0e0e0;border-radius:6px;display:'+(cfg.logoBase64?'block':'none')+';margin-bottom:8px';
+    if(cfg.logoBase64)logoPreview.src=cfg.logoBase64;
+    var logoInput=mk('input');logoInput.type='file';logoInput.accept='image/*';logoInput.id='bs-logo-input';
+    logoInput.style.cssText='font-size:12px;color:#555';
+    logoInput.onchange=function(){
+      var file=this.files[0];if(!file)return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var prev=document.getElementById('bs-logo-preview');
+        if(prev){prev.src=e.target.result;prev.style.display='block';}
+      };
+      reader.readAsDataURL(file);
+    };
+    var logoRemoveBtn=mkBtn('Remove Logo',function(){
+      var prev=document.getElementById('bs-logo-preview');if(prev){prev.src='';prev.style.display='none';}
+      var inp=document.getElementById('bs-logo-input');if(inp)inp.value='';
+      var cfg2=getGSTConfig();
+      dbSave('settings',Object.assign({},cfg2,{id:'config',logoBase64:''}));
+    },'btn btn-xs');
+    logoRemoveBtn.style.cssText+='color:#E24B4A;border-color:#E24B4A;margin-left:8px';
+    app(logoFg,[logoLabel,logoPreview,mk('div'),logoInput,logoRemoveBtn]);
+    card.appendChild(logoFg);
+
+    var err=mk('div');err.style.cssText='font-size:12px;color:#E24B4A;min-height:16px;margin-top:12px';
     var saveBtn=mkBtn('Save Business Profile',function(){
       var name=(document.getElementById('bs-legalName')||{}).value.trim();
       if(!name){err.textContent='Business name is required.';return;}
-      var updated=Object.assign({},cfg,{
-        id:'config',
-        legalName:name,
-        addr1:(document.getElementById('bs-addr1')||{}).value.trim(),
-        addr2:(document.getElementById('bs-addr2')||{}).value.trim(),
-        city:(document.getElementById('bs-city')||{}).value.trim(),
-        state:(document.getElementById('bs-state')||{}).value.trim(),
-        pin:(document.getElementById('bs-pin')||{}).value.trim(),
-        businessPhone:(document.getElementById('bs-phone')||{}).value.trim(),
-        businessEmail:(document.getElementById('bs-email')||{}).value.trim(),
-      });
-      dbSave('settings',updated);
-      err.style.color='#166534';err.textContent='Business profile saved!';
-      setTimeout(function(){err.textContent='';err.style.color='#E24B4A';},3000);
+      var logoInp=document.getElementById('bs-logo-input');
+      var logoFile=logoInp&&logoInp.files&&logoInp.files[0];
+      function doSave(logoB64){
+        var updated=Object.assign({},cfg,{
+          id:'config',
+          legalName:name,
+          addr1:(document.getElementById('bs-addr1')||{}).value.trim(),
+          addr2:(document.getElementById('bs-addr2')||{}).value.trim(),
+          city:(document.getElementById('bs-city')||{}).value.trim(),
+          state:(document.getElementById('bs-state')||{}).value.trim(),
+          pin:(document.getElementById('bs-pin')||{}).value.trim(),
+          businessPhone:(document.getElementById('bs-phone')||{}).value.trim(),
+          businessEmail:(document.getElementById('bs-email')||{}).value.trim(),
+        });
+        if(logoB64!==undefined)updated.logoBase64=logoB64;
+        dbSave('settings',updated);
+        err.style.color='#166534';err.textContent='Business profile saved!';
+        setTimeout(function(){err.textContent='';err.style.color='#E24B4A';},3000);
+      }
+      if(logoFile){
+        var reader=new FileReader();
+        reader.onload=function(e){doSave(e.target.result);};
+        reader.readAsDataURL(logoFile);
+      } else {
+        doSave(undefined);
+      }
     },'btn btn-primary');
 
     app(card,[err,saveBtn]);
@@ -12248,8 +12287,8 @@ function amountInWords(n){
   function words(num){
     if(num===0)return '';
     if(num<20)return a[num]+' ';
-    if(num<100)return b[Math.floor(num/10)]+' '+(num%10?a[num%10]+' ':'');
-    if(num<1000)return a[Math.floor(num/100)]+' Hundred '+(num%100?words(num%100):'');
+    if(num<100)return b[Math.floor(num/10)]+(num%10?' '+a[num%10]:'')+' ';
+    if(num<1000)return a[Math.floor(num/100)]+' Hundred'+(num%100?' and '+words(num%100):' ');
     if(num<100000)return words(Math.floor(num/1000))+'Thousand '+(num%1000?words(num%1000):'');
     if(num<10000000)return words(Math.floor(num/100000))+'Lakh '+(num%100000?words(num%100000):'');
     return words(Math.floor(num/10000000))+'Crore '+(num%10000000?words(num%10000000):'');
@@ -12362,16 +12401,18 @@ function printInvoice(id){
     // Header — branding left, invoice meta right
     +'<div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:3px solid #2D6B5E;margin-bottom:22px">'
       // Business branding
-      +'<div>'
-        +'<div style="font-size:9px;color:#2D6B5E;font-weight:700;letter-spacing:.12em;margin-bottom:3px">RYREE BY SHREYA DESHMUKH</div>'
+      +'<div style="display:flex;align-items:flex-start;gap:12px">'
+        +(gstCfgP.logoBase64?'<img src="'+gstCfgP.logoBase64+'" style="width:56px;height:56px;object-fit:contain;border-radius:6px;flex-shrink:0" />':'')
+        +'<div>'
         +'<div style="font-size:22px;font-weight:900;color:#2D6B5E;letter-spacing:-0.3px">'+bizName+'</div>'
         +(bizAddr?'<div style="font-size:11px;color:#777;margin-top:5px;line-height:1.5">'+bizAddr+'</div>':'')
         +(bizPhone?'<div style="font-size:11px;color:#777;margin-top:2px">'+bizPhone+(bizEmail?' · '+bizEmail:'')+'</div>':bizEmail?'<div style="font-size:11px;color:#777;margin-top:2px">'+bizEmail+'</div>':'')
         +(bizGstin?'<div style="font-size:11px;color:#777;margin-top:2px">GSTIN: '+bizGstin+'</div>':'')
+        +'</div>'
       +'</div>'
       // Invoice number + date
       +'<div style="text-align:right">'
-        +'<div style="font-size:26px;font-weight:900;letter-spacing:-0.5px;color:#222">'+(hasGstItems?'TAX INVOICE':'INVOICE')+'</div>'
+        +'<div style="font-size:20px;font-weight:900;letter-spacing:0.5px;color:#222;white-space:nowrap">'+(hasGstItems?'TAX INVOICE':'INVOICE')+'</div>'
         +'<div style="font-size:13px;color:#666;margin-top:4px">No. <strong>'+inv.invoiceNo+'</strong></div>'
         +(inv.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">Order Ref: '+inv.linkedOrderNo+'</div>':'')
         +(hasGstItems?'<div style="font-size:11px;color:#aaa;margin-top:1px">Place of Supply: Maharashtra (27)</div>':'')
