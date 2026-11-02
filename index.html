@@ -12331,10 +12331,11 @@ function printInvoice(id){
       +'</div>'
       // Invoice number + date
       +'<div style="text-align:right">'
-        +'<div style="font-size:26px;font-weight:900;letter-spacing:-0.5px;color:#222">INVOICE</div>'
+        +'<div style="font-size:26px;font-weight:900;letter-spacing:-0.5px;color:#222">'+(hasGstItems?'TAX INVOICE':'INVOICE')+'</div>'
         +'<div style="font-size:13px;color:#666;margin-top:4px">No. <strong>'+inv.invoiceNo+'</strong></div>'
         +(inv.gstInvoiceNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">GST Invoice No: '+inv.gstInvoiceNo+'</div>':'')
         +(inv.linkedOrderNo?'<div style="font-size:11px;color:#aaa;margin-top:1px">Order Ref: '+inv.linkedOrderNo+'</div>':'')
+        +(hasGstItems?'<div style="font-size:11px;color:#aaa;margin-top:1px">Place of Supply: Maharashtra (27)</div>':'')
         +'<div style="font-size:11px;color:#999;font-weight:700;letter-spacing:.05em;margin-top:8px">DATE</div>'
         +'<div style="font-size:13px;font-weight:700">'+today+'</div>'
       +'</div>'
@@ -12342,7 +12343,15 @@ function printInvoice(id){
     // Client
     +'<div style="margin-bottom:20px">'
       +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">BILL TO</div>'
-      +(inv.clientGstin&&(inv.clientBizName||(cl&&cl.bizName))?'<div style="font-size:18px;font-weight:700">'+(inv.clientBizName||(cl&&cl.bizName)||'')+'</div><div style="font-size:13px;color:#555;margin-top:1px">'+(cl?cl.name:inv.clientName||'Client')+'</div>':'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>')
+      +(function(){
+        var biz=inv.clientBizName||(cl&&cl.bizName)||'';
+        var contact=cl?cl.name:(inv.clientName||'');
+        if(inv.clientGstin&&biz){
+          var subline=(contact&&contact!==biz)?'<div style="font-size:13px;color:#555;margin-top:1px">'+contact+'</div>':'';
+          return '<div style="font-size:18px;font-weight:700">'+biz+'</div>'+subline;
+        }
+        return '<div style="font-size:18px;font-weight:700">'+(contact||'Client')+'</div>';
+      })()
       +((cl&&cl.phone)||inv.clientPhone?'<div style="font-size:13px;color:#666;margin-top:2px">'+((cl&&cl.phone)||inv.clientPhone)+'</div>':'')
       +((inv.clientAddress||(cl&&cl.address))?'<div style="font-size:12px;color:#666;margin-top:2px;white-space:pre-line">'+(inv.clientAddress||(cl&&cl.address)||'')+'</div>':'')
       +(inv.clientGstin?'<div style="font-size:11px;font-weight:700;color:#333;margin-top:3px;padding:2px 6px;background:#f0f0f0;display:inline-block;border-radius:4px">GSTIN: '+inv.clientGstin+'</div>':'')
@@ -12366,25 +12375,13 @@ function printInvoice(id){
     +(function(){
       var cgst=0,sgst=0,taxableVal=0;
       if(hasGstItems){
-        // Compute totals from per-line GST amounts
-        services.forEach(function(s){
-          var tv=Number(s.price||0);
-          var gstR=Number(s.gstRate||5);
-          var gstA=Math.round(tv*gstR/100);
-          var c=Math.floor(gstA/2);
-          var sg=gstA-c;
-          taxableVal+=tv;
-          cgst+=c;
-          sgst+=sg;
-        });
-        // Add travel if any (5% GST on travel as misc service)
-        if(Number(inv.travelCharge||0)>0){
-          var tc=Number(inv.travelCharge);
-          var ta=Math.round(tc*5/100);
-          taxableVal+=tc;
-          cgst+=Math.floor(ta/2);
-          sgst+=ta-Math.floor(ta/2);
-        }
+        // Compute GST on aggregate taxable value to avoid per-line rounding drift
+        services.forEach(function(s){taxableVal+=Number(s.price||0);});
+        if(Number(inv.travelCharge||0)>0){taxableVal+=Number(inv.travelCharge);}
+        // Single GST calculation on total — eliminates ₹1 rounding error
+        var totalGst=Math.round(taxableVal*5/100);
+        cgst=Math.floor(totalGst/2);
+        sgst=totalGst-cgst;
       } else {
         cgst=Number(inv.cgst||0);
         sgst=Number(inv.sgst||0);
