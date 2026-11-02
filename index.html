@@ -12971,12 +12971,39 @@ function viewInvoice(id){
   wrap.appendChild(payBox);
 
   // Actions
+  var withdrawBtn=null;
+  if(inv.status!=='Withdrawn'){
+    withdrawBtn=mkBtn('Withdraw',function(){
+      var invNo=inv.gstInvoiceNo||inv.invoiceNo||inv.id;
+      var pmtAmt=totalCollected>0?' Payments of '+rupee(totalCollected)+' will be carried over to the quotation for use on a new invoice.':'';
+      if(!confirm('Withdraw invoice '+invNo+'?'+pmtAmt+'\n\nThis cannot be undone.')){return;}
+      // Find linked quotation
+      var q=inv.quotationId?DB.quotations.find(function(x){return x.id===inv.quotationId;}):null;
+      // Mark invoice withdrawn
+      dbSave('invoices',Object.assign({},inv,{status:'Withdrawn',withdrawnAt:Date.now(),withdrawnReason:'Manually withdrawn'}));
+      // Carry payments to quotation and clear link
+      if(q){
+        dbSave('quotations',Object.assign({},q,{
+          linkedInvoiceId:null,
+          withdrawnInvoiceId:inv.id,
+          carriedOverPayments:inv.payments||[]
+        }));
+        if(totalCollected>0){alert('Invoice withdrawn. Payments of '+rupee(totalCollected)+' carried over — they will appear automatically on the next invoice created from this quotation.');}
+        else{alert('Invoice withdrawn. Create a new invoice from the quotation.');}
+      } else {
+        alert('Invoice withdrawn.');
+      }
+      closeModal();
+    },'btn btn-sm');
+    withdrawBtn.style.cssText+='color:#DC2626;border-color:#DC2626';
+  }
   wrap.appendChild(mkActions([
     mkBtn('Close',closeModal),
-    mkBtn('Edit',function(){closeModal();setTimeout(function(){openEditInvoice(id);},100);},'btn btn-sm'),
-    balance>0?mkBtn('+ Collect',function(){closeModal();setTimeout(function(){openInvoiceCollect(id);},100);},'btn btn-primary'):null,
+    inv.status!=='Withdrawn'?mkBtn('Edit',function(){closeModal();setTimeout(function(){openEditInvoice(id);},100);},'btn btn-sm'):null,
+    balance>0&&inv.status!=='Withdrawn'?mkBtn('+ Collect',function(){closeModal();setTimeout(function(){openInvoiceCollect(id);},100);},'btn btn-primary'):null,
     mkBtn('Print',function(){printInvoice(id);},'btn btn-sm'),
-    mkBtn('Breakdown',function(){printBreakdown(id);},'btn btn-sm')
+    mkBtn('Breakdown',function(){printBreakdown(id);},'btn btn-sm'),
+    withdrawBtn
   ].filter(Boolean)));
 
   showM(wrap);
