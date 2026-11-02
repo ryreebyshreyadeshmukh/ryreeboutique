@@ -1656,6 +1656,19 @@ function openClientModal(id){
   var ph=mkInput('m-phone','text','Phone',c?(c.phone||''):'');
   var em=mkInput('m-email','text','Email',c?(c.email||''):'');
   var no=mk('textarea','form-input');no.id='m-notes';no.rows=2;no.placeholder='Fitting notes...';if(c)no.value=c.notes||'';
+  var addrInp=mk('textarea','form-input');addrInp.id='m-address';addrInp.rows=2;addrInp.placeholder='Street, City, State, PIN (for GST invoices)';addrInp.value=c?(c.address||''):'';
+  var gstinInp=mkInput('m-gstin','text','e.g. 27ABCDE1234F1Z5',c?(c.gstin||''):'');
+  gstinInp.style.textTransform='uppercase';
+  var gstinErr=mk('div');gstinErr.style.cssText='font-size:11px;color:#E24B4A;min-height:14px;margin-top:2px';
+  gstinInp.oninput=function(){
+    var v=this.value.trim().toUpperCase();
+    this.value=v;
+    if(v.length===0){gstinErr.textContent='';}
+    else if(v.length!==15){gstinErr.textContent='GSTIN must be 15 characters ('+v.length+' entered)';}
+    else if(!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v)){gstinErr.textContent='Invalid GSTIN format';}
+    else{gstinErr.textContent='✓ Valid format';gstinErr.style.color='#2D6B5E';}
+  };
+  var bizNameInp=mkInput('m-bizname','text','Registered business name (if different)',c?(c.bizName||''):'');
   var wrap=mk('div');
   app(wrap,[
     mk('div','modal-title',(id?'Edit':'Add')+' client'),
@@ -1663,12 +1676,16 @@ function openClientModal(id){
     app(mk('div','form-row'),[mkFg('Phone',ph),mkFg('Email',em)]),
     mkFg('Notes',no),
     mkFg('Birthday (for reminders)',mkInput('m-bday','date','',c?(c.birthday||''):'')),
+    mkFg('Address (for GST invoices)',addrInp),
     app(mk('div','form-row'),[
       mkFg('State Code (for GST)',mkInput('m-state','text','e.g. 27',c?(c.state||'27'):'27')),
-      mkFg('GSTIN (optional)',mkInput('m-gstin','text','Client GSTIN',c?(c.gstin||''):'')),
+      (function(){var fg=mkFg('GSTIN (optional)',gstinInp);fg.appendChild(gstinErr);return fg;})(),
     ]),
+    mkFg('Registered Business Name (for B2B invoices)',bizNameInp),
     mkActions([mkBtn('Cancel',closeModal),mkBtn(id?'Save':'Add',function(){
       var name=document.getElementById('m-name').value.trim();if(!name)return;
+      var gv=(document.getElementById('m-gstin').value.trim()).toUpperCase();
+      if(gv&&gv.length!==15){alert('GSTIN must be exactly 15 characters.');return;}
       var ex=id?DB.clients.find(function(x){return x.id===id;}):null;
       clearModalDraft('client');
       dbSave('clients',{id:id||uid(),name:name,
@@ -1676,8 +1693,10 @@ function openClientModal(id){
         email:document.getElementById('m-email').value.trim(),
         notes:document.getElementById('m-notes').value.trim(),
         birthday:document.getElementById('m-bday').value,
+        address:document.getElementById('m-address').value.trim(),
         state:document.getElementById('m-state').value.trim()||'27',
-        gstin:document.getElementById('m-gstin').value.trim(),
+        gstin:gv,
+        bizName:document.getElementById('m-bizname').value.trim(),
         measurements:ex?(ex.measurements||{}):{}});
       closeModal();
     },'btn btn-primary')])
@@ -12111,7 +12130,9 @@ function createInvoiceFromQuotation(qid){
           linkedOrderNo:linkedOrder?linkedOrder.orderNo||'':'',
           clientId:q.clientId||'',
           clientName:cl?cl.name:q.clientName||'',
+          clientBizName:cl?cl.bizName||'':'',
           clientPhone:cl?(cl.phone||''):'',
+          clientAddress:cl?cl.address||'':'',
           clientState:cl?cl.state||'27':'27',
           clientGstin:cl?cl.gstin||'':'',
           date:now.toISOString().split('T')[0],
@@ -12192,8 +12213,11 @@ function generateInvoiceFromQuotation(qid){
     linkedOrderId:q.linkedOrderId||'',
     clientId:q.clientId||'',
     clientName:cl?cl.name:q.clientName||'',
+    clientBizName:cl?cl.bizName||'':'',
     clientPhone:cl?(cl.phone||''):q.clientPhone||'',
-    gstin:cl?(cl.gstin||''):'',
+    clientAddress:cl?cl.address||'':'',
+    clientState:cl?cl.state||'27':'27',
+    clientGstin:cl?cl.gstin||'':'',
     date:new Date().toISOString().split('T')[0],
     services:services,
     travelCharge:q.travelCharge||'',
@@ -12318,9 +12342,10 @@ function printInvoice(id){
     // Client
     +'<div style="margin-bottom:20px">'
       +'<div style="font-size:10px;color:#999;font-weight:700;letter-spacing:.07em;margin-bottom:4px">BILL TO</div>'
-      +'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>'
+      +(inv.clientGstin&&(inv.clientBizName||(cl&&cl.bizName))?'<div style="font-size:18px;font-weight:700">'+(inv.clientBizName||(cl&&cl.bizName)||'')+'</div><div style="font-size:13px;color:#555;margin-top:1px">'+(cl?cl.name:inv.clientName||'Client')+'</div>':'<div style="font-size:18px;font-weight:700">'+(cl?cl.name:inv.clientName||'Client')+'</div>')
       +((cl&&cl.phone)||inv.clientPhone?'<div style="font-size:13px;color:#666;margin-top:2px">'+((cl&&cl.phone)||inv.clientPhone)+'</div>':'')
-      +(inv.clientGstin?'<div style="font-size:11px;color:#888;margin-top:2px">GSTIN: '+inv.clientGstin+'</div>':'')
+      +((inv.clientAddress||(cl&&cl.address))?'<div style="font-size:12px;color:#666;margin-top:2px;white-space:pre-line">'+(inv.clientAddress||(cl&&cl.address)||'')+'</div>':'')
+      +(inv.clientGstin?'<div style="font-size:11px;font-weight:700;color:#333;margin-top:3px;padding:2px 6px;background:#f0f0f0;display:inline-block;border-radius:4px">GSTIN: '+inv.clientGstin+'</div>':'')
     +'</div>'
     // Items
     +'<table style="border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;margin-bottom:20px;font-size:12px">'
@@ -12380,7 +12405,7 @@ function printInvoice(id){
              +'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#555;font-size:13px">Total SGST (2.5%)</td><td style="padding:8px 14px;text-align:right;font-size:13px;font-weight:600">\u20b9'+sgst.toLocaleString('en-IN')+'</td></tr>'
             :'')
           +'<tr style="background:#f9f9f9;border-top:1px solid #e8e8e8"><td style="padding:8px 14px;font-size:13px;font-weight:600">Grand Total'+(hasGst?' (incl. GST)':'')+'</td><td style="padding:8px 14px;text-align:right;font-size:14px;font-weight:700">\u20b9'+grandTotal.toLocaleString('en-IN')+'</td></tr>'
-          +(totalCollected>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Amount Collected</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+totalCollected.toLocaleString('en-IN')+'</td></tr>':'')
+          +(totalCollected>0?'<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 14px;color:#166534;font-size:13px">Less: Advance Received</td><td style="padding:8px 14px;text-align:right;color:#166534;font-weight:600">- \u20b9'+totalCollected.toLocaleString('en-IN')+'</td></tr>':'')
           +(function(){var balanceHere=grandTotal-totalCollected;return '<tr style="background:'+(balanceHere>0?'#FEF2F2':'#F0FDF4')+';border-top:2px solid #222">'
             +'<td style="padding:10px 14px;font-weight:700;font-size:14px">'+(balanceHere>0?'Balance Due':'Paid in Full')+'</td>'
             +'<td style="padding:10px 14px;text-align:right;font-size:18px;font-weight:900;color:'+(balanceHere>0?'#c0392b':'#166534')+'">'
@@ -13104,6 +13129,21 @@ function openEditInvoice(id){
   wrap.appendChild(mkFg('T&C Template',tcRow));
   wrap.appendChild(termsTA);
 
+  // Client GSTIN override — for walk-in clients or when GSTIN wasn't on file at invoice creation
+  var gstinOvInp=mkInput('ei-client-gstin','text','e.g. 27ABCDE1234F1Z5',inv.clientGstin||(cl?cl.gstin||'':''));
+  gstinOvInp.style.textTransform='uppercase';
+  var gstinOvErr=mk('div');gstinOvErr.style.cssText='font-size:11px;color:#E24B4A;min-height:14px;margin-top:2px';
+  gstinOvInp.oninput=function(){
+    var v=this.value.trim().toUpperCase();this.value=v;
+    if(v.length===0){gstinOvErr.textContent='';}
+    else if(v.length!==15){gstinOvErr.textContent='GSTIN must be 15 characters ('+v.length+' entered)';}
+    else if(!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v)){gstinOvErr.textContent='Invalid GSTIN format';}
+    else{gstinOvErr.textContent='✓ Valid';gstinOvErr.style.color='#2D6B5E';}
+  };
+  var gstinOvFg=mkFg('Client GSTIN (for B2B invoice)',gstinOvInp);
+  gstinOvFg.appendChild(gstinOvErr);
+  wrap.appendChild(gstinOvFg);
+
   // Status
   var statusOpts=['Draft','Sent','Paid'].map(function(s){return {value:s,label:s};});
   var statusSel=mkSelect('ei-status',statusOpts,inv.status||'Draft');
@@ -13138,6 +13178,8 @@ function openEditInvoice(id){
       var da=discVal>0?(discType==='flat'?discVal:Math.round(sub*discVal/100)):0;
       var total=!hasPayments?sub-da:inv.total||0;
 
+      var newGstin=((document.getElementById('ei-client-gstin')||{}).value||'').trim().toUpperCase();
+      if(newGstin&&newGstin.length!==15){alert('GSTIN must be exactly 15 characters.');return;}
       dbSave('invoices',Object.assign({},inv,{
         services:items2,
         subtotal:sub,
@@ -13145,6 +13187,7 @@ function openEditInvoice(id){
         discountVal:discVal,
         discountAmt:da,
         total:total,
+        clientGstin:newGstin,
         notes:(document.getElementById('ei-notes')||{}).value||'',
         terms:(document.getElementById('ei-terms')||{}).value||'',
         status:(document.getElementById('ei-status')||{}).value||inv.status
